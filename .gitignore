@@ -1,0 +1,5 @@
+# Python venv / cache — the generator runs under a local venv with the Lokalise token.
+.venv-lokalise/
+__pycache__/
+*.pyc
+.DS_Store

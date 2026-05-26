@@ -1,0 +1,5 @@
+# Dependency for the Lokalise corpus generator (loc_corpus_ndjson.py).
+# System Python is PEP 668 externally-managed; install into a venv:
+#   python3 -m venv .venv-lokalise
+#   .venv-lokalise/bin/pip install -r requirements.txt
+python-lokalise-api==4.0.6

@@ -1,0 +1,36 @@
+{
+  "archived_count": 4,
+  "generated_at": "2026-05-26T20:19:58Z",
+  "key_count": 1192,
+  "languages": [
+    "ar",
+    "da",
+    "de",
+    "en",
+    "es",
+    "fr",
+    "hi",
+    "id",
+    "it",
+    "ja",
+    "ko",
+    "ms",
+    "nb",
+    "nl",
+    "pl",
+    "pt_BR",
+    "ru",
+    "sv",
+    "tr",
+    "vi",
+    "zh_CN"
+  ],
+  "platforms": [
+    "android",
+    "ios",
+    "other"
+  ],
+  "plural_count": 4,
+  "source_lang": "en",
+  "unverified_key_count": 0
+}
