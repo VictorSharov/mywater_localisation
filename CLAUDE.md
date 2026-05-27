@@ -88,6 +88,23 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   platforms + any existing description regardless of `dirty_meta`; to *clear* a
   description use `loc_apply_meta --clear-description` (the dirty path pushes an
   empty value).
+- **[CR-CORPUS-SOURCE-CHANGE] An `en` source edit obsoletes that key's translations.**
+  When you change a key's `en` value in a way that changes meaning, every existing
+  target translation now renders the *old* English and is stale. Do not leave stale
+  targets silently: in the same edit, blank every target you are not re-authoring right
+  now by setting it to `""` via `set_translation` / `loc_apply_lang` (empty is a valid
+  Lokalise value — present-but-blank). An emptied target is `dirty` (the importer pushes
+  it, so Lokalise shows the string as untranslated) and `unverified`; that
+  untranslated/unverified **target** state is the canonical cross-platform "needs
+  (re)translation" marker — the same `|R|` / `unverified` signal, carried by the target,
+  not the source ([CR-CORPUS-UNVERIFIED]) — and the release gate blocks on it. The `en`
+  source itself stays verified: **never** mark `en` `unverified`; its `dirty:[en]` flag
+  already means "source changed, push pending". Re-author only the languages the operator
+  explicitly asks for (§ Self-translation discipline); a re-authored target carries its
+  new value and stays `unverified` until human review. Net: an `en` change can never
+  ship old wording under new English — every target is either freshly re-authored
+  (`unverified`) or blanked (untranslated). A meaning-preserving `en` fix (typo, casing,
+  punctuation) does not obsolete the translations and does not require blanking.
 - **[CR-PLACEHOLDER] Universal placeholders.** Corpus values store **Lokalise
   universal placeholders** (`[%s]` / `[%i]` / `[%.1f]` / `[%1$s]`), never bare
   `%@` / `%d` / `%s`. Lokalise converts universal → platform on export; the
