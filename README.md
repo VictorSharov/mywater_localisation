@@ -95,9 +95,9 @@ duplicate.
 ## Conventions
 
 Linguistic / translation-quality rules (brand voice, register, calque
-discipline, punctuation) are canonical in the iOS repo
-`mywater_ios docs/LOCALIZATION.md § Translation discipline` and in
-`loc_audit_prompt.md`. The `|R|` marker that iOS `.strings` use for an
+discipline, punctuation, translator-context comments) are canonical in this repo:
+[`TRANSLATION_STYLE.md`](TRANSLATION_STYLE.md); `loc_audit_prompt.md`
+operationalizes them for the audit sub-agent. The `|R|` marker that iOS `.strings` use for an
 unverified source maps to the corpus `unverified` field; apply scripts mark an
 edited language `unverified` so AI/edited translations stay flagged for human /
 Lokalise review. Agent-facing rules: `CLAUDE.md`.

@@ -31,11 +31,19 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   `t`, sorted `unverified`, lean omission, compact separators are part of the
   contract.
 - **[CR-CORPUS-UNVERIFIED] Edited ⇒ unverified.** `set_translation` flags an
-  edited target language `unverified` (the corpus analog of the iOS `|R|`
-  marker's "AI/edited translation not yet human-verified" signal). Do **not**
-  clear `unverified` for AI-produced translations — that is a separate
+  edited target language `unverified`. This is the corpus end of one
+  cross-platform "AI/edited translation not yet human-verified" marker, and this
+  rule is its **canonical owner** — the three consuming repos thin-link here
+  instead of re-explaining it:
+    - corpus `strings.ndjson` — the `unverified` field (this repo);
+    - iOS `.strings` — the `|R|` prefix on a fresh `en.lproj` source
+      (`mywater_ios docs/LOCALIZATION.md`);
+    - server `resources/locale/*.json` — the `|R|` tag at the start of an
+      entry's `notes` (`mywater_server resources/locale/CLAUDE.md`).
+  All three mean the same thing and clear the same way: do **not** clear
+  `unverified` / strip `|R|` for AI-produced translations — that is a separate
   operator-/Lokalise-gated action. Filling, correcting, or re-translating keeps
-  the language `unverified`.
+  the marker set.
 - **[CR-SECRETS] Token discipline.** `LOKALISE_API_TOKEN` only via env, never as
   a CLI arg, and never printed to chat / logs / docs. Mutating commands
   (`loc_corpus_import`, `lokalise_helper`, unused tagging) are **dry-run by
@@ -71,15 +79,22 @@ translation), translate per-key with per-key reasoning, keep the language
 reasoning is an anti-pattern (caught by the audit as `awkward` / `calque` /
 `semantic-drift`).
 
-## Canonical linguistic rules live in iOS docs
+## Canonical linguistic rules live here
 
-Brand voice, register (T-/V-form), RU→EN reverse-calque, punctuation, em-dash and
-the per-language calibration are canonical in:
+Brand voice, register (T-/V-form / honorific), RU→EN reverse-calque, punctuation,
+em-dash, per-language specifics and the translator-context comment discipline are
+canonical **in this repo** (moved out of iOS so server / Android agents need not
+read iOS docs — the rules are cross-platform and live next to the corpus + tooling):
 
-- `mywater_ios docs/LOCALIZATION.md § Translation discipline` (cross-repo);
-- `loc_audit_prompt.md` (this repo) + `loc_audit_lang_calibration/<lang>.md`.
+- [`TRANSLATION_STYLE.md`](TRANSLATION_STYLE.md) — the cross-platform style /
+  linguistics canon (§ Translation discipline, § Brand voice, § Translator context);
+- `loc_audit_prompt.md` **operationalizes** it (flag / skip / severity) verbatim for
+  the audit sub-agent; `loc_audit_lang_calibration/<lang>.md` — per-language calibration.
 
-Do not fork these rules here — reference them.
+Consumers thin-link here, do **not** fork: iOS `mywater_ios docs/LOCALIZATION.md`,
+server `mywater_server resources/locale/CLAUDE.md`. Platform-specific *encoding*
+mechanics (iOS `.strings` / `|R|` / `R.swift`, server `notes`) stay in those platform
+docs; this canon owns *style and meaning* only.
 
 ## Verification
 
