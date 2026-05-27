@@ -65,6 +65,25 @@ except ImportError:
 DEFAULT_BASE_URL = "https://api.lokalise.com/api2"
 DEFAULT_ANDROID_REPO = Path("/Users/viktor/git/mywater_android")
 MAX_KEYS_LIMIT = 500
+# QA check categories accepted by the translations endpoint's `filter_qa_issues`
+# query param — the dashboard "warnings". `spelling_and_grammar` is the
+# LanguageTool spell/grammar bucket (needs linguistic judgement); the rest mostly
+# overlap what loc_placeholder_lint.py / loc_qa.py already enforce locally.
+QA_ISSUE_TYPES = (
+    "spelling_and_grammar",
+    "placeholders",
+    "html",
+    "url",
+    "url_count",
+    "email",
+    "email_count",
+    "brackets",
+    "numbers",
+    "leading_whitespace",
+    "trailing_whitespace",
+    "double_space",
+    "special_placeholder",
+)
 UNUSED_LOCALIZATION_TAG = "unused-localization"
 ANDROID_ONLY_TAG = "android_only"
 INSTALL_HINT = (
@@ -244,6 +263,44 @@ class LokaliseClient:
                 key_id = record.get("key_id")
                 if key_id is not None:
                     self._key_cache[int(key_id)] = record
+            if collection.has_next_cursor():
+                cursor = collection.next_cursor
+            else:
+                return out
+
+    def list_translations(
+        self,
+        *,
+        filter_qa_issues: list[str] | None = None,
+        filter_lang_id: int | None = None,
+        limit: int = MAX_KEYS_LIMIT,
+    ) -> list[dict[str, Any]]:
+        """List project translations, cursor-paginated. `filter_qa_issues` restricts
+        the result to translations Lokalise's QA flags for the given issue type(s)
+        (e.g. `spelling_and_grammar`) — the server-side equivalent of the dashboard
+        QA counts. The SDK's TranslationModel does not declare a `qa_issues`
+        attribute, but BaseModel keeps the whole response on `model.raw_data`, so any
+        per-translation QA detail the API returns is recovered by
+        `_translation_to_dict`."""
+        params: dict[str, Any] = {
+            "limit": min(max(limit, 1), MAX_KEYS_LIMIT),
+            "pagination": "cursor",
+            "disable_references": 1,
+        }
+        if filter_qa_issues:
+            params["filter_qa_issues"] = _csv(filter_qa_issues)
+        if filter_lang_id is not None:
+            params["filter_lang_id"] = filter_lang_id
+
+        out: list[dict[str, Any]] = []
+        cursor: str | None = None
+        while True:
+            page_params = dict(params)
+            if cursor:
+                page_params["cursor"] = cursor
+            collection = self._call(self._sdk.translations, self.project_path, page_params)
+            for model in collection.items:
+                out.append(_translation_to_dict(model))
             if collection.has_next_cursor():
                 cursor = collection.next_cursor
             else:
@@ -1130,6 +1187,21 @@ def _key_to_dict(model: Any) -> dict[str, Any]:
         "is_hidden": getattr(model, "is_hidden", None),
         "is_plural": getattr(model, "is_plural", None),
         "translations": getattr(model, "translations", None),
+    }
+
+
+def _translation_to_dict(model: Any) -> dict[str, Any]:
+    raw = getattr(model, "raw_data", None)
+    raw = raw if isinstance(raw, dict) else {}
+    return {
+        "translation_id": getattr(model, "translation_id", None),
+        "key_id": getattr(model, "key_id", None),
+        "language_iso": getattr(model, "language_iso", None),
+        "translation": getattr(model, "translation", None),
+        "is_unverified": getattr(model, "is_unverified", None),
+        "is_reviewed": getattr(model, "is_reviewed", None),
+        # The SDK model omits qa_issues; read it from the raw response when present.
+        "qa_issues": raw.get("qa_issues"),
     }
 
 

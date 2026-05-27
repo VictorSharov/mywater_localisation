@@ -40,7 +40,8 @@ The audit / translation / apply scripts (`loc_audit_*`, `loc_apply_lang`,
 `loc_merge_languages`, `loc_r_marked_translations`, `loc_placeholder_lint`,
 `loc_qa`) are **stdlib-only** and need no token — they only read / write
 `strings.ndjson`. Only
-the corpus generator, the importer, and the unused-key tagging touch Lokalise.
+the corpus generator, the importer, the QA-issues fetch, and the unused-key
+tagging touch Lokalise.
 
 ## Scripts
 
@@ -49,6 +50,7 @@ the corpus generator, the importer, and the unused-key tagging touch Lokalise.
 | `loc_corpus.py` | shared read/write/lookup lib + the single owner of corpus serialization (not a CLI) | — |
 | `loc_corpus_ndjson.py` | regenerate `strings.ndjson` (+ `strings.meta.json`) from Lokalise | yes |
 | `loc_corpus_import.py` | push corpus edits into Lokalise (dry-run default, `--apply`) | yes (`--apply`) |
+| `loc_qa_issues_fetch.py` | fetch Lokalise QA-flagged translations (`spelling_and_grammar` default; `--issue` for others) to `qa_issues.ndjson` for AI validation | yes |
 | `loc_audit_extract.py` | extract en+ru+`<lang>` audit batches from the corpus (opt. `--platform`) | — |
 | `loc_audit_apply.py` | apply validated audit findings into the corpus | — |
 | `loc_apply_lang.py` | apply a `{key:value}` map into the corpus (replace-only) | — |
@@ -67,6 +69,10 @@ Exact flags live in each script's `--help` / docstring (the canonical owner).
 ```bash
 # Regenerate the corpus from Lokalise (token holder; commit + push the result):
 .venv-lokalise/bin/python loc_corpus_ndjson.py
+
+# Fetch Lokalise QA warnings (spelling/grammar by default) for AI validation (token holder):
+.venv-lokalise/bin/python loc_qa_issues_fetch.py
+.venv-lokalise/bin/python loc_qa_issues_fetch.py --issue spelling_and_grammar --issue placeholders
 
 # Audit a language (reads the corpus; no token):
 python3 loc_audit_extract.py de 1 200 /tmp/loc_audit_de_001.txt
@@ -106,7 +112,7 @@ each platform's bundle must end up as:
 |---|---|---|---|---|
 | iOS | `.strings` + `.stringsdict` | iOS (`[%s]`→`%@`, `[%i]`→`%li`) | `.stringsdict` | `<lang>.lproj/Localizable.strings` |
 | Android | XML | printf (`[%s]`→`%s`, `[%i]`→`%d`) | `<plurals>` | `values-<lang>/strings.xml` |
-| server | JSON (i18next / ICU) | `{{…}}` / `{…}` | ICU / i18next | `resources/locale/<lang>.json` |
+| server (`web`) | JSON `{translation, notes}` | none today (printf if ever, not i18next) | none today | `resources/locale/<lang>.json` |
 
 - **Placeholder conversion is automatic on export** from the universal form
   ([CR-PLACEHOLDER] / `TRANSLATION_STYLE.md § Placeholders`) — the export just
@@ -292,10 +298,38 @@ grep -rln '%@\|%#@' .                                   # empty -> no iOS-only f
 grep -rl '<plurals' . | head                            # plurals present as native <plurals>
 ```
 
-### server — JSON  *(TODO)*
+### server — JSON  *(format locked; export settings TODO until `web` keys are migrated)*
 
-Not yet finalized — fill after the server export pass. Target:
-`resources/locale/<lang>.json`, i18next / ICU.
+Lokalise platform: **`web`** (Lokalise has no "server" platform). Target file:
+`resources/locale/<lang>.json` in the server's bespoke shape
+`{ "<key>": { "translation": "…", "notes": "…" } }` — verified against the live
+runtime (`mywater_server src/Service/LocalizationService.php`, which reads only
+`translation` and also tolerates a flat `{key: "value"}`).
+
+**Status (2026-05): not yet exportable.** Server runtime keys are not in the
+corpus/Lokalise yet — no key carries the `web` platform and `strings.meta.json`
+platforms are `[android, ios, other]`. Migrating the existing
+`resources/locale/*.json` keys into Lokalise under `web` is a separate task;
+finalize the download settings after that pass.
+
+Locked decisions:
+- **Format:** keep `{translation, notes}`. A flat Lokalise JSON would also run
+  (the runtime accepts a flat scalar), but the server keeps `notes` for
+  translator context, so the export needs a structured-JSON template (or a
+  post-export converter) that emits `{translation, notes}` — not a flat dump.
+- **Placeholder format:** server strings have **no placeholders** today; if one
+  is ever introduced it is **printf** (PHP `sprintf`), never i18next `{{…}}` /
+  ICU `{…}`. Pin the export to printf, not "raw".
+- **Languages:** 20. `ar` is intentionally **excluded** — the server ships no
+  `ar.json`, `ar` requests fall back to `en` (`mywater_server`
+  `AL-I18N-ARABIC-UNTESTED`). Corpus codes are not the server filenames: map on
+  download `es → es_ES.json`; the other 19 (incl. `pt_BR`, `zh_CN`) are 1:1
+  `<code>.json`. Server filenames use `_` (underscore) and are a runtime
+  contract — do not rename.
+- **`|R|` / unverified:** dev-only. A pre-release export may carry untranslated
+  en-only keys for layout / QA, but a **production** server release requires
+  every key translated in all 20 locales and `|R|` cleared (same release gate as
+  iOS / Android above).
 
 ## Conventions
 

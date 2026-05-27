@@ -107,9 +107,60 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   `strings.ndjson` in place; replace-only (an unknown key is reported, not
   appended). Plural keys are CLDR-forms maps in `t`; flat-string apply paths skip
   them.
-- **New source strings** are added to the corpus directly (visible to every
-  platform) and created in Lokalise by `loc_corpus_import` (records without a
-  `key_id` → create). Do not add new keys via the audit-findings path.
+- **New source strings / new keys** — see `§ Adding a new key (every platform)`
+  below for the full flow.
+
+## Adding a new key (every platform)
+
+Canonical cross-platform flow for introducing a new string — iOS, Android and
+server all follow it; each platform doc thin-links here and adds only its own
+*encoding* mechanics, not a forked copy. One principle: **a word is born in the
+corpus; the platform repo carries only a throwaway, source-language-only compile
+scaffold; the Lokalise export reconciles it and fans out every language.** No
+platform re-implements placeholder or plural conversion — Lokalise owns that on
+export ([CR-PLACEHOLDER]).
+
+1. **Reuse-search first** (corpus-wide) — `rg` / `jq` the flat `en` in
+   `strings.ndjson`. A key already on another platform is reused by adding the
+   missing platform (in Lokalise and in the record's `platforms`), never duplicated.
+2. **Add the source to the corpus**, through `loc_corpus.write_records` (or a thin
+   constructor) — never hand-edit the ndjson ([CR-CORPUS-OWNER]). One new record:
+   `key`, `platforms` (the consuming platforms), `t.en`.
+   - Non-plural: `t.en` is a string in **universal placeholders** (`[%s]` / `[%i]`
+     / `[%.1f]` / `[%]`), never a bare `%@` / `%d` / `%s`. Author the universal form
+     directly — there is no "convert from a platform string" step, so there is no
+     converter to get wrong.
+   - Plural: `t.en` is a CLDR-forms map (`{"one":…,"other":…}`) so the key is a
+     Lokalise plural. Do **not** hand-write any platform's native plural file.
+   - Review `git diff -- strings.ndjson`; `loc_placeholder_lint.py` + `loc_qa.py`
+     (token-free, also pre-flights in `loc_corpus_import`) catch placeholder /
+     hygiene mistakes before import.
+3. **Compile scaffold — platform-specific, source-language-only, throwaway.** So
+   platform code compiles and can be laid out before the round-trip, the platform
+   repo adds the new key in its source-language file only; the export overwrites it
+   later from the corpus. Encoding lives in each platform doc:
+   - iOS — `en.lproj/Localizable.strings` line with the `|R|` prefix (native iOS
+     placeholders); a plural adds one rule in `en.lproj/Localizable.stringsdict`.
+     `mywater_ios docs/LOCALIZATION.md § Rules for AI`.
+   - Android / server — wire up the encoding when those platforms adopt this flow.
+   Source-language-only by design: a platform's other-language files must not be
+   hand-filled — it collides with the `|R|` / `unverified` discipline and the export
+   produces them correctly.
+4. **Round-trip — operator (token holder).** `loc_corpus_import.py --apply` creates
+   the key in Lokalise (records without `key_id` → create) and stamps the new
+   `key_id` back into the corpus — **commit the corpus** so a re-run updates instead
+   of re-creating. Then translate / verify (audit sub-agent), and the operator runs
+   the per-platform export (README § Export from Lokalise) and commits the platform
+   bundle, which replaces the scaffold and fans out every language. A new key (a new
+   typed accessor) needs the platform's own release to appear; the export only
+   updates values for keys already shipped.
+5. **Translator-context for the new key** goes into Lokalise (UI or
+   `lokalise_helper.py`) — `loc_corpus_import` does **not** push `context`, and the
+   keys-API path does not ingest platform-file comments. The corpus `context` field
+   is populated *from* Lokalise on regenerate, not the other way round.
+
+Do not add new keys via the audit-findings path — `loc_audit_apply` /
+`loc_apply_lang` are replace-only (an unknown key is reported, not appended).
 
 ## Self-translation discipline
 
