@@ -463,6 +463,18 @@ def build_parser() -> argparse.ArgumentParser:
     update_parser.add_argument("--apply", action="store_true", help="Execute the update. Without this, prints a dry-run plan.")
     update_parser.set_defaults(func=cmd_update_key)
 
+    rename_parser = subparsers.add_parser(
+        "rename-keys",
+        help="Bulk-rename keys to one global valid key_name each (from a {key_id,new_name} map).",
+    )
+    rename_parser.add_argument(
+        "--map-file", type=Path, required=True,
+        help='JSON array of {"key_id": int, "new_name": str} objects. Extra fields '
+             '(e.g. "old"/"platforms") are ignored, so a generated mapping works as-is.',
+    )
+    rename_parser.add_argument("--apply", action="store_true", help="Execute the rename. Without this, prints a dry-run plan.")
+    rename_parser.set_defaults(func=cmd_rename_keys)
+
     create_parser = subparsers.add_parser("create-keys", help="Create keys from JSON using Lokalise create-keys endpoint.")
     create_parser.add_argument("--keys-file", type=Path, required=True, help="JSON file containing an array of key payloads or {'keys': [...]} object.")
     automations_group = create_parser.add_mutually_exclusive_group()
@@ -713,6 +725,84 @@ def cmd_create_keys(client: LokaliseClient, args: argparse.Namespace) -> int:
     result = client.create_keys(keys, use_automations=use_automations)
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
+
+
+VALID_KEY_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+
+
+def cmd_rename_keys(client: LokaliseClient, args: argparse.Namespace) -> int:
+    """Bulk-rename keys to one global, valid-everywhere key_name each.
+
+    Reads a JSON array of {"key_id": int, "new_name": str}; extra fields (e.g.
+    "old"/"platforms" from a generated mapping) are ignored. Setting key_name to a
+    string replaces any per-platform names with one global name — the point is a
+    single canonical key valid on every platform (Android-strict
+    [A-Za-z][A-Za-z0-9_]*), so no platform's export sanitizer silently diverges it.
+    Lokalise-side only: the corpus has no key rename op — it picks up the new names
+    on the next regenerate (key_id is stable). Dry-run by default; --apply pushes via
+    the bulk update-keys endpoint then re-reads to confirm each name took."""
+    payload = read_json_file(args.map_file)
+    if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
+        raise LokaliseError("--map-file must contain a JSON array of {key_id, new_name} objects.")
+
+    plans: list[tuple[int, str | None, str]] = []
+    seen_ids: set[int] = set()
+    seen_names: dict[str, int] = {}
+    for item in payload:
+        key_id = item.get("key_id")
+        new_name = item.get("new_name", item.get("new"))
+        if not isinstance(key_id, int):
+            raise LokaliseError(f"each entry needs an integer key_id: {item!r}")
+        if not isinstance(new_name, str) or not VALID_KEY_NAME.fullmatch(new_name):
+            raise LokaliseError(
+                f"new name must match [A-Za-z][A-Za-z0-9_]* (Android-strict): {new_name!r} for key_id {key_id}"
+            )
+        if key_id in seen_ids:
+            raise LokaliseError(f"duplicate key_id in map: {key_id}")
+        if new_name in seen_names:
+            raise LokaliseError(f"two entries target the same new name {new_name!r}: key_id {seen_names[new_name]} and {key_id}")
+        seen_ids.add(key_id)
+        seen_names[new_name] = key_id
+        plans.append((key_id, item.get("old"), new_name))
+
+    if not plans:
+        print("no rename entries in map file — nothing to do.")
+        return 0
+
+    if not args.apply:
+        print(f"DRY RUN: would rename {len(plans)} key(s) to one global valid key_name each. Pass --apply to execute.")
+        for key_id, old, new_name in plans:
+            old_disp = f"{old!r} " if old else ""
+            print(f"  key_id={key_id} {old_disp}-> {new_name}")
+        return 0
+
+    client.bulk_update_keys([{"key_id": key_id, "key_name": new_name} for key_id, _old, new_name in plans])
+    mismatch = verify_key_names(client, {key_id: new_name for key_id, _old, new_name in plans})
+    for key_id, _old, new_name in plans:
+        print(f"renamed key_id={key_id} -> {new_name}")
+    if mismatch:
+        print(f"\nWARNING: {len(mismatch)} key(s) did not end with the expected name — Lokalise kept the old value.", file=sys.stderr)
+        for key_id, want, got in mismatch:
+            print(f"  key_id={key_id}: expected {want!r}, got {got!r}", file=sys.stderr)
+        return 1
+    print(f"renamed {len(plans)} key(s); all names verified. Regenerate the corpus to pick up the new names.")
+    return 0
+
+
+def verify_key_names(client: LokaliseClient, expected: dict[int, str]) -> list[tuple[int, str, str]]:
+    """Re-read renamed keys; report any whose key_name does not match expected
+    (a bulk update can silently no-op depending on API handling)."""
+    if not expected:
+        return []
+    bad: list[tuple[int, str, str]] = []
+    for key in client.list_keys(filter_key_ids=list(expected), filter_archived="include"):
+        key_id = key.get("key_id")
+        if key_id is None or int(key_id) not in expected:
+            continue
+        want = expected[int(key_id)]
+        if not key_name_matches(key, want):
+            bad.append((int(key_id), want, summarize_key_name(key)))
+    return bad
 
 
 def cmd_delete_keys(client: LokaliseClient, args: argparse.Namespace) -> int:
