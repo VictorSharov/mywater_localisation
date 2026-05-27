@@ -37,9 +37,9 @@ export LOKALISE_PROJECT_ID=...
 ```
 
 The audit / translation / apply scripts (`loc_audit_*`, `loc_apply_lang`,
-`loc_merge_languages`, `loc_r_marked_translations`) are **stdlib-only** and need
-no token — they only read / write `strings.ndjson`. Only the corpus generator,
-the importer, and the unused-key tagging touch Lokalise.
+`loc_merge_languages`, `loc_r_marked_translations`, `loc_placeholder_lint`) are
+**stdlib-only** and need no token — they only read / write `strings.ndjson`. Only
+the corpus generator, the importer, and the unused-key tagging touch Lokalise.
 
 ## Scripts
 
@@ -53,6 +53,7 @@ the importer, and the unused-key tagging touch Lokalise.
 | `loc_apply_lang.py` | apply a `{key:value}` map into the corpus (replace-only) | — |
 | `loc_merge_languages.py` | side-by-side language view for cross-check review | — |
 | `loc_r_marked_translations.py` | translation backlog (`unverified`/missing/empty): extract → JSON → apply | — |
+| `loc_placeholder_lint.py` | lint placeholders vs the Lokalise universal contract; pre-flight inside `loc_corpus_import` | — |
 | `loc_unused_keys.py` | report-only unused-key scan over **iOS + Android** repos; feeds Lokalise tags | yes (tag `--apply`) |
 | `lokalise_helper.py` | Lokalise API v2 CLI (list/get/tags/update/create; mutations dry-run by default) | yes (`--apply`) |
 | `loc_audit_prompt.md` + `loc_audit_lang_calibration/` | sub-agent audit prompt + per-language calibration | — |
@@ -91,6 +92,33 @@ Attach this repo to an iOS / Android / server session via
 `en` field (`rg` / `jq`) before creating a new key — if a matching key already
 exists on another platform, add the missing platform in Lokalise instead of a
 duplicate.
+
+## Export from Lokalise (to be finalized)
+
+The corpus → Lokalise **import** is built (`loc_corpus_import.py`); the Lokalise →
+platform **export** is still operator-run and not yet captured as a reproducible
+config. What the final export must pin down per platform so placeholders / plurals
+land correctly:
+
+| Platform | File format | Placeholder format | Plural | Path (expected) |
+|---|---|---|---|---|
+| iOS | `.strings` + `.stringsdict` | iOS (`[%s]`→`%@`, `[%i]`→`%li`) | `.stringsdict` | `<lang>.lproj/Localizable.strings` |
+| Android | XML | printf (`[%s]`→`%s`, `[%i]`→`%d`) | `<plurals>` | `values-<lang>/strings.xml` |
+| server | JSON (i18next / ICU) | `{{…}}` / `{…}` | ICU / i18next | `resources/locale/<lang>.json` |
+
+- **Placeholder conversion is automatic on export** from the universal form
+  ([CR-PLACEHOLDER] / `TRANSLATION_STYLE.md § Placeholders`) — the export just
+  needs the right per-bundle *placeholder format* selected (not "raw"). Lokalise
+  lets you override the default; pin it explicitly per bundle.
+- **Plurals** reach each platform's native plural mechanism only if the key is a
+  Lokalise plural (`is_plural`); a flat key carrying `%#@var@` does **not** (a
+  broken stringsdict import — see `TRANSLATION_STYLE.md § Placeholders`).
+- **Language codes** differ from the corpus (`pt_BR` / `zh_CN` → iOS `pt-BR` /
+  `zh-Hans`); the download config owns that mapping (the trap `loc_corpus.py`
+  guards against).
+- **TODO (final export script):** capture the exact Lokalise download settings
+  (format ids, placeholder-format, plural-format, filename templates, directory
+  prefix, branch) here so the export is reproducible.
 
 ## Conventions
 

@@ -56,6 +56,7 @@ from lokalise_helper import (  # noqa: E402
     LokaliseConfig,
     LokaliseError,
 )
+from loc_placeholder_lint import format_findings, lint_record  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -68,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-url", default=os.environ.get("LOKALISE_API_BASE", DEFAULT_BASE_URL), help=f"API base URL. Defaults to {DEFAULT_BASE_URL}.")
     parser.add_argument("--timeout", type=float, default=float(os.environ.get("LOKALISE_TIMEOUT", "30")), help="HTTP timeout in seconds.")
     parser.add_argument("--apply", action="store_true", help="Execute the requests. Without this, prints a dry-run plan.")
+    parser.add_argument("--no-lint", action="store_true", help="Skip the placeholder pre-flight gate (loc_placeholder_lint).")
     return parser
 
 
@@ -107,6 +109,7 @@ def main() -> int:
     updates: list[dict[str, Any]] = []
     creates: list[dict[str, Any]] = []
     touched_langs: set[str] = set()
+    pushed: list[tuple[dict[str, Any], list[str]]] = []
 
     for record in records:
         if record.get("archived"):
@@ -115,6 +118,7 @@ def main() -> int:
         if not langs:
             continue
         touched_langs.update(langs)
+        pushed.append((record, langs))
         translations = [translation_payload(record, lang, args.mark_verified) for lang in langs]
         key_id = record.get("key_id")
         if key_id is not None:
@@ -132,6 +136,19 @@ def main() -> int:
     scope = ",".join(args.lang) if args.lang else "unverified-per-key"
     print(f"corpus: {corpus_path}  scope: {scope}  languages touched: {','.join(sorted(touched_langs)) or '<none>'}")
     print(f"plan: update {len(updates)} existing key(s), create {len(creates)} new key(s)")
+
+    # Placeholder pre-flight: the keys API stores translations literally (no
+    # universal-placeholder auto-conversion — that only happens on file upload),
+    # so a bare %@/%s or a lone % would mis-export. Gate the push on what is in
+    # scope; --no-lint overrides. Canonical rules: TRANSLATION_STYLE.md § Placeholders.
+    lint_findings = [finding for record, langs in pushed for finding in lint_record(record, set(langs))]
+    if lint_findings:
+        errors = [f for f in lint_findings if f.severity == "error"]
+        print(f"\nplaceholder lint: {len(errors)} error(s), {len(lint_findings) - len(errors)} warning(s) in push scope")
+        print(format_findings(lint_findings))
+        if errors and not args.no_lint:
+            print("\nrefusing: fix the placeholder error(s) above, or pass --no-lint to override.", file=sys.stderr)
+            return 1
 
     if not args.apply:
         print("\nDRY RUN: pass --apply to push to Lokalise. Sample of what would be sent:")

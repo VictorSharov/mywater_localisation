@@ -57,6 +57,12 @@ FORMAT_RE = re.compile(
     r"(?<!%)%(?!%)(?:\d+\$)?[-+#0 ]*(?:\d+|\*)?(?:\.(?:\d+|\*))?"
     r"(?:hh|h|ll|l|L|z|t|j)?[@diuoxXfFeEgGcCsSpa]"
 )
+# Lokalise universal placeholder ([%s], [%1$s], [%.2f], [%]) and the iOS
+# .stringsdict substitution variable (%1$#@new_drinks@). Both must be peeled off
+# BEFORE FORMAT_RE runs, or it would match the `%s` *inside* `[%s]` and the
+# `%1$#@` head of a stringsdict var, collapsing universal and bare forms together.
+UNIVERSAL_RE = re.compile(r"\[%[^\]]*\]")
+STRINGSDICT_RE = re.compile(r"%\d*\$?#@\w+@")
 FORBIDDEN_SPACE_RE = re.compile(
     r"[\u00a0\u1680\u180e\u2000-\u200b\u2028\u2029\u202f\u205f\u3000\ufeff]"
 )
@@ -76,10 +82,21 @@ def backlog_status(record: dict, lang: str) -> str | None:
 
 
 def placeholder_signature(value: str) -> list[str]:
-    tokens = []
-    for match in FORMAT_RE.finditer(value):
-        token = re.sub(r"^%(\d+\$)", "%", match.group(0))
-        tokens.append(token)
+    """Multiset of placeholders in `value`, position-normalized so a target may
+    reorder indexed placeholders (`[%1$s] [%2$s]` ↔ `[%2$s] [%1$s]`).
+
+    A universal `[%s]` and a bare `%s` are kept DISTINCT: dropping the brackets
+    changes the signature so the round-trip check catches it. The brackets are
+    what make Lokalise convert per platform (`[%s]`→iOS `%@`/Android `%s`); a
+    bare `%s` pushed via the keys API is stored literally and mis-exports.
+    """
+    tokens: list[str] = []
+    for match in UNIVERSAL_RE.finditer(value):
+        # [%1$s] -> [%s]: strip the positional index, keep the universal bracket.
+        tokens.append(re.sub(r"^\[%\d+\$", "[%", match.group(0)))
+    remainder = STRINGSDICT_RE.sub("", UNIVERSAL_RE.sub("", value))
+    for match in FORMAT_RE.finditer(remainder):
+        tokens.append(re.sub(r"^%\d+\$", "%", match.group(0)))
     return sorted(tokens)
 
 

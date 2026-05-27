@@ -44,6 +44,16 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   `unverified` / strip `|R|` for AI-produced translations — that is a separate
   operator-/Lokalise-gated action. Filling, correcting, or re-translating keeps
   the marker set.
+- **[CR-PLACEHOLDER] Universal placeholders.** Corpus values store **Lokalise
+  universal placeholders** (`[%s]` / `[%i]` / `[%.1f]` / `[%1$s]`), never bare
+  `%@` / `%d` / `%s`. Lokalise converts universal → platform on export; the
+  reverse (platform → universal) happens ONLY on file upload, so the keys-API
+  import (`loc_corpus_import`) stores a bare placeholder literally and it
+  mis-exports. Literal percent is `%%` (a lone `%` is undefined under iOS R.swift
+  `String(format:)`; `[%]` de-escapes to a lone `%` when standalone — don't use
+  it for that). iOS `.stringsdict` `%#@var@` has no universal form → such a key
+  must be a Lokalise plural. Canonical: `TRANSLATION_STYLE.md § Placeholders`;
+  `loc_placeholder_lint.py` enforces it (also a pre-flight in `loc_corpus_import`).
 - **[CR-SECRETS] Token discipline.** `LOKALISE_API_TOKEN` only via env, never as
   a CLI arg, and never printed to chat / logs / docs. Mutating commands
   (`loc_corpus_import`, `lokalise_helper`, unused tagging) are **dry-run by
@@ -102,6 +112,9 @@ docs; this canon owns *style and meaning* only.
 - After a `loc_corpus.py` change: round-trip the corpus and assert byte-identical
   (`read_records` → `write_records` → `diff`).
 - After an apply: `git diff -- strings.ndjson` should touch only the edited keys.
+- After editing values: `python3 loc_placeholder_lint.py` (token-free) — no new
+  placeholder errors ([CR-PLACEHOLDER]). It also runs as a pre-flight in
+  `loc_corpus_import`; `--no-lint` overrides.
 - `loc_corpus_import.py` / `lokalise_helper.py` dry-run is the agent-runnable
   evidence; `--apply` is operator-run ([CR-ACCESS]).
 - Report what ran and what was deferred to the operator; never report `--apply`

@@ -310,6 +310,57 @@ Translator может отклоняться по language length expansion (ru 
 - Brand voice может эволюционировать; этот раздел обновляется по результатам аудита, не drive-by при touched-strings.
 - Если конкретная строка отклоняется от default tone — указать в поле `Tone` комментария (`Tone: formal` для legal / privacy строк, `Tone: urgent` для critical alerts, `Tone: playful` для seasonal pushes).
 
+## Placeholders (Lokalise universal format)
+
+Значения в корпусе (`strings.ndjson`) и в Lokalise хранятся в **Lokalise
+universal placeholder**-формате — НЕ в платформенном `%@` / `%s`. Lokalise
+конвертирует universal → платформенный формат на **экспорте**. Обратная
+конверсия (платформенный → universal) происходит ТОЛЬКО при загрузке файла; наш
+импорт идёт через keys API (`loc_corpus_import.py`), который хранит строку как
+есть и НЕ конвертирует. Поэтому голый `%@` / `%s` / `%d`, попавший в значение,
+не сконвертируется и сломает экспорт (на iOS останется `%s` вместо `%@`).
+
+| Тип | Universal (хранится так) | iOS `.strings` | Android XML | server JSON |
+|---|---|---|---|---|
+| строка | `[%s]`, `[%1$s]` | `%@`, `%1$@` | `%s`, `%1$s` | `{{0}}` |
+| целое | `[%i]`, `[%1$i]` | `%li` | `%d` | `{{1}}` |
+| float | `[%.1f]`, `[%.0f]` | `%.1f` | `%.1f` | `{{2}}` |
+| литеральный `%` | `%%` | `%%` → `%` | `%%` → `%` | — |
+
+- **Аргумент → universal-скобки.** Любая подстановка пишется `[%s]` / `[%i]` /
+  `[%.1f]`. Никогда не оставлять голый `%@` / `%d` / `%s` в значении.
+- **Один аргумент → `[%s]`; два и более → индексированные `[%1$s]` / `[%2$s]` во
+  ВСЕХ языках ключа.** Индекс позволяет переводу переставлять аргументы под
+  порядок слов целевого языка (`[%2$s] … [%1$s]`), не ломая подстановку. **Нельзя
+  смешивать** `[%s]` и `[%1$s]` между языками одного ключа — bare-форма
+  привязана к позиции и не умеет переставлять (fragile). Все языки одного ключа
+  обязаны нести **одинаковый набор плейсхолдеров (тип и количество)** — это
+  runtime-контракт (один и тот же набор аргументов на всех языках). Проверяется
+  `loc_placeholder_lint.py` (`placeholder-count` — расхождение набора;
+  `placeholder-indexing` — смесь bare/indexed или неиндексированный multi-ключ).
+- **Литеральный процент → `%%`.** Знак процента, который надо ОТОБРАЗИТЬ (не
+  подстановка), пишется `%%` (printf-escape). iOS R.swift оборачивает каждый
+  аксессор в `String(format:)`, поэтому одиночный `%` — undefined behavior
+  (краш). `[%]` (universal literal-percent) НЕ использовать вместо `%%`: при
+  отсутствии других плейсхолдеров Lokalise экспортирует `[%]` как одиночный `%`
+  → тот же краш. **Carve-out:** значения только для App Store / server
+  (`platforms: ["other"]`) не проходят через `String(format:)` — там литеральный
+  `%` («70%») допустим.
+- **iOS `.stringsdict` (`%#@var@`)** не имеет universal-формы. Это признак ключа,
+  который ДОЛЖЕН быть Lokalise **plural** (`is_plural`, CLDR-формы с `[%i]`), но
+  был импортирован плоским (нативный nested-plural «развернулся» в строку
+  `%#@format@`). Не сочинять перевод для `%#@format@` — ремоделировать ключ как
+  plural (источник форм — iOS `Localizable.stringsdict`).
+- **Проверка:** `python3 loc_placeholder_lint.py` (и pre-flight внутри
+  `loc_corpus_import.py`) флагает голые плейсхолдеры, одиночный `%` (на
+  ios/android) и stringsdict-ключи. Сигнатурная проверка в
+  `loc_r_marked_translations.py` сверяет набор плейсхолдеров source↔target и
+  различает `[%s]` и `%s`.
+
+Примеры в § Translator context ниже показаны в iOS `.strings`-нотации
+(post-export, как ключ выглядит в native-файле) — в самом корпусе то же значение
+хранится в universal-форме (`[%.0f]` `[%s]`, не `%.0f` `%@`).
+
 ## Translator context (key comment / description)
 
 Контекст ключа = canonical источник для переводчика (людей и AI). Один блок контекста на ключ. Без него переводчик может ошибиться в неоднозначных коротких строках («Save» / «Edit» / «Today» — глагол / существительное / time filter?), пропустить семантику placeholders или нарушить ограничения по длине. Дисциплина кросс-платформенная: при добавлении ключа для **любой** платформы контекст пишется одинаково. Платформенное *кодирование* контекста разное (в Lokalise импортируется как key description; iOS — C-style комментарий перед ключом в `.strings`; server — поле `notes`; корпус — поле `context`) — детали кодирования у платформенного owner'а (iOS `mywater_ios docs/LOCALIZATION.md`, server `mywater_server resources/locale/CLAUDE.md`).
@@ -346,10 +397,10 @@ Translator может отклоняться по language length expansion (ru 
 
 ### Опциональные поля
 
-- **Placeholders** — обязательно, если в значении есть `%@`, `%d`, `%lld`, `%.0f`, `%.1f`, `%1$@`, `%2$@`. Перечислить каждый отдельной строкой с подписью и примером значения. Indexed placeholders (`%1$@`, `%2$@`) проговорить явно, чтобы переводчик мог менять порядок без потери семантики.
+- **Placeholders** — обязательно, если в значении есть плейсхолдер (`[%s]`, `[%i]`, `[%.1f]`, `[%1$s]`, `[%2$s]` — universal-форма, § Placeholders). Перечислить каждый отдельной строкой с подписью и примером значения. Indexed placeholders (`[%1$s]`, `[%2$s]`) проговорить явно, чтобы переводчик мог менять порядок без потери семантики.
 - **Constraints** — указывать когда есть real-world ограничение: widget short title (≤ ~12 chars), watch complication, button width на узких устройствах, запрет хрупких ручных `\n` в reactive-wrap copy (см. правило ниже), сокращения единиц («ml», не «millilitres»), запрет точки в конце button label.
   - **Length numbers (`≤N chars`) — рекомендации, не hard limits.** Цель — короткое и качественное; если в target language нет качественной короткой формулировки, допустимо превысить указанное число. Большинство UI surfaces используют авто-перенос / auto-shrink, поэтому перевод на 1-5 символов длиннее не ломает layout. Не flag-ать перевод как ошибку только из-за превышения `≤N` рекомендации, если короткой натуральной альтернативы нет.
-  - **Hard structural constraints — остаются binding** (не «рекомендации»): запрет точки в конце button label, точное соответствие `%@` / `%d` / `%.0f` placeholder count и порядка, обязательное соблюдение abbreviation form («ml» vs «millilitres», «yr» vs «year»), preservation hashtags / brand quotes / emoji.
+  - **Hard structural constraints — остаются binding** (не «рекомендации»): запрет точки в конце button label, точное соответствие universal-плейсхолдеров `[%s]` / `[%i]` / `[%.1f]` (count и порядка; § Placeholders), обязательное соблюдение abbreviation form («ml» vs «millilitres», «yr» vs «year»), preservation hashtags / brand quotes / emoji.
   - **Хрупкие ручные переносы (`\n`) — не использовать в reactive-wrap copy.** Для текста, который рендерится в авто-переносимый label (Dynamic Type, auto-shrink, multi-line wrap), визуальный ритм даёт UI-движок и layout, а не escaped `\n` внутри значения: hard `\n` ломается при росте шрифта и при более длинном переводе. EN — source of truth для смысла, не для visual line positions. Если значение стало читабельнее за счёт `\n` — предпочесть пунктуацию / реструктуризацию предложения. Platform-specific carve-out (где `\n` намеренный — fixed-canvas image/PDF рендеры, structural списки-буллеты, разделение дискретных items в alert, не-user-facing структурные сепараторы) — у платформенного owner'а (iOS `mywater_ios docs/LOCALIZATION.md § Comment encoding (iOS .strings)`); перед flag-ом `\n` проверить, не попадает ли consumer в carve-out.
 - **Tone** — только если строка отклоняется от default tone (`§ Brand voice`). Большинство строк tone не указывают.
 
