@@ -11,9 +11,14 @@ the pre-flight that keeps non-universal placeholders out of the corpus.
 The contract (canonical: TRANSLATION_STYLE.md § Placeholders):
   - String/int/float args use Lokalise universal placeholders: `[%s]`, `[%1$s]`,
     `[%i]`, `[%.1f]`, `[%2$i]`. Lokalise converts these per platform on export.
-  - A literal percent sign is `%%` (printf escape). `[%]` is also accepted, but
-    note it collapses to a single `%` when the string has no other placeholder
-    (Lokalise rule), which R.swift then treats as undefined — prefer `%%`.
+  - A literal percent sign is the universal `[%]`; Lokalise escapes it per platform
+    on export (`→ %%` for printf/iOS when the string has another placeholder, `→ %`
+    standalone). A bare `%%` is the iOS printf escape; the keys-API stores it
+    literally (no conversion), so it survives unconverted and leaks `%%` to
+    consumers that don't run a formatter (Android plain getString, server). It is
+    flagged (`literal-percent-escape`): ERROR on any non-ios platform where it
+    leaks, WARN for an ios-only key where `String(format:)` still renders it. The
+    canonical literal percent is `[%]` ([CR-PLACEHOLDER]).
   - iOS `.stringsdict` substitution variables (`%1$#@new_drinks@`) have no
     universal form. They are the outer NSStringLocalizedFormatKey of a correctly-
     modeled stringsdict key whose plural forms live in a sibling `::var` companion
@@ -26,6 +31,8 @@ The contract (canonical: TRANSLATION_STYLE.md § Placeholders):
 Findings (per value):
   ERROR  bare-placeholder  a `%s`/`%@`/`%d`/… not wrapped in `[ ]` (non-stringsdict value)
   ERROR  lone-percent      a literal `%` that is not `%%` and not `[%]` (runtime only)
+  ERR/WARN literal-percent-escape  a bare `%%` instead of the universal `[%]` — ERROR on a
+                                non-ios platform (leaks `%%` to non-printf consumers), WARN ios-only
   WARN   stringsdict       an iOS `%#@var@` outer key with NO `::var` companion (orphaned)
 Findings (cross-language, per key — all langs fill the same runtime args):
   ERROR  placeholder-count     a translation's placeholder set (type × count) ≠ the source's
@@ -109,7 +116,15 @@ def lint_value(value: str) -> list[tuple[str, str, str]]:
         findings.append(("warn", "stringsdict", match.group(0)))
     # Peel off what is allowed before scanning the remainder.
     remainder = STRINGSDICT_RE.sub("", UNIVERSAL_RE.sub("", value))
-    remainder = remainder.replace("%%", "")  # `%%` is the valid literal-percent escape
+    # A bare `%%` is the iOS printf escape. The keys-API stores it literally (no
+    # universal conversion), so it survives unconverted and leaks `%%` to consumers
+    # that don't run a formatter (Android plain getString, server); the canonical
+    # literal percent is universal `[%]` ([CR-PLACEHOLDER]). Flag it, then strip it
+    # so it doesn't also trip bare-placeholder / lone-percent. Per-platform severity
+    # (ERROR where it leaks vs WARN ios-only) is decided in lint_record.
+    if "%%" in remainder:
+        findings.append(("warn", "literal-percent-escape", "%%"))
+    remainder = remainder.replace("%%", "")
     for match in BARE_RE.finditer(remainder):
         if not is_stringsdict:  # raw specifiers are legitimate in an iOS stringsdict string
             findings.append(("error", "bare-placeholder", match.group(0)))
@@ -223,6 +238,10 @@ def lint_record(
     # No platforms recorded ⇒ treat as runtime (be safe and flag a lone %).
     runtime = not plats or bool(RUNTIME_PLATFORMS.intersection(plats))
     has_companion = bool(companion_bases and set(key_names(record)) & companion_bases)
+    # A stored `%%` provably leaks on any consumer that doesn't run a formatter
+    # (Android plain getString, server/`other`); only an ios-only key is safe
+    # (R.swift always formats). No platforms recorded ⇒ be safe and treat as leaking.
+    percent_leaks = (not plats) or bool(set(plats) - {"ios"})
     findings: list[Finding] = []
     for lang, value in (record.get("t") or {}).items():
         if langs is not None and lang not in langs:
@@ -233,6 +252,8 @@ def lint_record(
                     continue
                 if code == "stringsdict" and has_companion:
                     continue  # correctly modeled — plural forms live in the `::var` companion
+                if code == "literal-percent-escape":
+                    severity = "error" if percent_leaks else "warn"
                 findings.append(Finding(key, lang, severity, code, token, _snippet(text)))
     # Cross-language consistency is computed over ALL languages of the key, then
     # filtered to scope so the import gate only blocks on a language being pushed.

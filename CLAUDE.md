@@ -6,6 +6,16 @@ Cross-platform localization **source-of-truth corpus + tooling** for MyWater
 
 Ты коллаборатор, не исполнитель. Не заявляй об успехе без проверки.
 
+**Project knowledge belongs in the repo, not in private agent memory.** Several
+developers work here, and an agent's private / session memory is per-developer —
+it is never shared, so another contributor's agent does not see it. Keep all
+durable project knowledge (pipeline state, Lokalise export settings, placeholder /
+translation conventions, gotchas, decisions) in the tracked docs — this file,
+[`README.md`](README.md), [`TRANSLATION_STYLE.md`](TRANSLATION_STYLE.md) — or the
+relevant script docstring, and review it as a git diff. Reserve private memory for
+personal working preferences only; never let correctness-relevant project
+knowledge live only in memory.
+
 ## Pipeline (read this first)
 
 ```
@@ -49,9 +59,13 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   `%@` / `%d` / `%s`. Lokalise converts universal → platform on export; the
   reverse (platform → universal) happens ONLY on file upload, so the keys-API
   import (`loc_corpus_import`) stores a bare placeholder literally and it
-  mis-exports. Literal percent is `%%` (a lone `%` is undefined under iOS R.swift
-  `String(format:)`; `[%]` de-escapes to a lone `%` when standalone — don't use
-  it for that). iOS `.stringsdict` `%#@var@` has no universal form → such a key
+  mis-exports. Literal percent is the universal `[%]`; Lokalise escapes it per
+  platform on export (`→ %%` for printf/iOS, `→ %` standalone), and the iOS bundle
+  pins "Convert all [%]→%%" on so even a standalone `[%]` is safe under R.swift
+  `String(format:)`. Do **not** store a bare `%%` (an iOS-only printf escape the
+  keys-API stores literally → leaks `%%` to Android/server consumers that don't
+  format) or a lone `%` in a runtime value. iOS `.stringsdict` `%#@var@` has no
+  universal form → such a key
   must be a Lokalise plural. Canonical: `TRANSLATION_STYLE.md § Placeholders`;
   `loc_placeholder_lint.py` enforces it (also a pre-flight in `loc_corpus_import`).
 - **[CR-SECRETS] Token discipline.** `LOKALISE_API_TOKEN` only via env, never as
@@ -115,6 +129,12 @@ docs; this canon owns *style and meaning* only.
 - After editing values: `python3 loc_placeholder_lint.py` (token-free) — no new
   placeholder errors ([CR-PLACEHOLDER]). It also runs as a pre-flight in
   `loc_corpus_import`; `--no-lint` overrides.
+- After editing values: `python3 loc_qa.py` (token-free) — value-character hygiene:
+  em-dash U+2014 ban + invisible/zero-width spaces (ERROR), `()` balance + edge
+  whitespace (WARN). Lints `t` values only, never `context`. 2nd pre-flight in
+  `loc_corpus_import` (shares `--no-lint`). Enforces the em-dash ban of
+  `TRANSLATION_STYLE.md § Punctuation`; the linguistic layer (calque / register /
+  drift) stays with the audit sub-agent, not this gate.
 - `loc_corpus_import.py` / `lokalise_helper.py` dry-run is the agent-runnable
   evidence; `--apply` is operator-run ([CR-ACCESS]).
 - Report what ran and what was deferred to the operator; never report `--apply`

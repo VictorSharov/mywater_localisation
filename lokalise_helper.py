@@ -199,7 +199,7 @@ class LokaliseClient:
                     retry_after = _retry_after_seconds(_header(dict(headers), "Retry-After"))
                 time.sleep(retry_after if retry_after is not None else min(2**attempt, 8))
             except lok_errors.ClientError as error:  # type: ignore[union-attr]
-                raise LokaliseError(f"Lokalise API error: {error}") from error
+                raise LokaliseError(f"Lokalise API error: {_describe_lokalise_error(error)}") from error
         raise LokaliseError(f"Lokalise API request failed after retries: {last_error}")
 
     def list_keys(
@@ -282,16 +282,29 @@ class LokaliseClient:
         self._key_cache[int(resolved_id if resolved_id is not None else key_id)] = record
         return record
 
+    def update_translation(self, translation_id: int, payload: dict[str, Any]) -> None:
+        """Update one translation's content by translation_id (PUT /translations/{id}).
+        The keys endpoint's `translations` array only SETS values when a key is
+        created — on an existing key Lokalise ignores it (verified: a key-update with
+        a changed `translation` left the stored value and its modified_at untouched).
+        So edits to existing translations must go through this endpoint."""
+        self._call(self._sdk.update_translation, self.project_path, translation_id, payload)
+
     def bulk_update_keys(self, items: list[dict[str, Any]]) -> None:
         for start in range(0, len(items), MAX_KEYS_LIMIT):
             chunk = items[start : start + MAX_KEYS_LIMIT]
             self._call(self._sdk.update_keys, self.project_path, chunk)
 
-    def create_keys(self, keys: list[dict[str, Any]], *, use_automations: bool | None) -> dict[str, Any]:
-        params: dict[str, Any] = {"keys": keys}
+    def create_keys(self, keys: list[dict[str, Any]], *, use_automations: bool | None = None) -> dict[str, Any]:
+        # The SDK wraps its argument with wrapper_attr="keys": it does
+        # `params = {"keys": to_list(params)}`. So we must pass the BARE LIST of
+        # key objects. Passing a pre-wrapped {"keys": [...]} double-wraps to
+        # {"keys": [{"keys": [...]}]}, which the API rejects with
+        # "Body has no `key_name` parameter". use_automations cannot ride that
+        # wrapper, so it is unsupported here rather than silently dropped.
         if use_automations is not None:
-            params["use_automations"] = use_automations
-        collection = self._call(self._sdk.create_keys, self.project_path, params)
+            raise LokaliseError("use_automations is not supported on create-keys via the SDK wrapper; omit it.")
+        collection = self._call(self._sdk.create_keys, self.project_path, keys)
         return {"keys": [_key_to_dict(model) for model in collection.items]}
 
     def delete_keys(self, key_ids: list[int]) -> dict[str, Any]:
@@ -405,6 +418,24 @@ def build_parser() -> argparse.ArgumentParser:
     add_mutation_key_args(delete_parser)
     delete_parser.add_argument("--apply", action="store_true", help="Execute the deletion. Without this, prints a dry-run plan.")
     delete_parser.set_defaults(func=cmd_delete_keys)
+
+    normalize_parser = subparsers.add_parser(
+        "normalize-filenames",
+        help="Flatten keys whose filename carries a `.lproj/` path (collides with the export directory prefix -> dead nested bundle path).",
+    )
+    normalize_parser.add_argument(
+        "--platform", action="append", choices=("ios", "android", "web", "other"),
+        help="Restrict to these platform filename slots. Repeatable. Default: all four.",
+    )
+    normalize_parser.add_argument(
+        "--to", help="Filename to set instead of clearing (e.g. Localizable.strings). Default: clear to empty (unassigned).",
+    )
+    normalize_parser.add_argument(
+        "--archived", choices=("exclude", "include", "only"), default="exclude",
+        help="Archived filter for the scan. Default: exclude.",
+    )
+    normalize_parser.add_argument("--apply", action="store_true", help="Execute the update. Without this, prints a dry-run plan.")
+    normalize_parser.set_defaults(func=cmd_normalize_filenames)
 
     return parser
 
@@ -640,6 +671,89 @@ def cmd_delete_keys(client: LokaliseClient, args: argparse.Namespace) -> int:
         print(f"deleted key_id={ref.key_id} key_name={ref.key_name or '<unknown>'}")
     print(f"deleted {len(refs)} key(s)")
     return 0
+
+
+def cmd_normalize_filenames(client: LokaliseClient, args: argparse.Namespace) -> int:
+    """Flatten keys whose Lokalise filename carries a `.lproj/` path component.
+
+    Such a filename (e.g. `Localization/%LANG_ISO%.lproj/Localizable.strings`,
+    stamped when an iOS `.strings` file was uploaded) collides with the
+    Apple-Strings export's `%LANG_ISO%.lproj` directory prefix: the two stack into a
+    dead nested path `<lang>.lproj/Localization/<lang>.lproj/Localizable.strings`
+    that iOS never reads, so those keys silently drop out of the bundle. Clearing
+    the filename (default) returns the key to the default `Localizable.*` bundle,
+    flat with every other unassigned key. Lokalise-side only — the corpus stores no
+    filenames, so this never touches strings.ndjson.
+    """
+    all_platforms = ("ios", "android", "web", "other")
+    scope = tuple(args.platform) if args.platform else all_platforms
+    new_value = "" if args.to is None else args.to
+
+    plans: list[tuple[int, str, dict[str, str], dict[str, str]]] = []
+    for key in client.list_keys(filter_archived=args.archived):
+        current = key.get("filenames")
+        if not isinstance(current, dict):
+            continue
+        changed: dict[str, str] = {}
+        payload: dict[str, str] = {}
+        for platform in all_platforms:
+            value = current.get(platform)
+            value = value if isinstance(value, str) else ""
+            if platform in scope and ".lproj/" in value and value != new_value:
+                changed[platform] = value
+                payload[platform] = new_value
+            else:
+                payload[platform] = value
+        key_id = key.get("key_id")
+        if changed and key_id is not None:
+            plans.append((int(key_id), summarize_key_name(key), changed, payload))
+
+    action = "clear" if args.to is None else f"set to {args.to!r}"
+    scope_note = "" if set(scope) == set(all_platforms) else f" (platforms: {','.join(scope)})"
+    if not plans:
+        print(f"no keys carry a '.lproj/' path in filenames{scope_note} — nothing to normalize.")
+        return 0
+
+    if not args.apply:
+        print(f"DRY RUN: would {action} the filename on {len(plans)} key(s){scope_note}. Pass --apply to execute.")
+        for key_id, name, changed, _payload in plans:
+            for platform, old in sorted(changed.items()):
+                print(f"  key_id={key_id} ({name}) [{platform}]: {old!r} -> {new_value!r}")
+        return 0
+
+    client.bulk_update_keys([{"key_id": key_id, "filenames": payload} for key_id, _name, _changed, payload in plans])
+    for key_id, name, changed, _payload in plans:
+        print(f"updated key_id={key_id} ({name}): {action} on {','.join(sorted(changed))}")
+
+    remaining = verify_filenames_flattened(client, [key_id for key_id, _n, _c, _p in plans], scope)
+    if remaining:
+        print(f"\nWARNING: {len(remaining)} filename(s) still carry a '.lproj/' path after update — Lokalise kept the old value.", file=sys.stderr)
+        for key_id, platform, value in remaining:
+            print(f"  key_id={key_id} [{platform}]: {value!r}", file=sys.stderr)
+        print("Set an explicit flat name with --to Localizable.strings, or fix in the Lokalise UI (key -> assigned file).", file=sys.stderr)
+        return 1
+    print(f"normalized {len(plans)} key(s); all touched filenames are now flat.")
+    return 0
+
+
+def verify_filenames_flattened(
+    client: LokaliseClient, key_ids: list[int], scope: tuple[str, ...]
+) -> list[tuple[int, str, str]]:
+    """Re-read the touched keys and report any scoped platform whose filename still
+    contains a `.lproj/` path (a clear can silently no-op depending on API handling)."""
+    if not key_ids:
+        return []
+    remaining: list[tuple[int, str, str]] = []
+    for key in client.list_keys(filter_key_ids=key_ids, filter_archived="include"):
+        key_id = key.get("key_id")
+        current = key.get("filenames")
+        if key_id is None or not isinstance(current, dict):
+            continue
+        for platform in scope:
+            value = current.get(platform)
+            if isinstance(value, str) and ".lproj/" in value:
+                remaining.append((int(key_id), platform, value))
+    return remaining
 
 
 def resolve_key_refs(client: LokaliseClient, args: argparse.Namespace) -> list[KeyRef]:
@@ -1023,6 +1137,28 @@ def _csv(values: list[str] | None) -> str | None:
     if not values:
         return None
     return ",".join(values)
+
+
+def _describe_lokalise_error(error: Any) -> str:
+    """Surface the real Lokalise API detail. The SDK's ClientHTTPError.__str__ only
+    shows status + a generic reason (e.g. 'nested error'); the actual per-field
+    message, details and raw response body live on `.parsed` / `.raw_text` and are
+    what we need to diagnose a 400. Include them (raw body truncated)."""
+    parts = [str(error)]
+    parsed = getattr(error, "parsed", None)
+    message = getattr(parsed, "message", None)
+    if message and message not in parts[0]:
+        parts.append(f"message={message}")
+    details = getattr(parsed, "details", None)
+    if details:
+        try:
+            parts.append(f"details={json.dumps(details, ensure_ascii=False)[:600]}")
+        except (TypeError, ValueError):
+            parts.append(f"details={details!r}"[:600])
+    raw = getattr(error, "raw_text", None)
+    if raw and raw not in parts[0]:
+        parts.append(f"raw={raw[:1200]}")
+    return " | ".join(parts)
 
 
 def _header(headers: dict[str, str], name: str) -> str | None:

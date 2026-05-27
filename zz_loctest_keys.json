@@ -17,8 +17,8 @@
       "tags": ["loctest"],
       "is_plural": true,
       "translations": [
-        { "language_iso": "en", "translation": "{\"one\": \"[%i] item\", \"other\": \"[%i] items\"}", "is_unverified": true },
-        { "language_iso": "ru", "translation": "{\"one\": \"[%i] элемент\", \"few\": \"[%i] элемента\", \"many\": \"[%i] элементов\", \"other\": \"[%i] элемента\"}", "is_unverified": true }
+        { "language_iso": "en", "translation": { "one": "[%i] item", "other": "[%i] items" }, "is_unverified": true },
+        { "language_iso": "ru", "translation": { "one": "[%i] элемент", "few": "[%i] элемента", "many": "[%i] элементов", "other": "[%i] элемента" }, "is_unverified": true }
       ]
     }
   ]

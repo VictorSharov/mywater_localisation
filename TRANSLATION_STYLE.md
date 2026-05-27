@@ -260,7 +260,7 @@ EN: "What goal shall we set for today?"  (onboarding goal-set prompt, casual int
 - **Awards / motivational** — `!` поощряется; manual hard line breaks не использовать, rhythm держать через copy и layout wrapping.
 - **Settings / labels** — без punctuation suffix.
 - **Brand name** — `"My Water"` (кавычки в body text как brand emphasis), `«My Water»` (guillemets в onboarding tutorial). В target language — locale-standard quotation marks: `«»` ru/fr, `„"` de, `「」` ja.
-- **Длинное тире (em-dash `—`, U+2014) в user-facing строках — НЕ использовать.** Его пишут почти только AI вместо обычного тире — многим это не нравится. Три разных символа, AI их путает — не считать за один: длинное тире `—` U+2014 (**запрещено** в user-facing значениях) / en-dash `–` U+2013 (проектом не регулируется — отдельно не вводить, но и не «чинить» drive-by; это не em-dash) / обычное тире (hyphen-minus `-` U+002D, **разрешено**, в т.ч. как разделитель между слов `« - »`). Default замена существующего `—` — **обычное тире `-`** там, где по смыслу нужен dash (`Пей воду - будь в тонусе!`). Другой знак — по ситуации, ориентир = `en`-значение того же ключа: comma для parallel imperatives; period для двух полных clause / Siri-voice (`…daily goal. %1$@ of %2$@. Great job!`); colon для label:value (`%1$@: %2$d%% of total`). Для `ar` / CJK — script-correct знак (`ar` `،` U+060C; CJK `，` / `、`). Применять во всех 21 языке. Область правила — **только user-facing значения**; em-dash как канонический знак русской прозы в doc-прозе (`mywater_ios docs/ai/DOCS_MAINTENANCE.md`) этим правилом НЕ затрагивается. Anti-pattern surface — `mywater_ios docs/ai/COMMON_MISTAKES.md § [CM-EM-DASH-OVERUSE]`.
+- **Длинное тире (em-dash `—`, U+2014) в user-facing строках — НЕ использовать.** Его пишут почти только AI вместо обычного тире — многим это не нравится. Три разных символа, AI их путает — не считать за один: длинное тире `—` U+2014 (**запрещено** в user-facing значениях) / en-dash `–` U+2013 (проектом не регулируется — отдельно не вводить, но и не «чинить» drive-by; это не em-dash) / обычное тире (hyphen-minus `-` U+002D, **разрешено**, в т.ч. как разделитель между слов `« - »`). Default замена существующего `—` — **обычное тире `-`** там, где по смыслу нужен dash (`Пей воду - будь в тонусе!`). Другой знак — по ситуации, ориентир = `en`-значение того же ключа: comma для parallel imperatives; period для двух полных clause / Siri-voice (`…daily goal. %1$@ of %2$@. Great job!`); colon для label:value (`%1$@: %2$d%% of total`). Для `ar` / CJK — script-correct знак (`ar` `،` U+060C; CJK `，` / `、`). Применять во всех 21 языке. Область правила — **только user-facing значения**; em-dash как канонический знак русской прозы в doc-прозе (`mywater_ios docs/ai/DOCS_MAINTENANCE.md`) этим правилом НЕ затрагивается. Anti-pattern surface — `mywater_ios docs/ai/COMMON_MISTAKES.md § [CM-EM-DASH-OVERUSE]`. Детерминированно проверяется `loc_qa.py` (em-dash check, ERROR; user-facing значения, не `context`).
 
 ### Emoji policy
 
@@ -325,7 +325,7 @@ universal placeholder**-формате — НЕ в платформенном `%
 | строка | `[%s]`, `[%1$s]` | `%@`, `%1$@` | `%s`, `%1$s` | `{{0}}` |
 | целое | `[%i]`, `[%1$i]` | `%li` | `%d` | `{{1}}` |
 | float | `[%.1f]`, `[%.0f]` | `%.1f` | `%.1f` | `{{2}}` |
-| литеральный `%` | `%%` | `%%` → `%` | `%%` → `%` | — |
+| литеральный `%` | `[%]` | `%%` | `%` | `%` |
 
 - **Аргумент → universal-скобки.** Любая подстановка пишется `[%s]` / `[%i]` /
   `[%.1f]`. Никогда не оставлять голый `%@` / `%d` / `%s` в значении.
@@ -338,14 +338,18 @@ universal placeholder**-формате — НЕ в платформенном `%
   runtime-контракт (один и тот же набор аргументов на всех языках). Проверяется
   `loc_placeholder_lint.py` (`placeholder-count` — расхождение набора;
   `placeholder-indexing` — смесь bare/indexed или неиндексированный multi-ключ).
-- **Литеральный процент → `%%`.** Знак процента, который надо ОТОБРАЗИТЬ (не
-  подстановка), пишется `%%` (printf-escape). iOS R.swift оборачивает каждый
-  аксессор в `String(format:)`, поэтому одиночный `%` — undefined behavior
-  (краш). `[%]` (universal literal-percent) НЕ использовать вместо `%%`: при
-  отсутствии других плейсхолдеров Lokalise экспортирует `[%]` как одиночный `%`
-  → тот же краш. **Carve-out:** значения только для App Store / server
-  (`platforms: ["other"]`) не проходят через `String(format:)` — там литеральный
-  `%` («70%») допустим.
+- **Литеральный процент → `[%]`.** Знак процента, который надо ОТОБРАЗИТЬ (не
+  подстановка), хранится как universal `[%]` — Lokalise сам экранирует его под
+  платформу на экспорте: `[%]` → `%%` для printf/iOS; → одиночный `%`, если в
+  строке нет других плейсхолдеров (→ `%%`, если есть). iOS-бандл вдобавок включает
+  «Convert all [%] → %%» (README § iOS), поэтому даже standalone `[%]` уходит как
+  `%%` и безопасен под R.swift `String(format:)`. Голый `%%` **не** хранить: это
+  iOS-овый printf-escape, а keys-API кладёт его буквально (без конверсии) — на
+  Android/server, читающих строку без форматтера, он протечёт как два знака.
+  Одиночный `%` в runtime-значении тоже нельзя (тот же `String(format:)`
+  undefined). **Carve-out:** значения только для App Store / server
+  (`platforms: ["other"]`) не форматируются — там литеральный `%` («70%»)
+  допустим.
 - **iOS `.stringsdict` (`%#@var@`)** не имеет universal-формы. Это признак ключа,
   который ДОЛЖЕН быть Lokalise **plural** (`is_plural`, CLDR-формы с `[%i]`), но
   был импортирован плоским (нативный nested-plural «развернулся» в строку
