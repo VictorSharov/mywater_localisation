@@ -32,9 +32,9 @@ timestamp churns).
 Lokalise is the source of truth; this file is a regenerable cache — do not
 hand-edit, regenerate instead. Stale cache reintroduces duplicate keys, so
 re-run whenever keys change. Regeneration emits only Lokalise-derived state, so
-local-only edit markers (e.g. `source_dirty`, set by loc_corpus.set_translation)
-are dropped — by then the edit has been pushed, so the marker has served its
-purpose.
+local-only edit markers (the `dirty` push-pending set, written by
+loc_corpus.set_translation) are dropped — by then the edits have been pushed, so
+the markers have served their purpose.
 
 Output defaults next to this script (the shared localisation repo) so iOS /
 Android / server sessions read one file (attach it via

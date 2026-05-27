@@ -23,9 +23,10 @@ Record shape (see loc_corpus_ndjson.py docstring for the canonical spec):
      "unverified":["ru"],"t":{"en":"Select your country","ru":"Выберите страну"}}
 
 Plural keys keep nested CLDR forms per language in `t`; flat `en` is the
-`other` form. An optional `"source_dirty":true` marks a record whose source
-value was edited locally and not yet pushed to Lokalise (see set_translation);
-it is local-only — the generator never emits it, so a regenerate clears it.
+`other` form. An optional `"dirty":["en","ru"]` lists languages whose value was
+edited locally and not yet pushed to Lokalise (see set_translation); it is
+local-only — the generator never emits it, so a regenerate clears it, and a
+successful push clears the pushed languages.
 
 Sibling import works because the scripts run as files from this directory.
 Consumers that may run from another CWD add
@@ -80,9 +81,9 @@ def write_records(path: Path | str, records: Iterable[dict[str, Any]]) -> None:
     """Write records as deterministic NDJSON (matches the generator's output).
 
     Records are sorted by key_id (None last), each `t` map is sorted by language,
-    the flat `en` mirror is re-synced from `t['en']`, empty `unverified` lists are
-    dropped, and a falsy `source_dirty` marker is dropped — so a regenerated or
-    hand-edited corpus diffs cleanly.
+    the flat `en` mirror is re-synced from `t['en']`, and empty `unverified` /
+    `dirty` lang lists are dropped — so a regenerated or hand-edited corpus diffs
+    cleanly.
     """
     path = Path(path)
     prepared = [_normalized(record) for record in records]
@@ -95,26 +96,25 @@ def write_records(path: Path | str, records: Iterable[dict[str, Any]]) -> None:
 
 
 def _normalized(record: dict[str, Any]) -> dict[str, Any]:
-    """In-place canonicalize a record's sub-collections (sort `t`, sort/prune
-    `unverified`, drop a falsy `source_dirty`, re-sync flat `en`). Top-level field
-    order is left untouched."""
+    """In-place canonicalize a record's sub-collections (sort `t`, sort/prune the
+    `unverified` and `dirty` lang lists, re-sync flat `en`). Top-level field order
+    is left untouched."""
     translations = record.get("t")
     if isinstance(translations, dict):
         record["t"] = dict(sorted(translations.items()))
         if "en" in record["t"]:
             record["en"] = flat_source(record["t"]["en"])
-    unverified = record.get("unverified")
-    if isinstance(unverified, list):
-        deduped = sorted(set(unverified))
-        if deduped:
-            record["unverified"] = deduped
-        else:
-            record.pop("unverified", None)
-    # source_dirty is a transient local-edit marker (set by set_translation, never
-    # by the generator); keep it only when truthy so a cleared/absent flag is
-    # omitted and never churns the lean diff.
-    if not record.get("source_dirty"):
-        record.pop("source_dirty", None)
+    # `unverified` (review state) and `dirty` (local-edit / push-pending, set by
+    # set_translation, never by the generator) are both sorted+deduped lang lists;
+    # an empty one is dropped so a cleared flag is omitted and never churns the diff.
+    for field in ("unverified", "dirty"):
+        value = record.get(field)
+        if isinstance(value, list):
+            deduped = sorted(set(value))
+            if deduped:
+                record[field] = deduped
+            else:
+                record.pop(field, None)
     return record
 
 
@@ -142,6 +142,14 @@ def has_platform(record: dict[str, Any], platform: str) -> bool:
 
 def unverified_langs(record: dict[str, Any]) -> set[str]:
     return set(record.get("unverified") or [])
+
+
+def dirty_langs(record: dict[str, Any]) -> set[str]:
+    """Languages edited locally and not yet pushed to Lokalise — the push-pending
+    set loc_corpus_import keys off. Cleared per-language on a successful push and
+    wholesale on a regenerate. Includes SOURCE_LANG when the source value was
+    edited (which pushes as verified)."""
+    return set(record.get("dirty") or [])
 
 
 def key_names(record: dict[str, Any]) -> list[str]:
@@ -262,21 +270,24 @@ def set_translation(
     """Set `t[lang] = value`. For non-plural keys `value` is a string; for plural
     keys it is a {form: text} dict restricted to CLDR categories.
 
-    When `mark_unverified` is True (default) and `lang` is not the source
-    language, the language is added to `unverified` — an edited or fresh
-    translation needs human / Lokalise review before it counts as verified, the
-    same two-signal guarantee the iOS `|R|` marker carried.
+    Two independent markers are maintained:
 
-    Editing the source language re-syncs the flat `en` mirror and, when the value
-    actually changes, sets `source_dirty=True`. That marker exists because the
-    source is deliberately never added to `unverified` (it is the dev source of
-    truth, not a translation under review — see SOURCE_LANG): without it a source
-    edit would carry NO signal and loc_corpus_import's default scope — which keys
-    off `unverified` — would silently never push it. The importer reads
-    `source_dirty` to push the source (always as verified); a regenerate rebuilds
-    from Lokalise and never emits the marker, so it self-clears. The symmetry:
-    push a language iff it was locally edited — `unverified` is that signal for a
-    target, `source_dirty` is it for the source.
+    - `dirty` (push-pending): when the value actually changes, `lang` is added to
+      `dirty` — the signal loc_corpus_import's default scope keys off to push a
+      language. It applies to every language alike (source or target), so the rule
+      is uniform: push a language iff it was locally edited. It is local-only — a
+      regenerate rebuilds from Lokalise and never emits it (self-clears), and a
+      successful push clears the pushed languages.
+    - `unverified` (review state): when `mark_unverified` is True (default) and
+      `lang` is a target (not SOURCE_LANG), the language is added to `unverified`
+      — an edited/fresh translation still needs human / Lokalise review, the same
+      two-signal guarantee the iOS `|R|` marker carries. SOURCE_LANG is never
+      `unverified` (it is the dev source of truth, not a review target) and the
+      importer always pushes it verified.
+
+    The two are separate because pushing is not verifying: a pushed translation
+    leaves `dirty` at once (it is synced) but stays `unverified` until a human
+    reviews it in Lokalise. Editing the source also re-syncs the flat `en` mirror.
     """
     translations = record.setdefault("t", {})
     if is_plural(record) and isinstance(value, dict):
@@ -285,9 +296,11 @@ def set_translation(
     translations[lang] = value
     if lang == SOURCE_LANG:
         record["en"] = flat_source(value)
-        if value != previous:
-            record["source_dirty"] = True
     elif mark_unverified:
         marked = set(record.get("unverified") or [])
         marked.add(lang)
         record["unverified"] = sorted(marked)
+    if value != previous:
+        dirty = set(record.get("dirty") or [])
+        dirty.add(lang)
+        record["dirty"] = sorted(dirty)

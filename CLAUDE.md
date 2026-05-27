@@ -54,14 +54,23 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   `unverified` / strip `|R|` for AI-produced translations — that is a separate
   operator-/Lokalise-gated action. Filling, correcting, or re-translating keeps
   the marker set. The **source** language is the exception: it is never
-  `unverified` (dev source of truth, not a review target). A local edit to the
-  source *value* instead sets `source_dirty` (`set_translation`) — the signal
-  `loc_corpus_import` keys off to push the source (as **verified**). Same
-  principle either way: **push a language iff it was locally edited** —
-  `unverified` is that signal for a target, `source_dirty` for the source. A
-  regenerate rebuilds from Lokalise and clears `source_dirty`. So a source-value
-  edit (e.g. fixing the `en` wording) propagates on the next plain
-  `loc_corpus_import --apply`, not silently dropped.
+  `unverified` (dev source of truth, not a review target) — it is pushed
+  verified.
+- **[CR-CORPUS-DIRTY] Push iff locally edited — `dirty`, not `unverified`.**
+  `unverified` is *review state* and does **not** drive the push: pushing is not
+  verifying, so a pushed translation stays `unverified` (and `|R|`) until a human
+  reviews it in Lokalise. The push signal is a separate `dirty` set — on a value
+  change `set_translation` adds the language (source **or** target) to `dirty`,
+  and `loc_corpus_import`'s default scope pushes exactly the `dirty` languages
+  (source as **verified**, targets as **unverified**). A successful `--apply`
+  clears the pushed languages from `dirty` (the importer writes the corpus back
+  through `loc_corpus.write_records`), so re-running is a no-op rather than a
+  re-push, and a verified Lokalise translation is never clobbered by a stale
+  snapshot of a language nobody edited. A regenerate rebuilds from Lokalise and
+  never emits `dirty`, so it self-clears. Net: a local edit (fixing the `en`
+  wording, or a target translation) propagates on the next plain
+  `loc_corpus_import --apply`, then drains — not silently dropped, not endlessly
+  re-sent.
 - **[CR-PLACEHOLDER] Universal placeholders.** Corpus values store **Lokalise
   universal placeholders** (`[%s]` / `[%i]` / `[%.1f]` / `[%1$s]`), never bare
   `%@` / `%d` / `%s`. Lokalise converts universal → platform on export; the

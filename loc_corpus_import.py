@@ -17,18 +17,19 @@ What gets pushed:
     without a subset corpus. A requested name with no corpus match is reported on
     stderr, not silently dropped (so you never claim a push that did not happen).
   - which languages, per key:
-    - default: the languages in the key's `unverified` set — the ones an apply
-      script just edited (apply marks edited languages unverified) or that
-      Lokalise already flagged for review — PLUS the source language when the key
-      carries `source_dirty` (a local source edit has no `unverified` flag, so it
-      would otherwise never be pushed; the source goes as verified). Avoids
-      clobbering verified Lokalise translations with a stale snapshot: a language
-      is pushed only when it was locally edited.
+    - default: the languages in the key's `dirty` set — the ones an apply script
+      (or set_translation) edited locally and that have not been pushed yet,
+      source or target alike. A language is pushed iff it was locally edited, so
+      verified Lokalise translations are never clobbered with a stale snapshot,
+      and a successful push clears `dirty` so re-running is a no-op, not a
+      re-push. `dirty` is distinct from `unverified` (review state): a pushed
+      translation leaves `dirty` at once but stays `unverified` until a human
+      reviews it.
     - `--lang X` (repeatable): exactly these languages instead, for every in-scope
       key that has a value for them.
-    - `--key` without `--lang`: ALL of each named key's languages. A committed
-      edit (e.g. a placeholder fix) carries no `unverified` marker, so the default
-      scope would push nothing — naming the key means "push this key".
+    - `--key` without `--lang`: ALL of each named key's languages. Once synced a
+      committed edit (e.g. a placeholder fix) carries no `dirty` marker, so the
+      default scope would push nothing — naming the key means "push this key".
 
 Keys with no key_id are created (key_name + platforms + translations). Existing
 keys have each translation edited through the per-translation endpoint
@@ -70,12 +71,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from loc_corpus import (  # noqa: E402
     DEFAULT_CORPUS,
     SOURCE_LANG,
+    dirty_langs,
     display_key,
     is_plural,
     key_names,
     read_records,
     translation,
-    unverified_langs,
+    write_records,
 )
 from lokalise_helper import (  # noqa: E402
     DEFAULT_BASE_URL,
@@ -106,20 +108,17 @@ def build_parser() -> argparse.ArgumentParser:
 def langs_for(record: dict[str, Any], requested: list[str] | None, *, all_langs_default: bool = False) -> list[str]:
     """Languages to push for this key: the requested set (where a value exists);
     else every available language when the key was explicitly named
-    (all_langs_default); else the key's edited set — its `unverified` languages
-    PLUS the source language when `source_dirty` is set. The source carries no
-    `unverified` flag (it is never a review target), so a local source edit would
-    otherwise never be pushed; `source_dirty` is the corpus signal that it was
-    edited (see loc_corpus.set_translation)."""
+    (all_langs_default); else the key's `dirty` set — the languages edited locally
+    and not yet pushed (set_translation marks any edited language, source or
+    target, dirty). A language is pushed iff it was locally edited, so a key that
+    is merely `unverified` (awaiting review but unchanged locally) is not
+    re-pushed."""
     available = set((record.get("t") or {}).keys())
     if requested:
         return [lang for lang in requested if lang in available]
     if all_langs_default:
         return sorted(available)
-    langs = unverified_langs(record) & available
-    if record.get("source_dirty") and SOURCE_LANG in available:
-        langs = langs | {SOURCE_LANG}
-    return sorted(langs)
+    return sorted(dirty_langs(record) & available)
 
 
 def translation_payload(record: dict[str, Any], lang: str, mark_verified: bool) -> dict[str, Any]:
@@ -160,6 +159,7 @@ def main() -> int:
     matched_keys: set[str] = set()
     updates: list[dict[str, Any]] = []
     creates: list[dict[str, Any]] = []
+    create_records: list[dict[str, Any]] = []  # parallel to creates: the source record per create payload
     touched_langs: set[str] = set()
     pushed: list[tuple[dict[str, Any], list[str]]] = []
 
@@ -189,6 +189,7 @@ def main() -> int:
             if is_plural(record):
                 payload["is_plural"] = True
             creates.append(payload)
+            create_records.append(record)
 
     if requested_keys is not None:
         missing = sorted(requested_keys - matched_keys)
@@ -200,7 +201,7 @@ def main() -> int:
     elif requested_keys is not None:
         scope = "all-langs-per-key"
     else:
-        scope = "edited-per-key"  # unverified targets + source_dirty source
+        scope = "edited-per-key"  # the key's `dirty` langs (locally edited, unpushed)
     key_scope = f"  keys: {len(matched_keys)}/{len(requested_keys)} named matched" if requested_keys is not None else ""
     print(f"corpus: {corpus_path}  scope: {scope}{key_scope}  languages touched: {','.join(sorted(touched_langs)) or '<none>'}")
     print(f"plan: update {len(updates)} existing key(s), create {len(creates)} new key(s)")
@@ -240,7 +241,7 @@ def main() -> int:
             langs = ",".join(t["language_iso"] for t in item["translations"])
             print(f"  create key_name={item['key_name']}: langs {langs}")
         if not updates and not creates:
-            print("  (nothing to import — no edited/unverified translations in scope)")
+            print("  (nothing to import — no dirty/locally-edited translations in scope)")
         return 0
 
     # key_id -> {lang: value-we-sent}, used by the post-write verification below.
@@ -272,18 +273,33 @@ def main() -> int:
             sent_by_key[key_id] = {t["language_iso"]: t["translation"] for t in item["translations"]}
         for start in range(0, len(creates), 500):
             chunk = creates[start : start + 500]
+            record_chunk = create_records[start : start + 500]
             result = client.create_keys(chunk, use_automations=None)
             print(f"created {len(chunk)} key(s)")
-            record_created_sent(result, chunk, sent_by_key)
+            record_created_sent(result, chunk, sent_by_key, record_chunk)
     except LokaliseError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
+    mismatches = [] if args.no_verify else verify_pushed(client, sent_by_key)
+
+    # Drain the push queue: a language that landed cleanly is now synced, so clear
+    # it from the record's `dirty` set; a verify mismatch stays dirty so the next
+    # run retries it. Freshly created keys also got their new key_id stamped on the
+    # record (record_created_sent) so a re-run updates instead of re-creating. The
+    # corpus is written once, through the serializer (deterministic diff — only the
+    # drained markers / new key_ids move). `unverified` is untouched: a pushed
+    # translation stays flagged for review until a human verifies it in Lokalise.
+    record_by_id = {int(rec["key_id"]): rec for rec, _ in pushed if rec.get("key_id") is not None}
+    cleared = clear_synced_dirty(record_by_id, sent_by_key, mismatches)
+    if sent_by_key:
+        write_records(corpus_path, records)
+        if cleared:
+            print(f"cleared dirty on {cleared} pushed translation(s); review `git diff -- {corpus_path.name}`")
+
     if args.no_verify:
         print("import complete (post-write verification skipped via --no-verify)")
         return 0
-
-    mismatches = verify_pushed(client, sent_by_key)
     if mismatches:
         print(f"\nWARNING: {len(mismatches)} translation(s) did NOT land as sent — Lokalise stored a different value.", file=sys.stderr)
         print("Lokalise accepted the request but the value differs on re-read. Check the per-language diff below;", file=sys.stderr)
@@ -342,9 +358,12 @@ def verify_pushed(client: LokaliseClient, sent_by_key: dict[int, dict[str, Any]]
     return mismatches
 
 
-def record_created_sent(result: dict[str, Any], chunk: list[dict[str, Any]], sent_by_key: dict[int, dict[str, Any]]) -> None:
+def record_created_sent(result: dict[str, Any], chunk: list[dict[str, Any]], sent_by_key: dict[int, dict[str, Any]], records: list[dict[str, Any]] | None = None) -> None:
     """Map freshly created keys (by name) to their new key_id so verify_pushed can
-    re-read them, since create payloads carry no key_id of their own."""
+    re-read them, since create payloads carry no key_id of their own. When the
+    source `records` are given (parallel to `chunk`), stamp the new key_id back
+    onto each so the corpus stops treating an already-created key as a create —
+    otherwise a later edit would re-create it as a duplicate."""
     name_to_id: dict[str, int] = {}
     for key in result.get("keys") or []:
         key_id = key.get("key_id")
@@ -352,11 +371,38 @@ def record_created_sent(result: dict[str, Any], chunk: list[dict[str, Any]], sen
             continue
         for name in names_of(key.get("key_name")):
             name_to_id[name] = int(key_id)
-    for payload in chunk:
+    for idx, payload in enumerate(chunk):
         key_id = next((name_to_id[name] for name in names_of(payload.get("key_name")) if name in name_to_id), None)
         if key_id is None:
             continue
         sent_by_key[key_id] = {t["language_iso"]: t["translation"] for t in payload.get("translations", [])}
+        if records is not None and idx < len(records):
+            records[idx]["key_id"] = key_id
+
+
+def clear_synced_dirty(record_by_id: dict[int, dict[str, Any]], sent_by_key: dict[int, dict[str, Any]], mismatches: list[dict[str, Any]]) -> int:
+    """Remove from each record's `dirty` the languages that pushed cleanly — every
+    (key, lang) we sent except the verify mismatches (those stay dirty so the next
+    run retries them). Returns the count of cleared (key, lang) markers. `dirty` is
+    the only field touched; `unverified` is review state and is left alone."""
+    bad = {(int(m["key_id"]), m["lang"]) for m in mismatches}
+    cleared = 0
+    for key_id, lang_values in sent_by_key.items():
+        record = record_by_id.get(int(key_id))
+        if record is None:
+            continue
+        dirty = set(record.get("dirty") or [])
+        for lang in lang_values:
+            if (int(key_id), lang) in bad:
+                continue
+            if lang in dirty:
+                dirty.discard(lang)
+                cleared += 1
+        if dirty:
+            record["dirty"] = sorted(dirty)
+        else:
+            record.pop("dirty", None)
+    return cleared
 
 
 def stored_by_lang(key: dict[str, Any]) -> dict[str, Any]:
