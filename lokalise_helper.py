@@ -21,6 +21,7 @@ Examples:
     python3 lokalise_helper.py remove-tags --key-id 123456 --tag stale
     python3 lokalise_helper.py update-key --key-name onboarding.title --payload-file /tmp/key_patch.json --apply
     python3 lokalise_helper.py create-keys --keys-file /tmp/lokalise_keys.json --apply
+    python3 lokalise_helper.py delete-keys --key-name zz_loctest_plural --apply   # DESTRUCTIVE
 
 Mutating commands are dry-run by default; pass --apply to perform the request.
 
@@ -293,6 +294,18 @@ class LokaliseClient:
         collection = self._call(self._sdk.create_keys, self.project_path, params)
         return {"keys": [_key_to_dict(model) for model in collection.items]}
 
+    def delete_keys(self, key_ids: list[int]) -> dict[str, Any]:
+        """Bulk-delete keys, chunked to the API max. DESTRUCTIVE and irreversible —
+        callers must gate this behind --apply (there is no undo in Lokalise)."""
+        deleted = 0
+        for start in range(0, len(key_ids), MAX_KEYS_LIMIT):
+            chunk = [int(key_id) for key_id in key_ids[start : start + MAX_KEYS_LIMIT]]
+            self._call(self._sdk.delete_keys, self.project_path, chunk)
+            for key_id in chunk:
+                self._key_cache.pop(key_id, None)
+            deleted += len(chunk)
+        return {"deleted": deleted}
+
 
 def main() -> int:
     parser = build_parser()
@@ -387,6 +400,11 @@ def build_parser() -> argparse.ArgumentParser:
     automations_group.add_argument("--no-automations", action="store_true", help="Ask Lokalise not to run automations.")
     create_parser.add_argument("--apply", action="store_true", help="Execute the create. Without this, prints a dry-run plan.")
     create_parser.set_defaults(func=cmd_create_keys)
+
+    delete_parser = subparsers.add_parser("delete-keys", help="DESTRUCTIVE: permanently delete keys by id or name (no undo).")
+    add_mutation_key_args(delete_parser)
+    delete_parser.add_argument("--apply", action="store_true", help="Execute the deletion. Without this, prints a dry-run plan.")
+    delete_parser.set_defaults(func=cmd_delete_keys)
 
     return parser
 
@@ -606,6 +624,21 @@ def cmd_create_keys(client: LokaliseClient, args: argparse.Namespace) -> int:
         raise LokaliseError("create-keys received more than 500 keys; split the file into chunks up to 500.")
     result = client.create_keys(keys, use_automations=use_automations)
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_delete_keys(client: LokaliseClient, args: argparse.Namespace) -> int:
+    refs = resolve_key_refs(client, args)
+    if not args.apply:
+        print(f"DRY RUN: would PERMANENTLY delete {len(refs)} key(s) — irreversible. Pass --apply to execute.")
+        for ref in refs:
+            print(f"  delete key_id={ref.key_id} key_name={ref.key_name or '<unknown>'}")
+        return 0
+
+    client.delete_keys([ref.key_id for ref in refs])
+    for ref in refs:
+        print(f"deleted key_id={ref.key_id} key_name={ref.key_name or '<unknown>'}")
+    print(f"deleted {len(refs)} key(s)")
     return 0
 
 
