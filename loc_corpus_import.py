@@ -17,15 +17,18 @@ What gets pushed:
     without a subset corpus. A requested name with no corpus match is reported on
     stderr, not silently dropped (so you never claim a push that did not happen).
   - which languages, per key:
-    - default: only the languages in the key's `unverified` set — the ones an
-      apply script just edited (apply marks edited languages unverified) or that
-      Lokalise already flagged for review. Avoids clobbering verified Lokalise
-      translations with a stale snapshot.
+    - default: the languages in the key's `unverified` set — the ones an apply
+      script just edited (apply marks edited languages unverified) or that
+      Lokalise already flagged for review — PLUS the source language when the key
+      carries `source_dirty` (a local source edit has no `unverified` flag, so it
+      would otherwise never be pushed; the source goes as verified). Avoids
+      clobbering verified Lokalise translations with a stale snapshot: a language
+      is pushed only when it was locally edited.
     - `--lang X` (repeatable): exactly these languages instead, for every in-scope
       key that has a value for them.
     - `--key` without `--lang`: ALL of each named key's languages. A committed
       edit (e.g. a placeholder fix) carries no `unverified` marker, so the default
-      unverified scope would push nothing — naming the key means "push this key".
+      scope would push nothing — naming the key means "push this key".
 
 Keys with no key_id are created (key_name + platforms + translations). Existing
 keys have each translation edited through the per-translation endpoint
@@ -34,10 +37,11 @@ keys have each translation edited through the per-translation endpoint
 an existing key (verified: a changed `translation` left the stored value and its
 modified_at untouched), which made earlier imports report success while writing
 nothing. Plural values are sent as a CLDR-forms object (`{"one":…,"other":…}`) —
-what the API accepts; the JSON-string form is only what it returns. Pushed
+what the API accepts; the JSON-string form is only what it returns. Pushed target
 translations are marked unverified so a human / Lokalise reviewer still signs off
 (pass --mark-verified to override) — the same two-signal guarantee the corpus
-`unverified` flag carries.
+`unverified` flag carries; the source language is always pushed verified (it is
+the source of truth, not a translation under review).
 
 Mutating is dry-run by default; pass --apply to perform the requests. Credentials
 come from the env (LOKALISE_API_TOKEN / LOKALISE_PROJECT_ID), never CLI args.
@@ -65,6 +69,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from loc_corpus import (  # noqa: E402
     DEFAULT_CORPUS,
+    SOURCE_LANG,
     display_key,
     is_plural,
     key_names,
@@ -87,7 +92,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS, help=f"Corpus path. Default: {DEFAULT_CORPUS}.")
     parser.add_argument("--lang", action="append", help="Language iso to import. Repeatable. Default: each key's unverified languages.")
     parser.add_argument("--key", action="append", help="Key name to import. Repeatable. Restricts the push to these key(s); without --lang, all of each named key's languages are pushed.")
-    parser.add_argument("--mark-verified", action="store_true", help="Push translations as verified (default: unverified, needs review).")
+    parser.add_argument("--mark-verified", action="store_true", help="Push target translations as verified (default: unverified, needs review). The source language is always pushed verified regardless.")
     parser.add_argument("--project-id", default=os.environ.get("LOKALISE_PROJECT_ID"), help="Lokalise project id. Defaults to LOKALISE_PROJECT_ID.")
     parser.add_argument("--branch", default=os.environ.get("LOKALISE_BRANCH"), help="Optional Lokalise branch.")
     parser.add_argument("--base-url", default=os.environ.get("LOKALISE_API_BASE", DEFAULT_BASE_URL), help=f"API base URL. Defaults to {DEFAULT_BASE_URL}.")
@@ -101,13 +106,20 @@ def build_parser() -> argparse.ArgumentParser:
 def langs_for(record: dict[str, Any], requested: list[str] | None, *, all_langs_default: bool = False) -> list[str]:
     """Languages to push for this key: the requested set (where a value exists);
     else every available language when the key was explicitly named
-    (all_langs_default); else the key's unverified set."""
+    (all_langs_default); else the key's edited set — its `unverified` languages
+    PLUS the source language when `source_dirty` is set. The source carries no
+    `unverified` flag (it is never a review target), so a local source edit would
+    otherwise never be pushed; `source_dirty` is the corpus signal that it was
+    edited (see loc_corpus.set_translation)."""
     available = set((record.get("t") or {}).keys())
     if requested:
         return [lang for lang in requested if lang in available]
     if all_langs_default:
         return sorted(available)
-    return sorted(unverified_langs(record) & available)
+    langs = unverified_langs(record) & available
+    if record.get("source_dirty") and SOURCE_LANG in available:
+        langs = langs | {SOURCE_LANG}
+    return sorted(langs)
 
 
 def translation_payload(record: dict[str, Any], lang: str, mark_verified: bool) -> dict[str, Any]:
@@ -116,8 +128,14 @@ def translation_payload(record: dict[str, Any], lang: str, mark_verified: bool) 
     # plural key — the json-string form is only what the API *returns*, never what
     # it accepts (a string yields a 400 "nested error"). Non-plural values are the
     # plain string. So the corpus value goes through as-is either way.
+    #
+    # The source language is always pushed verified (never is_unverified): it is
+    # the dev source of truth, not a translation awaiting review — the push side
+    # of the corpus invariant that SOURCE_LANG is never in `unverified`.
+    # `--mark-verified` governs the TARGET languages only.
     value = translation(record, lang)
-    return {"language_iso": lang, "translation": value, "is_unverified": not mark_verified}
+    is_unverified = lang != SOURCE_LANG and not mark_verified
+    return {"language_iso": lang, "translation": value, "is_unverified": is_unverified}
 
 
 def create_key_name(record: dict[str, Any]) -> Any:
@@ -182,7 +200,7 @@ def main() -> int:
     elif requested_keys is not None:
         scope = "all-langs-per-key"
     else:
-        scope = "unverified-per-key"
+        scope = "edited-per-key"  # unverified targets + source_dirty source
     key_scope = f"  keys: {len(matched_keys)}/{len(requested_keys)} named matched" if requested_keys is not None else ""
     print(f"corpus: {corpus_path}  scope: {scope}{key_scope}  languages touched: {','.join(sorted(touched_langs)) or '<none>'}")
     print(f"plan: update {len(updates)} existing key(s), create {len(creates)} new key(s)")

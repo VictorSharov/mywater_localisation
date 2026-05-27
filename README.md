@@ -55,7 +55,7 @@ the corpus generator, the importer, and the unused-key tagging touch Lokalise.
 | `loc_merge_languages.py` | side-by-side language view for cross-check review | — |
 | `loc_r_marked_translations.py` | translation backlog (`unverified`/missing/empty): extract → JSON → apply | — |
 | `loc_placeholder_lint.py` | lint placeholders vs the Lokalise universal contract; pre-flight inside `loc_corpus_import` | — |
-| `loc_qa.py` | lint value-character hygiene (em-dash, invisible spaces, `()` balance, edge whitespace); 2nd pre-flight inside `loc_corpus_import` | — |
+| `loc_qa.py` | lint value hygiene (em-dash, invisible spaces, `()` balance, edge/double whitespace, cross-language URL parity); 2nd pre-flight inside `loc_corpus_import` | — |
 | `loc_unused_keys.py` | report-only unused-key scan over **iOS + Android** repos; feeds Lokalise tags | yes (tag `--apply`) |
 | `lokalise_helper.py` | Lokalise API v2 CLI (list/get/tags/update/create; mutations dry-run by default) | yes (`--apply`) |
 | `loc_audit_prompt.md` + `loc_audit_lang_calibration/` | sub-agent audit prompt + per-language calibration | — |
@@ -119,7 +119,7 @@ each platform's bundle must end up as:
   `zh-Hans`); the download config owns that mapping (the trap `loc_corpus.py`
   guards against).
 
-### iOS — Apple Strings  *(finalized; validated against a real export, 2026-05-27)*
+### iOS — Apple Strings  *(finalized; validated against a real export, 2026-05-27; `Include description` flipped on→off 2026-05-27 — re-confirm comment-free on next download)*
 
 Lokalise → **Download**, file format **Apple Strings**. Set exactly:
 
@@ -133,7 +133,7 @@ Lokalise → **Download**, file format **Apple Strings**. Set exactly:
 | Convert all `[%]` to `%%` | on |
 | Sort keys by | Key name A-Z |
 | Indentation | 2 spaces |
-| Include description | on |
+| Include description | off |
 | Include comments | off |
 | Replace line breaks with `\n` | on |
 | Add new line at EOF | on |
@@ -158,8 +158,16 @@ Non-obvious choices:
   the `[%]`→`%%` toggle is what ships the canonical literal-percent `[%]`
   ([CR-PLACEHOLDER]) as `%%` — without it a standalone `[%]` de-escapes to a bare
   `%`, undefined under iOS `String(format:)`. Keep it **on** for the iOS bundle.
-- **Include description = on** ships the translator-context `/* … */` comments
-  (house convention); off would strip them (large diff).
+- **Include description = off.** The durable home of translator-context is the
+  corpus (`strings.ndjson` `context`) + the Lokalise Description field; the
+  `en.lproj` `/* … */` is only the authoring input Lokalise imports from, and this
+  export overwrites `en.lproj`, so the comment would not survive in the committed
+  files anyway. Re-shipping it into the exported `.strings` + the app bundle is a
+  redundant, drift-prone copy that nothing reads at runtime (R.swift / Foundation
+  ignore comments). Off matches Android and the iOS rule that context must not fan
+  out into non-en `.lproj` (`mywater_ios docs/LOCALIZATION.md § Comment encoding`).
+  Flipping on→off strips the comment from every exported `.strings` — a large
+  one-time diff.
 
 Gotchas:
 - **Dead nested path `<lang>.lproj/Localization/<lang>.lproj/Localizable.strings`.**
@@ -187,6 +195,7 @@ find . -type f | grep -oE '[^/]+$' | sort | uniq -c   # 21 each: InfoPlist.strin
 find . -path '*/Localization/*' -type f                # empty -> no dead nested path
 grep -rl '\[%' .                                        # empty -> placeholders converted to native
 grep -rl '= "";' .                                      # empty -> no blank values (base-language fill)
+grep -rln '/\*' .                                       # empty -> no description comments (Include description=off)
 ```
 
 ### Android — XML  *(settings finalized 2026-05-27; not yet validated against a real export)*
@@ -252,9 +261,9 @@ Non-obvious choices:
 - **Include all platform keys = off** — export only Android-assigned keys; keeps
   iOS-/server-only keys (and any non-Android placeholder form) out of
   `strings.xml`. Requires the Android platform assignment in Lokalise to be correct.
-- **Include description / comments = off** (unlike iOS, which ships description as
-  translator-context `/* … */`) — Android `strings.xml` goes straight to
-  production `res/`, so notes / `|R|` stay out of the shipped bundle.
+- **Include description / comments = off** (same as iOS) — Android `strings.xml`
+  goes straight to production `res/`, so notes / `|R|` stay out of the shipped
+  bundle; translator-context lives in the corpus, not the platform files.
 
 Gotchas:
 - **The export never produces `values/`** — the `values-en/`→`values/` rename

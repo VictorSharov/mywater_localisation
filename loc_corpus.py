@@ -23,7 +23,9 @@ Record shape (see loc_corpus_ndjson.py docstring for the canonical spec):
      "unverified":["ru"],"t":{"en":"Select your country","ru":"Выберите страну"}}
 
 Plural keys keep nested CLDR forms per language in `t`; flat `en` is the
-`other` form.
+`other` form. An optional `"source_dirty":true` marks a record whose source
+value was edited locally and not yet pushed to Lokalise (see set_translation);
+it is local-only — the generator never emits it, so a regenerate clears it.
 
 Sibling import works because the scripts run as files from this directory.
 Consumers that may run from another CWD add
@@ -78,8 +80,9 @@ def write_records(path: Path | str, records: Iterable[dict[str, Any]]) -> None:
     """Write records as deterministic NDJSON (matches the generator's output).
 
     Records are sorted by key_id (None last), each `t` map is sorted by language,
-    the flat `en` mirror is re-synced from `t['en']`, and empty `unverified` lists
-    are dropped — so a regenerated or hand-edited corpus diffs cleanly.
+    the flat `en` mirror is re-synced from `t['en']`, empty `unverified` lists are
+    dropped, and a falsy `source_dirty` marker is dropped — so a regenerated or
+    hand-edited corpus diffs cleanly.
     """
     path = Path(path)
     prepared = [_normalized(record) for record in records]
@@ -93,7 +96,8 @@ def write_records(path: Path | str, records: Iterable[dict[str, Any]]) -> None:
 
 def _normalized(record: dict[str, Any]) -> dict[str, Any]:
     """In-place canonicalize a record's sub-collections (sort `t`, sort/prune
-    `unverified`, re-sync flat `en`). Top-level field order is left untouched."""
+    `unverified`, drop a falsy `source_dirty`, re-sync flat `en`). Top-level field
+    order is left untouched."""
     translations = record.get("t")
     if isinstance(translations, dict):
         record["t"] = dict(sorted(translations.items()))
@@ -106,6 +110,11 @@ def _normalized(record: dict[str, Any]) -> dict[str, Any]:
             record["unverified"] = deduped
         else:
             record.pop("unverified", None)
+    # source_dirty is a transient local-edit marker (set by set_translation, never
+    # by the generator); keep it only when truthy so a cleared/absent flag is
+    # omitted and never churns the lean diff.
+    if not record.get("source_dirty"):
+        record.pop("source_dirty", None)
     return record
 
 
@@ -256,15 +265,28 @@ def set_translation(
     When `mark_unverified` is True (default) and `lang` is not the source
     language, the language is added to `unverified` — an edited or fresh
     translation needs human / Lokalise review before it counts as verified, the
-    same two-signal guarantee the iOS `|R|` marker carried. The flat `en` mirror
-    is re-synced when the source language is edited.
+    same two-signal guarantee the iOS `|R|` marker carried.
+
+    Editing the source language re-syncs the flat `en` mirror and, when the value
+    actually changes, sets `source_dirty=True`. That marker exists because the
+    source is deliberately never added to `unverified` (it is the dev source of
+    truth, not a translation under review — see SOURCE_LANG): without it a source
+    edit would carry NO signal and loc_corpus_import's default scope — which keys
+    off `unverified` — would silently never push it. The importer reads
+    `source_dirty` to push the source (always as verified); a regenerate rebuilds
+    from Lokalise and never emits the marker, so it self-clears. The symmetry:
+    push a language iff it was locally edited — `unverified` is that signal for a
+    target, `source_dirty` is it for the source.
     """
     translations = record.setdefault("t", {})
     if is_plural(record) and isinstance(value, dict):
         value = {category: value[category] for category in PLURAL_CATEGORIES if category in value}
+    previous = translations.get(lang)
     translations[lang] = value
     if lang == SOURCE_LANG:
         record["en"] = flat_source(value)
+        if value != previous:
+            record["source_dirty"] = True
     elif mark_unverified:
         marked = set(record.get("unverified") or [])
         marked.add(lang)

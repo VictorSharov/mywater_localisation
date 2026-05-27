@@ -53,7 +53,15 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   All three mean the same thing and clear the same way: do **not** clear
   `unverified` / strip `|R|` for AI-produced translations — that is a separate
   operator-/Lokalise-gated action. Filling, correcting, or re-translating keeps
-  the marker set.
+  the marker set. The **source** language is the exception: it is never
+  `unverified` (dev source of truth, not a review target). A local edit to the
+  source *value* instead sets `source_dirty` (`set_translation`) — the signal
+  `loc_corpus_import` keys off to push the source (as **verified**). Same
+  principle either way: **push a language iff it was locally edited** —
+  `unverified` is that signal for a target, `source_dirty` for the source. A
+  regenerate rebuilds from Lokalise and clears `source_dirty`. So a source-value
+  edit (e.g. fixing the `en` wording) propagates on the next plain
+  `loc_corpus_import --apply`, not silently dropped.
 - **[CR-PLACEHOLDER] Universal placeholders.** Corpus values store **Lokalise
   universal placeholders** (`[%s]` / `[%i]` / `[%.1f]` / `[%1$s]`), never bare
   `%@` / `%d` / `%s`. Lokalise converts universal → platform on export; the
@@ -129,9 +137,10 @@ docs; this canon owns *style and meaning* only.
 - After editing values: `python3 loc_placeholder_lint.py` (token-free) — no new
   placeholder errors ([CR-PLACEHOLDER]). It also runs as a pre-flight in
   `loc_corpus_import`; `--no-lint` overrides.
-- After editing values: `python3 loc_qa.py` (token-free) — value-character hygiene:
-  em-dash U+2014 ban + invisible/zero-width spaces (ERROR), `()` balance + edge
-  whitespace (WARN). Lints `t` values only, never `context`. 2nd pre-flight in
+- After editing values: `python3 loc_qa.py` (token-free) — value hygiene:
+  em-dash U+2014 ban + invisible/zero-width spaces (ERROR), `()` balance + edge/
+  double whitespace + cross-language URL parity (WARN). Lints `t` values only,
+  never `context`. 2nd pre-flight in
   `loc_corpus_import` (shares `--no-lint`). Enforces the em-dash ban of
   `TRANSLATION_STYLE.md § Punctuation`; the linguistic layer (calque / register /
   drift) stays with the audit sub-agent, not this gate.
