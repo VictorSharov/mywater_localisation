@@ -71,6 +71,23 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   wording, or a target translation) propagates on the next plain
   `loc_corpus_import --apply`, then drains — not silently dropped, not endlessly
   re-sent.
+- **[CR-CORPUS-META] Key metadata is corpus-owned too — `dirty_meta`.** The corpus
+  is the source of truth not only for translation values but for two key-level
+  fields: `platforms` and the translator description (corpus field `context`). Edit
+  them through `loc_apply_meta.py` (token-free) or `loc_corpus.set_platforms` /
+  `set_context` — never hand-edit ([CR-CORPUS-OWNER]). A change adds the field to a
+  key-level `dirty_meta` set (the metadata analog of `dirty`), and
+  `loc_corpus_import` pushes those fields via the **keys endpoint** (`update_key`),
+  separate from the per-translation endpoint: `platforms` as a full-array replace
+  (so add/remove a platform = the resulting set), and corpus `context` → the
+  Lokalise **`description`** field (this project's translator-notes field). A
+  successful `--apply` clears the pushed fields from `dirty_meta` (re-run is a
+  no-op); a regenerate never emits it (self-clears) and reads `description` back
+  first so a pushed value round-trips. Metadata has **no** review state — unlike a
+  translation it is never `unverified`. Naming a key (`--key`) re-pushes its
+  platforms + any existing description regardless of `dirty_meta`; to *clear* a
+  description use `loc_apply_meta --clear-description` (the dirty path pushes an
+  empty value).
 - **[CR-PLACEHOLDER] Universal placeholders.** Corpus values store **Lokalise
   universal placeholders** (`[%s]` / `[%i]` / `[%.1f]` / `[%1$s]`), never bare
   `%@` / `%d` / `%s`. Lokalise converts universal → platform on export; the
@@ -100,13 +117,15 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
 
 - **Reuse / audit are corpus-wide.** Search `strings.ndjson` (flat `en` via
   `rg` / `jq`) before introducing a key. The corpus carries `platforms`, so a
-  key already used on Android can be reused for iOS by adding the platform in
-  Lokalise — not a duplicate.
+  key already used on Android can be reused for iOS by adding the platform to its
+  record (`loc_apply_meta --key … --add-platform ios`) and pushing
+  ([CR-CORPUS-META]) — not a duplicate.
 - **Apply scripts are stdlib-only and token-free** (`loc_audit_apply`,
-  `loc_apply_lang`, `loc_r_marked_translations apply`). They mutate
-  `strings.ndjson` in place; replace-only (an unknown key is reported, not
+  `loc_apply_lang`, `loc_apply_meta`, `loc_r_marked_translations apply`). They
+  mutate `strings.ndjson` in place; replace-only (an unknown key is reported, not
   appended). Plural keys are CLDR-forms maps in `t`; flat-string apply paths skip
-  them.
+  them. `loc_apply_meta` edits key metadata (platforms / description) rather than
+  translation values ([CR-CORPUS-META]).
 - **New source strings / new keys** — see `§ Adding a new key (every platform)`
   below for the full flow.
 
@@ -122,7 +141,8 @@ export ([CR-PLACEHOLDER]).
 
 1. **Reuse-search first** (corpus-wide) — `rg` / `jq` the flat `en` in
    `strings.ndjson`. A key already on another platform is reused by adding the
-   missing platform (in Lokalise and in the record's `platforms`), never duplicated.
+   missing platform to its record (`loc_apply_meta --add-platform`, pushed via
+   [CR-CORPUS-META]), never duplicated.
 2. **Add the source to the corpus**, through `loc_corpus.write_records` (or a thin
    constructor) — never hand-edit the ndjson ([CR-CORPUS-OWNER]). One new record:
    `key`, `platforms` (the consuming platforms), `t.en`.
@@ -154,10 +174,13 @@ export ([CR-PLACEHOLDER]).
    bundle, which replaces the scaffold and fans out every language. A new key (a new
    typed accessor) needs the platform's own release to appear; the export only
    updates values for keys already shipped.
-5. **Translator-context for the new key** goes into Lokalise (UI or
-   `lokalise_helper.py`) — `loc_corpus_import` does **not** push `context`, and the
-   keys-API path does not ingest platform-file comments. The corpus `context` field
-   is populated *from* Lokalise on regenerate, not the other way round.
+5. **Translator-description for the new key** lives in the corpus `context` field
+   and is pushed for you: a brand-new key carries it in the create payload, and a
+   later edit (`loc_apply_meta --description`) propagates via `dirty_meta`
+   ([CR-CORPUS-META]) to the Lokalise `description` field. The keys-API path still
+   does not ingest a platform file's `/* … */` comment — that is only the iOS
+   compile scaffold. (Lokalise also has a separate `context` field this pipeline
+   does not manage; translator notes live in `description`.)
 
 Do not add new keys via the audit-findings path — `loc_audit_apply` /
 `loc_apply_lang` are replace-only (an unknown key is reported, not appended).
@@ -194,6 +217,10 @@ docs; this canon owns *style and meaning* only.
 - After a `loc_corpus.py` change: round-trip the corpus and assert byte-identical
   (`read_records` → `write_records` → `diff`).
 - After an apply: `git diff -- strings.ndjson` should touch only the edited keys.
+- After a metadata edit (`loc_apply_meta`): `git diff -- strings.ndjson` shows the
+  changed `platforms` / `context` plus a `dirty_meta` marker on those keys; a
+  `loc_corpus_import` dry-run lists them under "push metadata on N key(s)", and a
+  successful `--apply` drains `dirty_meta` (a re-run plans 0) ([CR-CORPUS-META]).
 - After editing values: `python3 loc_placeholder_lint.py` (token-free) — no new
   placeholder errors ([CR-PLACEHOLDER]). It also runs as a pre-flight in
   `loc_corpus_import`; `--no-lint` overrides.

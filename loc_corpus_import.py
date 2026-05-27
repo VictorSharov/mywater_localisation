@@ -6,16 +6,28 @@ apply scripts or by hand), git review shows a clean diff, then this script pushe
 those edits into Lokalise. From Lokalise the translations export to iOS / Android
 / server in each platform's native format.
 
-    python3 loc_corpus_import.py                          # dry-run, unverified langs only
-    python3 loc_corpus_import.py --lang ru --lang de      # dry-run, only ru + de
+    python3 loc_corpus_import.py                          # dry-run, dirty langs + dirty_meta only
+    python3 loc_corpus_import.py --lang ru --lang de      # dry-run, only ru + de (translations only)
     python3 loc_corpus_import.py --lang ru --apply        # push ru to Lokalise
-    python3 loc_corpus_import.py --key fullPromoText --apply   # push one key, all its langs
+    python3 loc_corpus_import.py --key fullPromoText --apply   # push one key: all langs + its metadata
+
+This pushes two kinds of edit, both keyed off a local-only push-pending marker the
+corpus maintains (so a push is a no-op unless something was edited locally):
+  - translation values — keyed off each key's per-language `dirty` set;
+  - key metadata (platforms, description) — keyed off each key's key-level
+    `dirty_meta` set (set by loc_apply_meta / loc_corpus.set_platforms /
+    set_context). Platforms are sent as a full-array replace (so adding/removing a
+    platform propagates as the resulting set); the corpus `context` field is pushed
+    to the Lokalise `description` field. Metadata goes through the keys endpoint
+    (update_key), translations through the per-translation endpoint (below).
 
 What gets pushed:
   - which keys: every key by default; `--key NAME` (repeatable) restricts the
     push to the named key(s) — e.g. to ship a placeholder fix to just those keys
     without a subset corpus. A requested name with no corpus match is reported on
     stderr, not silently dropped (so you never claim a push that did not happen).
+    Naming a key also re-pushes its metadata (platforms + any existing
+    description), regardless of `dirty_meta`.
   - which languages, per key:
     - default: the languages in the key's `dirty` set — the ones an apply script
       (or set_translation) edited locally and that have not been pushed yet,
@@ -26,18 +38,21 @@ What gets pushed:
       translation leaves `dirty` at once but stays `unverified` until a human
       reviews it.
     - `--lang X` (repeatable): exactly these languages instead, for every in-scope
-      key that has a value for them.
+      key that has a value for them. Translations only — `--lang` scopes to
+      languages and never pushes metadata.
     - `--key` without `--lang`: ALL of each named key's languages. Once synced a
       committed edit (e.g. a placeholder fix) carries no `dirty` marker, so the
       default scope would push nothing — naming the key means "push this key".
 
-Keys with no key_id are created (key_name + platforms + translations). Existing
-keys have each translation edited through the per-translation endpoint
-(update_translation by translation_id) — NOT the keys endpoint: a key-update's
-`translations` array only sets values at create time and is silently ignored on
-an existing key (verified: a changed `translation` left the stored value and its
-modified_at untouched), which made earlier imports report success while writing
-nothing. Plural values are sent as a CLDR-forms object (`{"one":…,"other":…}`) —
+Keys with no key_id are created (key_name + platforms + translations + the
+description, when the corpus carries one). Existing keys have each translation
+edited through the per-translation endpoint (update_translation by
+translation_id) — NOT the keys endpoint: a key-update's `translations` array only
+sets values at create time and is silently ignored on an existing key (verified: a
+changed `translation` left the stored value and its modified_at untouched), which
+made earlier imports report success while writing nothing. A key's metadata
+(platforms / description) IS settable on an existing key, and does go through the
+keys endpoint (update_key) — see meta_updates below. Plural values are sent as a CLDR-forms object (`{"one":…,"other":…}`) —
 what the API accepts; the JSON-string form is only what it returns. Pushed target
 translations are marked unverified so a human / Lokalise reviewer still signs off
 (pass --mark-verified to override) — the same two-signal guarantee the corpus
@@ -70,11 +85,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from loc_corpus import (  # noqa: E402
     DEFAULT_CORPUS,
+    META_FIELDS,
     SOURCE_LANG,
     dirty_langs,
     display_key,
     is_plural,
     key_names,
+    meta_dirty,
+    platforms,
     read_records,
     translation,
     write_records,
@@ -137,6 +155,39 @@ def translation_payload(record: dict[str, Any], lang: str, mark_verified: bool) 
     return {"language_iso": lang, "translation": value, "is_unverified": is_unverified}
 
 
+def meta_fields_for(record: dict[str, Any], *, named: bool, lang_filtered: bool) -> set[str]:
+    """Key-level fields to push for this key. `--lang` scopes the run to translation
+    languages, so metadata is skipped (returns empty). When the key is explicitly
+    `named` (--key), re-push its platforms plus any existing description, regardless
+    of dirty_meta (the same "name it = push it" rule the language side uses); a
+    description is only included when the corpus actually has one, so naming a key
+    never accidentally clears a Lokalise description — clear it via loc_apply_meta
+    (which sets dirty_meta and pushes an empty value). Otherwise (the default scope)
+    push exactly the locally-edited, unpushed fields in `dirty_meta`."""
+    if lang_filtered:
+        return set()
+    if named:
+        fields = {"platforms"}
+        if record.get("context"):
+            fields.add("context")
+        return fields
+    return meta_dirty(record) & set(META_FIELDS)
+
+
+def build_meta_payload(record: dict[str, Any], fields: set[str]) -> dict[str, Any]:
+    """update_key payload for the given key-level fields. The corpus `context` field
+    maps to the Lokalise `description` field (the translator-notes field these notes
+    live in); an absent context pushes an empty description (a clear). Platforms go
+    as a full-array replace — Lokalise has no add/remove, so the resulting set is the
+    edit."""
+    payload: dict[str, Any] = {}
+    if "platforms" in fields:
+        payload["platforms"] = platforms(record)
+    if "context" in fields:
+        payload["description"] = record.get("context") or ""
+    return payload
+
+
 def create_key_name(record: dict[str, Any]) -> Any:
     """Lokalise create-keys accepts a string name or a per-platform map. Preserve
     whichever the corpus carries."""
@@ -162,6 +213,8 @@ def main() -> int:
     create_records: list[dict[str, Any]] = []  # parallel to creates: the source record per create payload
     touched_langs: set[str] = set()
     pushed: list[tuple[dict[str, Any], list[str]]] = []
+    meta_updates: list[dict[str, Any]] = []  # update_key payloads for existing keys (platforms / description)
+    meta_pushed: list[tuple[dict[str, Any], set[str]]] = []  # (record, corpus fields) parallel to meta_updates
 
     for record in records:
         if record.get("archived"):
@@ -172,24 +225,38 @@ def main() -> int:
                 continue
             matched_keys.update(names)
         langs = langs_for(record, args.lang, all_langs_default=requested_keys is not None)
-        if not langs:
+        meta_fields = meta_fields_for(record, named=requested_keys is not None, lang_filtered=bool(args.lang))
+        if not langs and not meta_fields:
             continue
-        touched_langs.update(langs)
-        pushed.append((record, langs))
-        translations = [translation_payload(record, lang, args.mark_verified) for lang in langs]
         key_id = record.get("key_id")
-        if key_id is not None:
-            updates.append({"key_id": int(key_id), "key": display_key(record), "translations": translations})
-        else:
-            name = create_key_name(record)
-            if name is None:
-                print(f"warning: skipping key with no name and no key_id: {record!r}", file=sys.stderr)
-                continue
-            payload: dict[str, Any] = {"key_name": name, "platforms": record.get("platforms") or ["ios"], "translations": translations}
-            if is_plural(record):
-                payload["is_plural"] = True
-            creates.append(payload)
-            create_records.append(record)
+
+        if langs:
+            touched_langs.update(langs)
+            pushed.append((record, langs))
+            translations = [translation_payload(record, lang, args.mark_verified) for lang in langs]
+            if key_id is not None:
+                updates.append({"key_id": int(key_id), "key": display_key(record), "translations": translations})
+            else:
+                name = create_key_name(record)
+                if name is None:
+                    print(f"warning: skipping key with no name and no key_id: {record!r}", file=sys.stderr)
+                    continue
+                payload: dict[str, Any] = {"key_name": name, "platforms": record.get("platforms") or ["ios"], "translations": translations}
+                if is_plural(record):
+                    payload["is_plural"] = True
+                # A new key ships its full corpus state on creation: the create payload
+                # carries platforms + description, so it needs no separate update_key.
+                description = record.get("context")
+                if description:
+                    payload["description"] = description
+                creates.append(payload)
+                create_records.append(record)
+
+        # Key metadata (platforms / description) for EXISTING keys goes through the
+        # keys endpoint (update_key), separate from the per-translation endpoint above.
+        if meta_fields and key_id is not None:
+            meta_updates.append({"key_id": int(key_id), "key": display_key(record), "payload": build_meta_payload(record, meta_fields), "fields": meta_fields})
+            meta_pushed.append((record, meta_fields))
 
     if requested_keys is not None:
         missing = sorted(requested_keys - matched_keys)
@@ -204,7 +271,7 @@ def main() -> int:
         scope = "edited-per-key"  # the key's `dirty` langs (locally edited, unpushed)
     key_scope = f"  keys: {len(matched_keys)}/{len(requested_keys)} named matched" if requested_keys is not None else ""
     print(f"corpus: {corpus_path}  scope: {scope}{key_scope}  languages touched: {','.join(sorted(touched_langs)) or '<none>'}")
-    print(f"plan: update {len(updates)} existing key(s), create {len(creates)} new key(s)")
+    print(f"plan: update {len(updates)} existing key(s), create {len(creates)} new key(s), push metadata on {len(meta_updates)} key(s)")
 
     # Placeholder pre-flight: the keys API stores translations literally (no
     # universal-placeholder auto-conversion — that only happens on file upload),
@@ -240,8 +307,10 @@ def main() -> int:
         for item in creates[:3]:
             langs = ",".join(t["language_iso"] for t in item["translations"])
             print(f"  create key_name={item['key_name']}: langs {langs}")
-        if not updates and not creates:
-            print("  (nothing to import — no dirty/locally-edited translations in scope)")
+        for item in meta_updates[:3]:
+            print(f"  update-meta key_id={item['key_id']} ({item['key']}): {','.join(sorted(item['payload']))}")
+        if not updates and not creates and not meta_updates:
+            print("  (nothing to import — no dirty/locally-edited translations or metadata in scope)")
         return 0
 
     # key_id -> {lang: value-we-sent}, used by the post-write verification below.
@@ -277,25 +346,38 @@ def main() -> int:
             result = client.create_keys(chunk, use_automations=None)
             print(f"created {len(chunk)} key(s)")
             record_created_sent(result, chunk, sent_by_key, record_chunk)
+        # Key metadata goes through the keys endpoint (update_key) — unlike the
+        # translations array, a key-update's platforms / description DO take effect.
+        for item in meta_updates:
+            client.update_key(item["key_id"], item["payload"])
+            print(f"updated metadata key_id={item['key_id']} ({item['key']}): {','.join(sorted(item['payload']))}")
     except LokaliseError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
     mismatches = [] if args.no_verify else verify_pushed(client, sent_by_key)
+    meta_mismatches = [] if args.no_verify else verify_meta_pushed(client, meta_updates)
 
-    # Drain the push queue: a language that landed cleanly is now synced, so clear
-    # it from the record's `dirty` set; a verify mismatch stays dirty so the next
-    # run retries it. Freshly created keys also got their new key_id stamped on the
-    # record (record_created_sent) so a re-run updates instead of re-creating. The
-    # corpus is written once, through the serializer (deterministic diff — only the
-    # drained markers / new key_ids move). `unverified` is untouched: a pushed
-    # translation stays flagged for review until a human verifies it in Lokalise.
+    # Drain the push queue: a language / metadata field that landed cleanly is now
+    # synced, so clear it from the record's `dirty` / `dirty_meta` set; a verify
+    # mismatch stays (dirty) so the next run retries it. Freshly created keys also
+    # got their new key_id stamped on the record (record_created_sent) so a re-run
+    # updates instead of re-creating. The corpus is written once, through the
+    # serializer (deterministic diff — only the drained markers / new key_ids move).
+    # `unverified` is untouched: a pushed translation stays flagged for review until
+    # a human verifies it in Lokalise (metadata has no review state).
     record_by_id = {int(rec["key_id"]): rec for rec, _ in pushed if rec.get("key_id") is not None}
     cleared = clear_synced_dirty(record_by_id, sent_by_key, mismatches)
-    if sent_by_key:
+    meta_cleared = clear_synced_meta(meta_pushed, meta_mismatches)
+    if sent_by_key or meta_updates:
         write_records(corpus_path, records)
+        drained = []
         if cleared:
-            print(f"cleared dirty on {cleared} pushed translation(s); review `git diff -- {corpus_path.name}`")
+            drained.append(f"{cleared} translation(s)")
+        if meta_cleared:
+            drained.append(f"{meta_cleared} metadata field(s)")
+        if drained:
+            print(f"cleared dirty on {' and '.join(drained)}; review `git diff -- {corpus_path.name}`")
 
     if args.no_verify:
         print("import complete (post-write verification skipped via --no-verify)")
@@ -306,6 +388,11 @@ def main() -> int:
         print("if it is an equivalent-form normalization, the corpus may need to match Lokalise's canonical form.", file=sys.stderr)
         for m in mismatches:
             print(f"  key_id={m['key_id']} ({m['key']}) [{m['lang']}]: sent {m['sent']!r} -> stored {m['stored']!r}", file=sys.stderr)
+    if meta_mismatches:
+        print(f"\nWARNING: {len(meta_mismatches)} metadata field(s) did NOT land as sent — Lokalise stored a different value.", file=sys.stderr)
+        for m in meta_mismatches:
+            print(f"  key_id={m['key_id']} ({m['key']}) [{m['field']}]: sent {m['sent']!r} -> stored {m['stored']!r}", file=sys.stderr)
+    if mismatches or meta_mismatches:
         print("\nimport applied, but NOT every value landed as sent (see above).")
         return 1
 
@@ -358,6 +445,49 @@ def verify_pushed(client: LokaliseClient, sent_by_key: dict[int, dict[str, Any]]
     return mismatches
 
 
+def verify_meta_pushed(client: LokaliseClient, meta_updates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Re-read the keys whose metadata we pushed and report any field whose stored
+    value differs from what was sent — the metadata analog of verify_pushed. `field`
+    is reported in CORPUS terms ('platforms' / 'context') so clear_synced_meta can
+    match it against dirty_meta; the Lokalise side of 'context' is the `description`
+    field (build_meta_payload's mapping). Platforms compare order-independent (the
+    set is the edit); description is an exact string compare."""
+    if not meta_updates:
+        return []
+    key_ids = [item["key_id"] for item in meta_updates]
+    fetched = client.list_keys(filter_key_ids=key_ids, include_translations=False)
+    by_id = {int(key["key_id"]): key for key in fetched if key.get("key_id") is not None}
+    mismatches: list[dict[str, Any]] = []
+    for item in meta_updates:
+        key_id = int(item["key_id"])
+        payload = item["payload"]
+        key = by_id.get(key_id)
+        if key is None:
+            for corpus_field in payload_corpus_fields(payload):
+                mismatches.append({"key_id": key_id, "key": item["key"], "field": corpus_field, "sent": payload, "stored": "<key not found on re-fetch>"})
+            continue
+        if "platforms" in payload:
+            stored = list(key.get("platforms") or [])
+            if set(stored) != set(payload["platforms"]):
+                mismatches.append({"key_id": key_id, "key": item["key"], "field": "platforms", "sent": payload["platforms"], "stored": stored})
+        if "description" in payload:
+            stored_desc = key.get("description") or ""
+            if stored_desc != payload["description"]:
+                mismatches.append({"key_id": key_id, "key": item["key"], "field": "context", "sent": payload["description"], "stored": stored_desc})
+    return mismatches
+
+
+def payload_corpus_fields(payload: dict[str, Any]) -> list[str]:
+    """The corpus field names a meta payload touches ('platforms' / 'context'),
+    mapping the Lokalise `description` key back to the corpus `context` field."""
+    fields = []
+    if "platforms" in payload:
+        fields.append("platforms")
+    if "description" in payload:
+        fields.append("context")
+    return fields
+
+
 def record_created_sent(result: dict[str, Any], chunk: list[dict[str, Any]], sent_by_key: dict[int, dict[str, Any]], records: list[dict[str, Any]] | None = None) -> None:
     """Map freshly created keys (by name) to their new key_id so verify_pushed can
     re-read them, since create payloads carry no key_id of their own. When the
@@ -378,6 +508,10 @@ def record_created_sent(result: dict[str, Any], chunk: list[dict[str, Any]], sen
         sent_by_key[key_id] = {t["language_iso"]: t["translation"] for t in payload.get("translations", [])}
         if records is not None and idx < len(records):
             records[idx]["key_id"] = key_id
+            # The create payload shipped this key's platforms + description, so any
+            # local metadata edit is now synced — drop dirty_meta (the corpus stops
+            # treating it as a pending push). Translations drain via clear_synced_dirty.
+            records[idx].pop("dirty_meta", None)
 
 
 def clear_synced_dirty(record_by_id: dict[int, dict[str, Any]], sent_by_key: dict[int, dict[str, Any]], mismatches: list[dict[str, Any]]) -> int:
@@ -402,6 +536,32 @@ def clear_synced_dirty(record_by_id: dict[int, dict[str, Any]], sent_by_key: dic
             record["dirty"] = sorted(dirty)
         else:
             record.pop("dirty", None)
+    return cleared
+
+
+def clear_synced_meta(meta_pushed: list[tuple[dict[str, Any], set[str]]], meta_mismatches: list[dict[str, Any]]) -> int:
+    """Remove from each record's `dirty_meta` the fields that pushed cleanly — the
+    metadata analog of clear_synced_dirty. A field that mismatched on verify stays so
+    the next run retries it. Only fields actually present in `dirty_meta` are cleared,
+    so a `--key` re-push (which pushes metadata without a dirty_meta marker) drains
+    nothing. Returns the count of cleared (key, field) markers."""
+    bad = {(int(m["key_id"]), m["field"]) for m in meta_mismatches}
+    cleared = 0
+    for record, fields in meta_pushed:
+        key_id = record.get("key_id")
+        if key_id is None:
+            continue
+        dirty_meta = set(record.get("dirty_meta") or [])
+        for field in fields:
+            if (int(key_id), field) in bad:
+                continue
+            if field in dirty_meta:
+                dirty_meta.discard(field)
+                cleared += 1
+        if dirty_meta:
+            record["dirty_meta"] = sorted(dirty_meta)
+        else:
+            record.pop("dirty_meta", None)
     return cleared
 
 

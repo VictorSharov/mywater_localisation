@@ -29,12 +29,19 @@ Lean by design: false/empty fields (`plural`, `archived`, `context`,
 within `t` are sorted, so a regenerated corpus diffs cleanly (only the meta
 timestamp churns).
 
-Lokalise is the source of truth; this file is a regenerable cache — do not
-hand-edit, regenerate instead. Stale cache reintroduces duplicate keys, so
-re-run whenever keys change. Regeneration emits only Lokalise-derived state, so
-local-only edit markers (the `dirty` push-pending set, written by
-loc_corpus.set_translation) are dropped — by then the edits have been pushed, so
-the markers have served their purpose.
+Lokalise is the source of truth for the snapshot; this file is a regenerable
+cache — do not hand-edit, regenerate instead. Stale cache reintroduces duplicate
+keys, so re-run whenever keys change. Regeneration emits only Lokalise-derived
+state, so local-only edit markers (the per-language `dirty` push-pending set
+written by loc_corpus.set_translation, and the key-level `dirty_meta` set written
+by set_platforms / set_context) are dropped — by then the edits have been pushed,
+so the markers have served their purpose.
+
+Note that a few fields flow the OTHER way too: an edit to a key's `platforms` or
+`context` (description) is made in the corpus and pushed to Lokalise by
+loc_corpus_import (keyed off `dirty_meta`), the same corpus-as-source-of-truth
+discipline translations follow. The corpus `context` field maps to the Lokalise
+`description` field (read back first on regenerate so a pushed value round-trips).
 
 Output defaults next to this script (the shared localisation repo) so iOS /
 Android / server sessions read one file (attach it via
@@ -158,7 +165,12 @@ def key_record(key: dict[str, Any]) -> dict[str, Any]:
     }
     if key.get("is_plural"):
         record["plural"] = True
-    context = (key.get("context") or key.get("description") or "").strip()
+    # The corpus `context` field binds to the Lokalise `description` field (where
+    # this project keeps translator notes and what loc_corpus_import pushes back),
+    # falling back to the Lokalise `context` field for any key that only has one.
+    # `description` is read FIRST so a pushed description round-trips: a regenerate
+    # reproduces exactly what loc_corpus_import sent rather than a stale context.
+    context = (key.get("description") or key.get("context") or "").strip()
     if context:
         record["context"] = context
     char_limit = key.get("char_limit") or 0

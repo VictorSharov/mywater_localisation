@@ -20,9 +20,10 @@ strings.ndjson + Lokalise ──export──▶ iOS .strings / Android .xml / se
 - **`strings.ndjson`** is a regenerable, git-tracked snapshot of the whole project
   (all keys, all platforms, all languages) that AI sessions read. Consumers only
   pull / read it — the Lokalise token never touches a consumer session.
-- Edits (audits, fresh translations, new source strings) are written back into the
-  corpus, reviewed as a clean `git diff`, then imported into Lokalise. From
-  Lokalise each platform exports its native format.
+- Edits (audits, fresh translations, new source strings, and key metadata —
+  **platforms** and **description**) are written back into the corpus, reviewed as
+  a clean `git diff`, then imported into Lokalise. From Lokalise each platform
+  exports its native format.
 
 ## Setup
 
@@ -37,9 +38,9 @@ export LOKALISE_PROJECT_ID=...
 ```
 
 The audit / translation / apply scripts (`loc_audit_*`, `loc_apply_lang`,
-`loc_merge_languages`, `loc_r_marked_translations`, `loc_placeholder_lint`,
-`loc_qa`) are **stdlib-only** and need no token — they only read / write
-`strings.ndjson`. Only
+`loc_apply_meta`, `loc_merge_languages`, `loc_r_marked_translations`,
+`loc_placeholder_lint`, `loc_qa`) are **stdlib-only** and need no token — they only
+read / write `strings.ndjson`. Only
 the corpus generator, the importer, the QA-issues fetch, and the unused-key
 tagging touch Lokalise.
 
@@ -54,6 +55,7 @@ tagging touch Lokalise.
 | `loc_audit_extract.py` | extract en+ru+`<lang>` audit batches from the corpus (opt. `--platform`) | — |
 | `loc_audit_apply.py` | apply validated audit findings into the corpus | — |
 | `loc_apply_lang.py` | apply a `{key:value}` map into the corpus (replace-only) | — |
+| `loc_apply_meta.py` | edit key metadata in the corpus — platforms (add/remove/set) + description (replace-only); flags `dirty_meta` for the importer | — |
 | `loc_merge_languages.py` | side-by-side language view for cross-check review | — |
 | `loc_r_marked_translations.py` | translation backlog (`unverified`/missing/empty): extract → JSON → apply | — |
 | `loc_placeholder_lint.py` | lint placeholders vs the Lokalise universal contract; pre-flight inside `loc_corpus_import` | — |
@@ -84,11 +86,16 @@ python3 loc_r_marked_translations.py extract de --batch-size 50 --output-dir /tm
 python3 loc_r_marked_translations.py apply de /tmp/loc_r_de_001.json --dry-run
 python3 loc_r_marked_translations.py apply de /tmp/loc_r_de_001.json
 
-# Review + import edits into Lokalise:
+# Edit key metadata (platforms / description) in the corpus (no token):
+python3 loc_apply_meta.py --key onboarding.title --add-platform android
+python3 loc_apply_meta.py --key text2_3F --description "Surface: main screen ..."
+
+# Review + import edits into Lokalise (translations AND metadata):
 git diff -- strings.ndjson
 .venv-lokalise/bin/python loc_corpus_import.py --lang de            # dry-run
-.venv-lokalise/bin/python loc_corpus_import.py --lang de --apply    # push
-.venv-lokalise/bin/python loc_corpus_import.py --key fullPromoText --apply  # one key, all its langs
+.venv-lokalise/bin/python loc_corpus_import.py --lang de --apply    # push translations
+.venv-lokalise/bin/python loc_corpus_import.py --apply              # push everything dirty (langs + metadata)
+.venv-lokalise/bin/python loc_corpus_import.py --key fullPromoText --apply  # one key: all langs + its metadata
 
 # Unused-key candidates (iOS + Android both required):
 .venv-lokalise/bin/python loc_unused_keys.py        # --repo-root <ios>, --android-repo <android>
@@ -99,8 +106,9 @@ git diff -- strings.ndjson
 Attach this repo to an iOS / Android / server session via
 `permissions.additionalDirectories` and read `strings.ndjson`. Search the flat
 `en` field (`rg` / `jq`) before creating a new key — if a matching key already
-exists on another platform, add the missing platform in Lokalise instead of a
-duplicate.
+exists on another platform, add the missing platform to that key in the corpus
+(`python3 loc_apply_meta.py --key … --add-platform …`, token-free) and let the
+operator push it with `loc_corpus_import --apply`, instead of creating a duplicate.
 
 ## Export from Lokalise
 

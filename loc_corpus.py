@@ -24,9 +24,11 @@ Record shape (see loc_corpus_ndjson.py docstring for the canonical spec):
 
 Plural keys keep nested CLDR forms per language in `t`; flat `en` is the
 `other` form. An optional `"dirty":["en","ru"]` lists languages whose value was
-edited locally and not yet pushed to Lokalise (see set_translation); it is
-local-only — the generator never emits it, so a regenerate clears it, and a
-successful push clears the pushed languages.
+edited locally and not yet pushed to Lokalise (see set_translation), and an
+optional `"dirty_meta":["context","platforms"]` lists key-level fields (not
+languages) edited locally and not yet pushed (see set_platforms / set_context).
+Both are local-only — the generator never emits them, so a regenerate clears
+them, and a successful push clears exactly the pushed languages / fields.
 
 Sibling import works because the scripts run as files from this directory.
 Consumers that may run from another CWD add
@@ -48,6 +50,14 @@ PLURAL_CATEGORIES = ("zero", "one", "two", "few", "many", "other")
 # Source language: its translations are never flagged "unverified" (it is the
 # dev source, not a target). Mirrors meta.source_lang; en in this project.
 SOURCE_LANG = "en"
+# Lokalise key platforms, in the canonical order set_platforms emits for a
+# deterministic diff (matches the order the generator reads back from Lokalise).
+PLATFORM_ORDER = ("ios", "android", "web", "other")
+# Key-level (not per-language) fields the corpus owns and pushes to Lokalise; the
+# values of a record's `dirty_meta` set are drawn from here. `context` is the
+# corpus field name — loc_corpus_import maps it to the Lokalise `description`
+# field on push (see that script and loc_corpus_ndjson's fold).
+META_FIELDS = ("platforms", "context")
 
 
 # --------------------------------------------------------------------------- #
@@ -104,10 +114,12 @@ def _normalized(record: dict[str, Any]) -> dict[str, Any]:
         record["t"] = dict(sorted(translations.items()))
         if "en" in record["t"]:
             record["en"] = flat_source(record["t"]["en"])
-    # `unverified` (review state) and `dirty` (local-edit / push-pending, set by
-    # set_translation, never by the generator) are both sorted+deduped lang lists;
-    # an empty one is dropped so a cleared flag is omitted and never churns the diff.
-    for field in ("unverified", "dirty"):
+    # `unverified` (review state) and `dirty` (per-language local-edit / push-
+    # pending, set by set_translation) are sorted+deduped lang lists; `dirty_meta`
+    # is the same shape but holds key-level field names ('context','platforms',
+    # set by set_platforms / set_context) rather than languages. None is emitted by
+    # the generator; an empty one is dropped so a cleared flag never churns the diff.
+    for field in ("unverified", "dirty", "dirty_meta"):
         value = record.get(field)
         if isinstance(value, list):
             deduped = sorted(set(value))
@@ -150,6 +162,14 @@ def dirty_langs(record: dict[str, Any]) -> set[str]:
     wholesale on a regenerate. Includes SOURCE_LANG when the source value was
     edited (which pushes as verified)."""
     return set(record.get("dirty") or [])
+
+
+def meta_dirty(record: dict[str, Any]) -> set[str]:
+    """Key-level fields edited locally and not yet pushed — the metadata analog of
+    dirty_langs. Values are corpus field names from META_FIELDS ('platforms',
+    'context'); loc_corpus_import pushes them via the keys endpoint (update_key),
+    clearing each on a successful push. Local-only: a regenerate never emits it."""
+    return set(record.get("dirty_meta") or [])
 
 
 def key_names(record: dict[str, Any]) -> list[str]:
@@ -304,3 +324,53 @@ def set_translation(
         dirty = set(record.get("dirty") or [])
         dirty.add(lang)
         record["dirty"] = sorted(dirty)
+
+
+# --------------------------------------------------------------------------- #
+# Edit — key-level metadata (platforms, description). The corpus owns these and
+# pushes them to Lokalise via the keys endpoint, so edits go through here to set
+# the `dirty_meta` push-pending marker in one place (the key-level analog of the
+# per-language `dirty` set set_translation maintains). No review state attaches:
+# `unverified` is a translation concept, so metadata has no "unverified" marker.
+# --------------------------------------------------------------------------- #
+def _mark_meta_dirty(record: dict[str, Any], field: str) -> None:
+    marked = set(record.get("dirty_meta") or [])
+    marked.add(field)
+    record["dirty_meta"] = sorted(marked)
+
+
+def set_platforms(record: dict[str, Any], platforms_list: Iterable[str]) -> bool:
+    """Set the key's platform list (its consuming platforms). The set is deduped
+    and canonically ordered (PLATFORM_ORDER, unknown platforms sorted after) so the
+    diff is deterministic. When the value actually changes, `platforms` is added to
+    `dirty_meta` and loc_corpus_import pushes it to Lokalise (a full-array replace
+    via update_key — that is how add/remove a platform propagates). Returns True iff
+    the value changed. Callers validate platform names; this only canonicalizes."""
+    incoming = list(dict.fromkeys(platforms_list))
+    known = [platform for platform in PLATFORM_ORDER if platform in incoming]
+    extra = sorted(platform for platform in incoming if platform not in PLATFORM_ORDER)
+    canonical = known + extra
+    previous = list(record.get("platforms") or [])
+    record["platforms"] = canonical
+    if canonical != previous:
+        _mark_meta_dirty(record, "platforms")
+        return True
+    return False
+
+
+def set_context(record: dict[str, Any], text: str) -> bool:
+    """Set the key's translator description — the corpus `context` field, which
+    loc_corpus_import pushes to the Lokalise `description` field. Stored stripped
+    (the generator strips it too, so it round-trips); empty clears the field and
+    pushes an empty description. When the value changes, `context` is added to
+    `dirty_meta`. Returns True iff the value changed."""
+    value = (text or "").strip()
+    previous = record.get("context") or ""
+    if value:
+        record["context"] = value
+    else:
+        record.pop("context", None)
+    if value != previous:
+        _mark_meta_dirty(record, "context")
+        return True
+    return False
