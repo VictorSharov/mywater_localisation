@@ -59,7 +59,7 @@ tagging touch Lokalise.
 | `loc_merge_languages.py` | side-by-side language view for cross-check review | — |
 | `loc_r_marked_translations.py` | translation backlog (`unverified`/missing/empty): extract → JSON → apply | — |
 | `loc_placeholder_lint.py` | lint placeholders vs the Lokalise universal contract; pre-flight inside `loc_corpus_import` | — |
-| `loc_qa.py` | lint value hygiene (em-dash, invisible spaces, `()` balance, edge/double whitespace, cross-language URL parity); 2nd pre-flight inside `loc_corpus_import` | — |
+| `loc_qa.py` | lint value hygiene (em-dash, invisible spaces, Cyrillic in `en` source, `()` balance, edge/double whitespace, cross-language URL parity); 2nd pre-flight inside `loc_corpus_import` | — |
 | `loc_unused_keys.py` | report-only unused-key scan over **iOS + Android** repos; feeds Lokalise tags | yes (tag `--apply`) |
 | `lokalise_helper.py` | Lokalise API v2 CLI (list/get/tags/update/create; mutations dry-run by default) | yes (`--apply`) |
 | `loc_audit_prompt.md` + `loc_audit_lang_calibration/` | sub-agent audit prompt + per-language calibration | — |

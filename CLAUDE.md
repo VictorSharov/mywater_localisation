@@ -225,8 +225,11 @@ docs; this canon owns *style and meaning* only.
   placeholder errors ([CR-PLACEHOLDER]). It also runs as a pre-flight in
   `loc_corpus_import`; `--no-lint` overrides.
 - After editing values: `python3 loc_qa.py` (token-free) — value hygiene:
-  em-dash U+2014 ban + invisible/zero-width spaces (ERROR), `()` balance + edge/
-  double whitespace + cross-language URL parity (WARN). Lints `t` values only,
+  em-dash U+2014 ban + invisible/zero-width spaces + Cyrillic in the `en` source
+  (ERROR), `()` balance + edge/double whitespace + cross-language URL parity
+  (WARN). The Cyrillic-in-source check catches a translation mis-filed into the
+  `en` column (an AI agent leaving a Russian string in `en`), since `ru` is the
+  only Cyrillic-script language. Lints `t` values only,
   never `context`. 2nd pre-flight in
   `loc_corpus_import` (shares `--no-lint`). Enforces the em-dash ban of
   `TRANSLATION_STYLE.md § Punctuation`; the linguistic layer (calque / register /

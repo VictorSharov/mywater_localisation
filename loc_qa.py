@@ -26,6 +26,11 @@ Findings (per value):
                           that looks like a normal space but breaks comparison and
                           export. Same set rejected on apply by
                           loc_r_marked_translations.
+  ERROR  cyrillic-in-source  Cyrillic letters in the `en` SOURCE value. Russian is
+                          the only Cyrillic-script language in this corpus, so
+                          Cyrillic in `en` means a translation was mis-filed into the
+                          source column (e.g. an AI agent left a Russian string in
+                          `en`). Source-only — target values are not script-checked.
   WARN   paren-balance    unbalanced round brackets `()` after emoticons are
                           peeled off (`;)` / `:(` are not bugs). Catches a stray
                           `)` from a botched sentence split. `[ ]` of `[%s]`
@@ -76,6 +81,14 @@ from loc_corpus import (  # noqa: E402
 # Long dash U+2014. en-dash U+2013 and hyphen-minus U+002D are deliberately NOT
 # here — only the em-dash is banned (TRANSLATION_STYLE.md § Punctuation).
 EM_DASH = "—"
+
+# Cyrillic letters (main block U+0400–U+04FF + Supplement U+0500–U+052F). Russian is
+# the only Cyrillic-script language in this corpus, so Cyrillic in the `en` SOURCE
+# value is never legitimate — it means a translation was mis-filed into the source
+# column (e.g. an AI agent left the Russian string in `en`; the photoPickerUnavailable
+# class of bug). Flagged ERROR on the source language only; targets are not
+# script-checked here (Cyrillic is correct in `ru`).
+CYRILLIC_RE = re.compile("[Ѐ-ӿԀ-ԯ]+")
 
 # Non-standard / invisible spaces: NBSP, ogham, Mongolian vowel sep, the
 # U+2000–U+200B en/em/thin/hair/zero-width run, line/paragraph separators, narrow
@@ -209,8 +222,9 @@ def lint_record(record: dict[str, Any], langs: set[str] | None = None) -> list[F
 
     The per-value checks (em-dash, invisible-space, double-space, …) are absolute:
     every language including the `en` source is linted, since a defect in the
-    source is still a defect. The cross-language url-mismatch check is the one
-    exception — it treats `en` as the reference (see url_findings), like
+    source is still a defect. Two checks are language-aware: cyrillic-in-source
+    fires only on the `en` value (CYRILLIC_RE), and the cross-language url-mismatch
+    check treats `en` as the reference (see url_findings), like
     loc_placeholder_lint's consistency pass. The `context` field is never linted
     (source prose, see module docstring)."""
     if is_archived(record):
@@ -223,6 +237,16 @@ def lint_record(record: dict[str, Any], langs: set[str] | None = None) -> list[F
         for text in _value_strings(value):
             for severity, code, token in lint_value(text):
                 findings.append(Finding(key, lang, severity, code, token, _snippet(text)))
+            # Source-only: Cyrillic in the `en` value means a translation was
+            # mis-filed into the source column (see CYRILLIC_RE). Targets are not
+            # script-checked — Cyrillic is correct in `ru`.
+            if lang == SOURCE_LANG:
+                match = CYRILLIC_RE.search(text)
+                if match:
+                    findings.append(Finding(
+                        key, lang, "error", "cyrillic-in-source",
+                        _snippet(match.group(0), 30), _snippet(text),
+                    ))
     # Cross-language URL parity is computed over ALL languages of the key (`en` is
     # the reference), then filtered to scope so the import gate only reports on a
     # language being pushed — mirrors loc_placeholder_lint.consistency_findings.
@@ -248,7 +272,7 @@ def has_errors(findings: Iterable[Finding], strict: bool = False) -> bool:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Lint corpus value hygiene (em-dash, invisible spaces, bracket balance, edge/double whitespace, URL parity).")
+    parser = argparse.ArgumentParser(description="Lint corpus value hygiene (em-dash, invisible spaces, Cyrillic-in-source, bracket balance, edge/double whitespace, URL parity).")
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS, help=f"Corpus path. Default: {DEFAULT_CORPUS}.")
     parser.add_argument("--lang", action="append", help="Limit to these language isos. Repeatable.")
     parser.add_argument("--strict", action="store_true", help="Treat warnings (paren-balance, edge-whitespace, double-space, url-mismatch) as failures too.")
