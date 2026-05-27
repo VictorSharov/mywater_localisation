@@ -119,6 +119,20 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   universal form → such a key
   must be a Lokalise plural. Canonical: `TRANSLATION_STYLE.md § Placeholders`;
   `loc_placeholder_lint.py` enforces it (also a pre-flight in `loc_corpus_import`).
+- **[CR-KEY-NAME] Keys are valid-everywhere identifiers.** A key name must match the
+  Android-strict grammar `[A-Za-z][A-Za-z0-9_]*` — lead with an ASCII letter; letters,
+  digits, underscore only; no space / `.` / `%` / `-` / leading digit. Android resource
+  names are the strict floor (they become `R.string` fields); iOS `.strings` / R.swift and
+  server JSON are laxer. A violating name is **silently sanitized per platform** — by
+  Lokalise on Android export (space → `_`, leading `[0-9%]` stripped, `.` kept) and by
+  R.swift on iOS *independently* — so one `key_id` ends up with a different effective name
+  per platform (drift) and the corpus `key` stops matching the shipped resource name.
+  Namespace with `_`, not `.` (`apphud_offer_trial_extend`, not `apphud.offer.trial_extend`):
+  a dotted name can never be an `R.string` field (only `getIdentifier(name)` by string) and
+  survives Android export only by luck. Renaming an existing key to the canonical form is
+  Lokalise-side — `lokalise_helper.py rename-keys --map-file <{key_id,new_name}[]>` (sets one
+  global `key_name`, `key_id` preserved), then regenerate; the corpus has no rename op and
+  apply scripts are replace-only ([CR-CORPUS-OWNER]).
 - **[CR-SECRETS] Token discipline.** `LOKALISE_API_TOKEN` only via env, never as
   a CLI arg, and never printed to chat / logs / docs. Mutating commands
   (`loc_corpus_import`, `lokalise_helper`, unused tagging) are **dry-run by
@@ -162,7 +176,8 @@ export ([CR-PLACEHOLDER]).
    [CR-CORPUS-META]), never duplicated.
 2. **Add the source to the corpus**, through `loc_corpus.write_records` (or a thin
    constructor) — never hand-edit the ndjson ([CR-CORPUS-OWNER]). One new record:
-   `key`, `platforms` (the consuming platforms), `t.en`.
+   `key` (a valid-everywhere identifier — [CR-KEY-NAME]), `platforms` (the consuming
+   platforms), `t.en`.
    - Non-plural: `t.en` is a string in **universal placeholders** (`[%s]` / `[%i]`
      / `[%.1f]` / `[%]`), never a bare `%@` / `%d` / `%s`. Author the universal form
      directly — there is no "convert from a platform string" step, so there is no
