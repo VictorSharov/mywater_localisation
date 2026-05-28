@@ -83,7 +83,7 @@ Arabic has **all 6 CLDR plural categories**: zero, one, two, few, many, other. T
 - **zero**: n = 0 (e.g., 0 كوب — "0 cups", requires its own form لا يوجد أكواب or 0 كوب)
 - **one**: n = 1 (e.g., 1 كوب — "1 cup", uses singular)
 - **two**: n = 2 — uses the Arabic **dual**, whose ending is **case-conditioned**: `-ān` in the nominative (كوبان "two cups"; يومان "two days") but `-ayn` in the accusative/genitive (object / adverbial position: مرتين "twice", مشروبين "two drinks"). Both are correct in their syntactic slot — do **not** "fix" a valid oblique `-ayn` to `-ān`.
-- **few**: n % 100 = 3..10 (e.g., 3-10, 103-110 — counted noun in the **broken plural, genitive**, e.g., 3 أكواب; مرات; مشروبات)
+- **few**: n % 100 = 3..10 (e.g., 3-10, 103-110 — counted noun in the **plural, genitive**: a *broken* plural like أكواب, or a *sound* plural like مرات / مشروبات — the plural type depends on the noun, e.g., 3 أكواب)
 - **many**: n % 100 = 11..99 (e.g., 11-99, 111-199 — uses **accusative singular**, e.g., 11 كوبًا — note the tanwīn fatḥa)
 - **other**: everything else, including fractions and n % 100 = 0 (e.g., 100, 200, 1000, 2.5 — uses **genitive singular**, e.g., 100 كوب)
 
