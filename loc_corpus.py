@@ -99,6 +99,11 @@ def write_records(path: Path | str, records: Iterable[dict[str, Any]]) -> None:
     the flat `en` mirror is re-synced from `t['en']`, and empty `unverified` /
     `dirty` lang lists are dropped — so a regenerated or hand-edited corpus diffs
     cleanly.
+
+    Rewrites the whole file from `records` (open("w"), no lock, no atomic rename),
+    so it is NOT concurrency-safe: concurrent writers lose updates or interleave into
+    a broken line. Callers serialize corpus writes — parallel translation passes fan
+    out generation but apply one language at a time (CLAUDE.md [CR-CORPUS-CONCURRENCY]).
     """
     path = Path(path)
     prepared = [_normalized(record) for record in records]

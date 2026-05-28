@@ -40,6 +40,18 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   read→write must be byte-identical (deterministic diff). Field order, sorted
   `t`, sorted `unverified`, lean omission, compact separators are part of the
   contract.
+- **[CR-CORPUS-CONCURRENCY] Corpus writes are whole-file and unsynchronized — fan out generation, serialize applies.**
+  `write_records` rewrites the *entire* `strings.ndjson` from an in-memory snapshot
+  (`open("w")`, buffered, no lock, no atomic rename) and every apply script is
+  read-all → mutate → write-all ([CR-CORPUS-OWNER]). So two apply processes on the
+  same corpus race: the slower one's write silently clobbers the faster one's edits
+  (lost update — no error, clean diff, translations just gone), and interleaved buffer
+  flushes can emit a broken NDJSON line. Reads are safe for any number of readers.
+  Therefore the **translation reasoning** (read corpus → emit a per-language
+  `{key:value}` JSON) fans out across agents freely, but the **apply** step
+  (`loc_apply_lang` / `loc_audit_apply`, which write the corpus) runs **one at a time**.
+  Each language is a disjoint `t[lang]` and the writer is deterministic, so sequential
+  applies compose into one clean diff in any order. Recipe: § Parallel translation passes.
 - **[CR-CORPUS-UNVERIFIED] Edited ⇒ unverified; untranslated ⇒ empty + unverified.**
   `set_translation` flags an edited target language `unverified`. This field is the
   **canonical, cross-platform owner** of the localization review state; the consuming
@@ -257,6 +269,31 @@ add or change an `en` source you re-author `ru` **immediately**, even as a side 
 of unrelated work ([CR-CORPUS-SOURCE-CHANGE], § Adding a new key). The discipline above
 governs the other 19 targets — they stay empty (`""` + `unverified`) until an explicit
 translation pass.
+
+## Parallel translation passes (fan-out / fan-in)
+
+A multi-language translation pass parallelizes safely as fan-out / fan-in — never as
+concurrent corpus writes ([CR-CORPUS-CONCURRENCY]):
+
+1. **Fan-out — parallel, read-only.** One agent per language. Each reads the corpus
+   (directly, or via `loc_merge_languages.py <lang>`, which writes a read-only
+   side-by-side `/tmp/loc_merge_*.txt` whose path is keyed by the language set, so
+   parallel runs never collide) and emits **its own** artifact: a `{key: value}` JSON
+   for that language — the input `loc_apply_lang` expects — e.g. `/tmp/loc_<lang>.json`.
+   No agent touches `strings.ndjson`. Translate per-key with per-key reasoning and the
+   linguistic discipline (§ Self-translation discipline); fan-out parallelizes the
+   *languages*, it does not license batch fan-out without per-key reasoning.
+2. **Fan-in — sequential, single writer.** Apply the artifacts one at a time —
+   `loc_apply_lang.py <lang> /tmp/loc_<lang>.json` per language, **never two at once**.
+   Each run is sub-second, touches only its `t[lang]`, and flags that language
+   `unverified` ([CR-CORPUS-UNVERIFIED]); disjoint languages + a deterministic writer
+   make the order free and the cumulative `git diff` clean.
+3. **Review & push.** `git diff -- strings.ndjson`, then the token-holding operator
+   runs `loc_corpus_import --apply` ([CR-ACCESS]).
+
+Never: let an agent write the corpus directly (race + [CR-CORPUS-OWNER]); run two
+applies concurrently; or regenerate (`loc_corpus_ndjson.py`) mid-pass — it overwrites
+the corpus from Lokalise and discards every un-imported edit.
 
 ## Canonical linguistic rules live here
 

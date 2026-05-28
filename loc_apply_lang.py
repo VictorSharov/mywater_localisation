@@ -17,6 +17,11 @@ adapter over loc_audit_apply.apply_changes(), the canonical owner of the corpus
 replace invariant. Consequence: each applied language is flagged `unverified` in
 the corpus (a fresh map still needs human / Lokalise review). Plural keys cannot
 be expressed by a flat string value and are reported as skipped.
+
+Not concurrency-safe: this rewrites the whole corpus (read-all -> mutate -> write-all),
+so a parallel translation pass must run the apply step one language at a time — fan out
+the per-language JSON generation, serialize the applies (CLAUDE.md
+[CR-CORPUS-CONCURRENCY], § Parallel translation passes).
 """
 
 from __future__ import annotations
