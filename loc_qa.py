@@ -11,11 +11,16 @@ cross-language check (URL parity) rides along, analogous to
 loc_placeholder_lint's consistency pass. It runs token-free over the corpus and
 gates the same import the placeholder lint gates.
 
-Scope: only user-facing translation values in `t` (every language incl. `en`, and
-every CLDR form of a plural). The `context` field is NOT linted — it is source
-prose where, e.g., an em-dash is the correct Russian punctuation (canonical:
-TRANSLATION_STYLE.md § Punctuation reserves the em-dash ban for user-facing values
-only). Linting it would flag ~1100 legitimate doc-prose dashes.
+Scope: user-facing translation values in `t` (every language incl. `en`, and every
+CLDR form of a plural), plus three structural checks on the translator `context`
+field. The `context` field carries source prose where an em-dash is the correct
+Russian punctuation (canonical: TRANSLATION_STYLE.md § Punctuation reserves the
+em-dash ban for user-facing values only); the value-side checks therefore stay
+off it, and the context-side checks added here are limited to defects that cannot
+be a legitimate authoring choice — a long Cyrillic block (context is author-side
+prose in English; short inline examples like `"млн" in ru` stay legal), an
+empty optional field (the canon mandates omission, never `Constraints:\\n`), and
+an off-vocabulary Type (silently splits the audit's Type-equality sibling bucket).
 
 Findings (per value):
   ERROR  em-dash          a long dash `—` (U+2014) in a user-facing value. Banned
@@ -49,6 +54,27 @@ Findings (cross-language, per key — relational, like loc_placeholder_lint):
                           WARN, not ERROR: a legitimately localized link (e.g. a
                           `/en/` vs `/de/` path) is rare but possible, so it surfaces
                           without blocking the import gate.
+
+Findings (per `context` field — author-side, lang reported as `(context)`):
+  ERROR  context-empty-field   a `Constraints:` / `Placeholders:` / `Register:` /
+                          `Tone:` field is present but its body is whitespace-only
+                          (canon mandates omission of unused optional fields —
+                          TRANSLATION_STYLE.md § Translator context § Формат).
+                          `Placeholders:` is treated as multi-line: an indented
+                          `[%…]` continuation line counts as content.
+  ERROR  context-cyrillic-block  a multi-word Cyrillic phrase (≥2 Cyrillic words
+                          running together, ≥10 letters total) in the context.
+                          A single inline word ("Зарегистрируйся", "Какао") stays
+                          legal as a translation example; a Russian phrase
+                          ("никогда не появляется") is the bug (canon: context
+                          lives only in source language — TRANSLATION_STYLE.md
+                          § Translator context).
+  WARN   context-type-vocab    the `Type:` value is not in the closed Type vocabulary
+                          (TRANSLATION_STYLE.md § Translator context § Обязательные
+                          поля). Subtype qualifier `paragraph (xxx)` is allowed —
+                          only the base must match. Synonyms silently split the
+                          audit's Type-equality sibling bucket (loc_audit_prompt.md
+                          § rule #4 / #9).
 
 Exit code is non-zero when any ERROR is found (any finding under --strict), so it
 can gate CI or an import (it is a second pre-flight in loc_corpus_import alongside
@@ -114,6 +140,139 @@ DOUBLE_SPACE_RE = re.compile(r" {2,}")
 # `different_urls`). Trailing sentence punctuation is stripped on capture so a
 # sentence-final link compares equal across languages.
 URL_RE = re.compile(r"https?://[^\s\"<>]+")
+
+# Closed Type vocabulary from TRANSLATION_STYLE.md § Translator context § Обязательные
+# поля. The audit buckets keys by Type equality for sibling-consistency checks
+# (loc_audit_prompt.md § rule #4 / #9) — a synonym ("section header / row title"
+# vs "section header") silently splits the bucket. Subtype qualifiers in parens
+# (`paragraph (educational)`, `section header (eyebrow)`) are allowed; the closed
+# membership is on the base. Extend only through a PR to TRANSLATION_STYLE.md.
+CLOSED_TYPE_VOCAB = frozenset({
+    # Buttons & controls
+    "button label", "badge", "toggle", "picker option", "segmented option",
+    # Headers & titles
+    "screen title", "section header", "card title", "feature row title",
+    "popup title", "alert title", "confirmation alert title", "tab title",
+    # Settings
+    "settings row title", "settings row value", "settings row label", "option label",
+    # Body text — `paragraph` carries optional `(subtype)` and is matched on the base
+    "paragraph",
+    # Messaging
+    "notification title", "notification body", "alert message", "error message",
+    "success message", "status message", "warning message", "motivational text",
+    "tip", "tip headline",
+    # Domain
+    "beverage name", "unit abbreviation", "container name", "character name",
+    "achievement title", "achievement description",
+    # Widget / system
+    "widget gallery title", "widget gallery description", "permission prompt",
+    "home screen quick action label", "screenshot caption", "App Store title",
+    "App Store keywords", "accessibility label", "accessibility hint",
+    # Siri / voice
+    "AppIntent title", "AppIntent description", "AppIntent dialog",
+    "AppIntent prompt", "AppIntent parameter label", "Siri snippet",
+    # Onboarding / forms
+    "tutorial step", "form field label", "placeholder",
+    # Generic fallback
+    "label",
+})
+
+# Optional fields in the translator-context block that the canon mandates omitting
+# when unused (TRANSLATION_STYLE.md § Translator context § Формат "Пустые поля
+# пропускать полностью"). A present-but-empty body is the bug to flag.
+OPTIONAL_CONTEXT_FIELDS = ("Constraints", "Placeholders", "Register", "Tone")
+# All recognised field names — used to bound a field's body when extracting it.
+ALL_CONTEXT_FIELDS = ("Surface", "Type", "Context") + OPTIONAL_CONTEXT_FIELDS
+
+# A Cyrillic "phrase" — two or more Cyrillic words running together with at least
+# this many letters total — is what we want to catch (a Russian sentence left
+# where English prose belongs). A single long Cyrillic word ("Зарегистрируйся",
+# 15 letters) is a legitimate inline example and stays under the bar because the
+# word-count threshold is 2+.
+CYRILLIC_PHRASE_MIN_LETTERS = 10
+CYRILLIC_PHRASE_MIN_WORDS = 2
+# A run of one or more Cyrillic words separated only by ASCII spaces — this
+# matches a "phrase" candidate; word count and letter count are measured on it.
+CYRILLIC_PHRASE_RE = re.compile(r"[Ѐ-ӿԀ-ԯ]+(?:[ \t]+[Ѐ-ӿԀ-ԯ]+)+")
+
+# Field-body extractor: captures everything from after `Field:` up to (but not
+# including) the next known field on its own line, or end-of-context. `re.DOTALL`
+# so the body can span lines (Placeholders is multi-line).
+_FIELD_BODY_RE_CACHE: dict[str, re.Pattern[str]] = {}
+
+
+def _field_body_re(field: str) -> re.Pattern[str]:
+    if field not in _FIELD_BODY_RE_CACHE:
+        boundary = "|".join(ALL_CONTEXT_FIELDS)
+        _FIELD_BODY_RE_CACHE[field] = re.compile(
+            rf"^{field}:(.*?)(?=^(?:{boundary}):|\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+    return _FIELD_BODY_RE_CACHE[field]
+
+
+def _type_base(type_value: str) -> str:
+    """Drop a trailing `(subtype)` qualifier and trailing punctuation/whitespace —
+    `paragraph (educational)` → `paragraph`; `motivational text.` → `motivational
+    text` — so the closed-vocab check is on the base only."""
+    base = re.sub(r"\s*\([^)]*\)\s*$", "", type_value).strip()
+    return base.rstrip(".").strip()
+
+
+_QUOTE_CHARS = frozenset('"«“‘„»”’\'`')
+
+
+def _has_cyrillic_phrase(text: str) -> bool:
+    """True iff `text` contains an UNQUOTED Cyrillic phrase: two or more Cyrillic
+    words separated by spaces, totalling at least CYRILLIC_PHRASE_MIN_LETTERS
+    letters, and NOT immediately preceded by a quotation mark. Quoted phrases
+    ("от Алекса смайл", "Лайки друзей") are inline translation examples and stay
+    legal; an unquoted phrase ("никогда не появляется", "Live Activity появляется
+    на момент активного напоминания") is the bug."""
+    for match in CYRILLIC_PHRASE_RE.finditer(text):
+        run = match.group(0)
+        words = run.split()
+        if len(words) < CYRILLIC_PHRASE_MIN_WORDS or sum(len(w) for w in words) < CYRILLIC_PHRASE_MIN_LETTERS:
+            continue
+        # Skip when the run is inline-quoted — the canonical way to embed a
+        # target-language example in English context prose.
+        start = match.start()
+        if start > 0 and text[start - 1] in _QUOTE_CHARS:
+            continue
+        return True
+    return False
+
+
+def lint_context(context: str | None) -> list[tuple[str, str, str]]:
+    """(severity, code, token) findings for one key's translator-context block.
+    Empty / missing context yields nothing — context-coverage is a separate
+    concern (CLAUDE.md § Adding a new key), not a hygiene defect."""
+    if not context:
+        return []
+    findings: list[tuple[str, str, str]] = []
+
+    type_match = _field_body_re("Type").search(context)
+    if type_match:
+        base = _type_base(type_match.group(1))
+        if base and base not in CLOSED_TYPE_VOCAB:
+            findings.append(("warn", "context-type-vocab", base))
+
+    for field in OPTIONAL_CONTEXT_FIELDS:
+        m = _field_body_re(field).search(context)
+        if not m:
+            continue
+        body = m.group(1)
+        if body.strip():
+            continue
+        # Placeholders is multi-line: an indented `[%…]` continuation counts as
+        # content. The body extractor captured everything up to the next field,
+        # so if `.strip()` was empty there were no indented continuation lines.
+        findings.append(("error", "context-empty-field", field))
+
+    if _has_cyrillic_phrase(context):
+        findings.append(("error", "context-cyrillic-block", "Cyrillic phrase (multi-word)"))
+
+    return findings
 
 
 class Finding(NamedTuple):
@@ -253,6 +412,15 @@ def lint_record(record: dict[str, Any], langs: set[str] | None = None) -> list[F
     for finding in url_findings(record):
         if langs is None or finding.lang in langs:
             findings.append(finding)
+
+    # Translator-context checks are reported under the pseudo-lang `(context)` so
+    # they coexist with per-value findings under the same Finding shape. They are
+    # author-side hygiene (Type vocab, empty optional fields, Russian-where-English-
+    # belongs) and are not filtered by --lang (a context defect is language-
+    # independent — it affects every downstream translator equally).
+    snippet = _snippet((record.get("context") or "").replace("\n", " ⏎ "))
+    for severity, code, token in lint_context(record.get("context")):
+        findings.append(Finding(key, "(context)", severity, code, token, snippet))
     return findings
 
 
