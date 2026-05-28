@@ -201,6 +201,12 @@ Gotchas:
   download toggle removes it.
 - **"N unassigned keys → Localizable.strings"** is cosmetic — unassigned keys
   correctly default to the flat `Localizable.strings`.
+- **Routing a key to a non-default file** (e.g. a new Info.plist key →
+  `InfoPlist.strings`): the `ios` filename slot decides `InfoPlist.strings` vs the
+  default `Localizable.strings`. Assign it from the toolchain with
+  `python3 lokalise_helper.py set-filename --key <name> --to InfoPlist.strings`
+  (dry-run → `--apply`), or set it in the Lokalise UI. Lokalise-side only — the
+  corpus stores no filenames, so this never touches `strings.ndjson`.
 
 Sanity-check a download (run in the unzipped export folder):
 

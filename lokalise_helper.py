@@ -506,6 +506,22 @@ def build_parser() -> argparse.ArgumentParser:
     normalize_parser.add_argument("--apply", action="store_true", help="Execute the update. Without this, prints a dry-run plan.")
     normalize_parser.set_defaults(func=cmd_normalize_filenames)
 
+    set_filename_parser = subparsers.add_parser(
+        "set-filename",
+        help="Assign an export filename to keys on a platform slot (e.g. route iOS keys to InfoPlist.strings). Lokalise-side only.",
+    )
+    add_mutation_key_args(set_filename_parser)
+    set_filename_parser.add_argument(
+        "--to", required=True,
+        help="Filename to assign (e.g. InfoPlist.strings, Localizable.strings). A '.lproj/' path is rejected (see normalize-filenames).",
+    )
+    set_filename_parser.add_argument(
+        "--platform", action="append", choices=("ios", "android", "web", "other"),
+        help="Platform filename slot(s) to set. Repeatable. Default: ios (filenames are platform-specific).",
+    )
+    set_filename_parser.add_argument("--apply", action="store_true", help="Execute the update. Without this, prints a dry-run plan.")
+    set_filename_parser.set_defaults(func=cmd_set_filename)
+
     return parser
 
 
@@ -899,6 +915,98 @@ def verify_filenames_flattened(
         for platform in scope:
             value = current.get(platform)
             if isinstance(value, str) and ".lproj/" in value:
+                remaining.append((int(key_id), platform, value))
+    return remaining
+
+
+def cmd_set_filename(client: LokaliseClient, args: argparse.Namespace) -> int:
+    """Assign an export filename to the given keys on one or more platform slots.
+
+    A key's Lokalise filename routes it to that file on export; an unassigned key
+    falls to the default `Localizable.*` bundle. Set it to `InfoPlist.strings` to
+    route iOS keys to the Info.plist strings file, or to any other per-platform
+    file. The filename is platform-specific (iOS `.strings` names are not Android
+    `.xml` names), so the default slot is `ios` — pass `--platform` to target
+    others. Sends the full four-slot `filenames` dict per key so untargeted slots
+    are preserved. Lokalise-side only — the corpus stores no filenames, so this
+    never touches strings.ndjson. A `.lproj/` path is rejected because it recreates
+    the dead nested export path that `normalize-filenames` exists to fix.
+    """
+    if ".lproj/" in args.to:
+        raise LokaliseError(
+            f"--to {args.to!r} carries a '.lproj/' path, which collides with the export directory "
+            "prefix (see normalize-filenames). Pass a flat filename like InfoPlist.strings."
+        )
+    all_platforms = ("ios", "android", "web", "other")
+    scope = tuple(args.platform) if args.platform else ("ios",)
+
+    refs = resolve_key_refs(client, args)
+    plans: list[tuple[int, str, dict[str, str], dict[str, str]]] = []
+    for ref in refs:
+        key = client.retrieve_key(ref.key_id)
+        current = key.get("filenames")
+        current = current if isinstance(current, dict) else {}
+        changed: dict[str, str] = {}
+        payload: dict[str, str] = {}
+        for platform in all_platforms:
+            value = current.get(platform)
+            value = value if isinstance(value, str) else ""
+            if platform in scope and value != args.to:
+                changed[platform] = value
+                payload[platform] = args.to
+            else:
+                payload[platform] = value
+        plans.append((ref.key_id, ref.key_name or summarize_key_name(key), changed, payload))
+
+    scope_note = f" (platforms: {','.join(scope)})"
+    if not args.apply:
+        print(f"DRY RUN: would set the filename to {args.to!r} on {len(refs)} key(s){scope_note}. Pass --apply to execute.")
+        for key_id, name, changed, _payload in plans:
+            if not changed:
+                print(f"  key_id={key_id} ({name}): already {args.to!r} on {','.join(scope)} — no change")
+                continue
+            for platform, old in sorted(changed.items()):
+                print(f"  key_id={key_id} ({name}) [{platform}]: {old!r} -> {args.to!r}")
+        return 0
+
+    client.bulk_update_keys(
+        [{"key_id": key_id, "filenames": payload} for key_id, _name, changed, payload in plans if changed]
+    )
+    for key_id, name, changed, _payload in plans:
+        if not changed:
+            print(f"skipped key_id={key_id} ({name}): filename already {args.to!r} on {','.join(scope)}")
+            continue
+        print(f"updated key_id={key_id} ({name}): set {args.to!r} on {','.join(sorted(changed))}")
+
+    touched = [key_id for key_id, _n, changed, _p in plans if changed]
+    remaining = verify_filenames_set(client, touched, scope, args.to)
+    if remaining:
+        print(f"\nWARNING: {len(remaining)} filename slot(s) did not take {args.to!r} — Lokalise kept the old value.", file=sys.stderr)
+        for key_id, platform, value in remaining:
+            print(f"  key_id={key_id} [{platform}]: {value!r}", file=sys.stderr)
+        print("Re-run, or fix in the Lokalise UI (key -> assigned file).", file=sys.stderr)
+        return 1
+    print(f"set filename on {len(touched)} key(s); all touched slots are now {args.to!r}.")
+    return 0
+
+
+def verify_filenames_set(
+    client: LokaliseClient, key_ids: list[int], scope: tuple[str, ...], expected: str
+) -> list[tuple[int, str, str]]:
+    """Re-read the touched keys and report any scoped platform slot whose filename
+    did not take `expected` (an update can silently no-op depending on API handling)."""
+    if not key_ids:
+        return []
+    remaining: list[tuple[int, str, str]] = []
+    for key in client.list_keys(filter_key_ids=key_ids, filter_archived="include"):
+        key_id = key.get("key_id")
+        current = key.get("filenames")
+        if key_id is None or not isinstance(current, dict):
+            continue
+        for platform in scope:
+            value = current.get(platform)
+            value = value if isinstance(value, str) else ""
+            if value != expected:
                 remaining.append((int(key_id), platform, value))
     return remaining
 
