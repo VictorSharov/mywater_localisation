@@ -58,8 +58,8 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   - **Retired — the `|R|` source marker.** The old `|R|` prefix (iOS `en.lproj` value,
     server `notes` tag) is no longer the marker: it tagged the *source*, which is always
     verified anyway — a mismatch. The signal now lives only on the **targets** (empty +
-    `unverified`), never on `en`. The `|R|` validation lints still run but are vestigial,
-    pending removal in a separate task.
+    `unverified`), never on `en`. The `|R|` validation lints (iOS `localization_lint.py`,
+    server doc-sync Check 39) and the dead iOS runtime strip have been removed.
 - **[CR-CORPUS-DIRTY] Push iff locally edited — `dirty`, not `unverified`.**
   `unverified` is *review state* and does **not** drive the push: pushing is not
   verifying, so a pushed translation stays `unverified` until a human

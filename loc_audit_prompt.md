@@ -91,7 +91,7 @@ python3 loc_corpus_import.py --lang <lang>            # dry-run: что уйдё
 python3 loc_corpus_import.py --lang <lang> --apply    # пуш в Lokalise (оператор, [CR-ACCESS])
 ```
 
-Корпус-правки попадают к пользователям через Lokalise → экспорт в iOS / Android / server, не напрямую. iOS `make localization-lint` (legacy `|R|`-source gate, выводится из употребления) к корпус-выходу не применяется: он проверяет iOS `.strings`, которые обновляются Lokalise-экспортом, а не этим workflow.
+Корпус-правки попадают к пользователям через Lokalise → экспорт в iOS / Android / server, не напрямую.
 
 ### 6. Next batch
 
@@ -386,6 +386,5 @@ Each entry below: `decision — why/origin — where it lives now`. New material
 - `loc_r_marked_translations.py` / `loc_apply_lang.py` / `loc_merge_languages.py` — translation backlog, `{key:value}` apply, language-set merge (all corpus-backed).
 - `loc_audit_lang_calibration/<lang>.md` — per-language calibration profiles for weak-AI-signal targets (ar, hi, vi, id, ms).
 - `TRANSLATION_STYLE.md` — canonical style / linguistics (this repo: § Translation discipline, § Brand voice, § Translator context); `mywater_ios docs/LOCALIZATION.md § Shared localisation corpus & tooling` — iOS-side pipeline overview, `§ Comment encoding` — iOS `.strings` comment mechanics.
-- `mywater_ios utility/localization/localization_lint.py` — iOS-only lint on iOS `.strings` (not this corpus); guards the legacy `|R|` source marker, now being retired ([CR-CORPUS-UNVERIFIED]).
 - `ai_reports/tasks/2026-05-15_localization_audit_19_langs_plan.md` (mywater_ios) — historical 19-language iOS `.strings` audit plan.
 - Pilot results were applied in commits leading up to 2026-05-15 (`git log -- "water/Supporting Files/Localization/"`).
