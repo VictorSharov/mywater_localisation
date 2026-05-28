@@ -40,25 +40,29 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   read→write must be byte-identical (deterministic diff). Field order, sorted
   `t`, sorted `unverified`, lean omission, compact separators are part of the
   contract.
-- **[CR-CORPUS-UNVERIFIED] Edited ⇒ unverified.** `set_translation` flags an
-  edited target language `unverified`. This is the corpus end of one
-  cross-platform "AI/edited translation not yet human-verified" marker, and this
-  rule is its **canonical owner** — the three consuming repos thin-link here
-  instead of re-explaining it:
-    - corpus `strings.ndjson` — the `unverified` field (this repo);
-    - iOS `.strings` — the `|R|` prefix on a fresh `en.lproj` source
-      (`mywater_ios docs/LOCALIZATION.md`);
-    - server `resources/locale/*.json` — the `|R|` tag at the start of an
-      entry's `notes` (`mywater_server resources/locale/CLAUDE.md`).
-  All three mean the same thing and clear the same way: do **not** clear
-  `unverified` / strip `|R|` for AI-produced translations — that is a separate
-  operator-/Lokalise-gated action. Filling, correcting, or re-translating keeps
-  the marker set. The **source** language is the exception: it is never
-  `unverified` (dev source of truth, not a review target) — it is pushed
-  verified.
+- **[CR-CORPUS-UNVERIFIED] Edited ⇒ unverified; untranslated ⇒ empty + unverified.**
+  `set_translation` flags an edited target language `unverified`. This field is the
+  **canonical, cross-platform owner** of the localization review state; the consuming
+  repos thin-link here instead of re-explaining it. It carries two related signals:
+    - **"AI/edited, not yet human-verified"** — a target holds a value but `unverified`
+      is set. Corpus: the `unverified` field (this repo); Lokalise: the translation's
+      *unverified* review state, which iOS / Android / server read back from there.
+    - **"needs (re)translation"** — a target is **empty (`""`) and `unverified`**. An
+      empty-but-present target is the cross-platform "untranslated" marker, and the
+      release gate blocks on it.
+  Both clear the same way: do **not** clear `unverified` for an AI-produced translation —
+  that is a separate operator-/Lokalise-gated action (a human verifies it in Lokalise).
+  Filling, correcting, or re-translating keeps `unverified` set. The **source** language
+  (`en`) is the exception: it is never `unverified`, and never empty for a live key — it
+  is the dev source of truth, not a review target, and is always pushed **verified**.
+  - **Retired — the `|R|` source marker.** The old `|R|` prefix (iOS `en.lproj` value,
+    server `notes` tag) is no longer the marker: it tagged the *source*, which is always
+    verified anyway — a mismatch. The signal now lives only on the **targets** (empty +
+    `unverified`), never on `en`. The `|R|` validation lints still run but are vestigial,
+    pending removal in a separate task.
 - **[CR-CORPUS-DIRTY] Push iff locally edited — `dirty`, not `unverified`.**
   `unverified` is *review state* and does **not** drive the push: pushing is not
-  verifying, so a pushed translation stays `unverified` (and `|R|`) until a human
+  verifying, so a pushed translation stays `unverified` until a human
   reviews it in Lokalise. The push signal is a separate `dirty` set — on a value
   change `set_translation` adds the language (source **or** target) to `dirty`,
   and `loc_corpus_import`'s default scope pushes exactly the `dirty` languages
@@ -95,23 +99,29 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   Because the push is a full replace, run `loc_corpus_import` against a freshly
   regenerated corpus the first time, so any pre-existing Lokalise `filenames` slot
   is captured before it could be overwritten with an empty.
-- **[CR-CORPUS-SOURCE-CHANGE] An `en` source edit obsoletes that key's translations.**
+- **[CR-CORPUS-SOURCE-CHANGE] An `en` source edit obsoletes that key's translations; re-author `ru` in the same edit.**
   When you change a key's `en` value in a way that changes meaning, every existing
   target translation now renders the *old* English and is stale. Do not leave stale
-  targets silently: in the same edit, blank every target you are not re-authoring right
-  now by setting it to `""` via `set_translation` / `loc_apply_lang` (empty is a valid
-  Lokalise value — present-but-blank). An emptied target is `dirty` (the importer pushes
-  it, so Lokalise shows the string as untranslated) and `unverified`; that
-  untranslated/unverified **target** state is the canonical cross-platform "needs
-  (re)translation" marker — the same `|R|` / `unverified` signal, carried by the target,
-  not the source ([CR-CORPUS-UNVERIFIED]) — and the release gate blocks on it. The `en`
-  source itself stays verified: **never** mark `en` `unverified`; its `dirty:[en]` flag
-  already means "source changed, push pending". Re-author only the languages the operator
-  explicitly asks for (§ Self-translation discipline); a re-authored target carries its
-  new value and stays `unverified` until human review. Net: an `en` change can never
-  ship old wording under new English — every target is either freshly re-authored
-  (`unverified`) or blanked (untranslated). A meaning-preserving `en` fix (typo, casing,
-  punctuation) does not obsolete the translations and does not require blanking.
+  targets silently. In the same edit:
+    - **Re-author `ru` immediately.** `ru` is the co-source kept in parity with `en`
+      (the team is ru-native; `ru` is the audit anchor), not an ordinary target. Write a
+      real translation of the new wording via `set_translation` / `loc_apply_lang`; it
+      stays `unverified` until human review (it is a target, not the source). This
+      `ru`-now step is the one carve-out to § Self-translation discipline.
+    - **Blank every other target** you are not re-authoring right now by setting it to
+      `""` (empty is a valid Lokalise value — present-but-blank). An emptied target is
+      `dirty` (the importer pushes it, so Lokalise shows the string as untranslated) and
+      `unverified`; that empty-+-`unverified` **target** state is the canonical
+      cross-platform "needs (re)translation" marker ([CR-CORPUS-UNVERIFIED]) — carried by
+      the target, never by the source — and the release gate blocks on it. Re-author one
+      of these other languages only when the operator explicitly asks (§ Self-translation
+      discipline).
+  The `en` source itself stays verified: **never** mark `en` `unverified` or blank it;
+  its `dirty:[en]` flag already means "source changed, push pending". Net: an `en` change
+  can never ship old wording under new English — `ru` is always freshly re-authored, and
+  every other target is either re-authored (`unverified`) or blanked (untranslated). A
+  meaning-preserving `en` fix (typo, casing, punctuation) does not obsolete the
+  translations and does not require blanking or re-authoring `ru`.
 - **[CR-PLACEHOLDER] Universal placeholders.** Corpus values store **Lokalise
   universal placeholders** (`[%s]` / `[%i]` / `[%.1f]` / `[%1$s]`), never bare
   `%@` / `%d` / `%s`. Lokalise converts universal → platform on export; the
@@ -184,12 +194,16 @@ export ([CR-PLACEHOLDER]).
 2. **Add the source to the corpus**, through `loc_corpus.write_records` (or a thin
    constructor) — never hand-edit the ndjson ([CR-CORPUS-OWNER]). One new record:
    `key` (a valid-everywhere identifier — [CR-KEY-NAME]), `platforms` (the consuming
-   platforms), `t.en`. For a key that must export to a non-default file — an iOS
-   Info.plist key (permission `NS*UsageDescription`, `CFBundle*`, home-screen
-   quick-action title) — also set its routing with `loc_apply_meta --key <name>
-   --set-filename InfoPlist.strings` (corpus field `filenames`, [CR-CORPUS-META]);
-   without it the key exports to `Localizable.strings` and the localized Info.plist
-   value never takes effect.
+   platforms), `t.en`, **and `t.ru`** — author the Russian immediately (`ru` is the
+   co-source kept in parity with `en`; [CR-CORPUS-SOURCE-CHANGE]). Every other target
+   stays **empty (`""`) + `unverified`** — the canonical "needs translation" state
+   ([CR-CORPUS-UNVERIFIED]); it fills later via a translation pass / Lokalise. (`ru`
+   is also `unverified` until human review; `en` is verified.) For a key that must
+   export to a non-default file — an iOS Info.plist key (permission
+   `NS*UsageDescription`, `CFBundle*`, home-screen quick-action title) — also set its
+   routing with `loc_apply_meta --key <name> --set-filename InfoPlist.strings` (corpus
+   field `filenames`, [CR-CORPUS-META]); without it the key exports to
+   `Localizable.strings` and the localized Info.plist value never takes effect.
    - Non-plural: `t.en` is a string in **universal placeholders** (`[%s]` / `[%i]`
      / `[%.1f]` / `[%]`), never a bare `%@` / `%d` / `%s`. Author the universal form
      directly — there is no "convert from a platform string" step, so there is no
@@ -203,13 +217,13 @@ export ([CR-PLACEHOLDER]).
    platform code compiles and can be laid out before the round-trip, the platform
    repo adds the new key in its source-language file only; the export overwrites it
    later from the corpus. Encoding lives in each platform doc:
-   - iOS — `en.lproj/Localizable.strings` line with the `|R|` prefix (native iOS
-     placeholders); a plural adds one rule in `en.lproj/Localizable.stringsdict`.
-     `mywater_ios docs/LOCALIZATION.md § Rules for AI`.
+   - iOS — `en.lproj/Localizable.strings` line (native iOS placeholders, **no marker
+     prefix** — the en source is clean); a plural adds one rule in
+     `en.lproj/Localizable.stringsdict`. `mywater_ios docs/LOCALIZATION.md § Rules for AI`.
    - Android / server — wire up the encoding when those platforms adopt this flow.
    Source-language-only by design: a platform's other-language files must not be
-   hand-filled — it collides with the `|R|` / `unverified` discipline and the export
-   produces them correctly.
+   hand-filled — `ru` and the rest live in the corpus (`ru` translated, the others
+   empty + `unverified`), and the export produces every language correctly.
 4. **Round-trip — operator (token holder).** `loc_corpus_import.py --apply` creates
    the key in Lokalise (records without `key_id` → create) and stamps the new
    `key_id` back into the corpus — **commit the corpus** so a re-run updates instead
@@ -231,12 +245,18 @@ Do not add new keys via the audit-findings path — `loc_audit_apply` /
 
 ## Self-translation discipline
 
-Same scoped rule as iOS: do **not** self-translate as a side effect of unrelated
-work. When the operator explicitly asks for a translation pass (or the task *is*
-translation), translate per-key with per-key reasoning, keep the language
+Same scoped rule as iOS: do **not** self-translate target languages as a side effect
+of unrelated work. When the operator explicitly asks for a translation pass (or the
+task *is* translation), translate per-key with per-key reasoning, keep the language
 `unverified`, and follow the linguistic discipline. Batch fan-out without per-key
 reasoning is an anti-pattern (caught by the audit as `awkward` / `calque` /
 `semantic-drift`).
+
+**One carve-out — `ru`.** `ru` is a co-source, not an ordinary target: whenever you
+add or change an `en` source you re-author `ru` **immediately**, even as a side effect
+of unrelated work ([CR-CORPUS-SOURCE-CHANGE], § Adding a new key). The discipline above
+governs the other 19 targets — they stay empty (`""` + `unverified`) until an explicit
+translation pass.
 
 ## Canonical linguistic rules live here
 
@@ -252,7 +272,7 @@ read iOS docs — the rules are cross-platform and live next to the corpus + too
 
 Consumers thin-link here, do **not** fork: iOS `mywater_ios docs/LOCALIZATION.md`,
 server `mywater_server resources/locale/CLAUDE.md`. Platform-specific *encoding*
-mechanics (iOS `.strings` / `|R|` / `R.swift`, server `notes`) stay in those platform
+mechanics (iOS `.strings` / `R.swift`, server flat JSON) stay in those platform
 docs; this canon owns *style and meaning* only.
 
 ## Verification
@@ -261,6 +281,9 @@ docs; this canon owns *style and meaning* only.
 - After a `loc_corpus.py` change: round-trip the corpus and assert byte-identical
   (`read_records` → `write_records` → `diff`).
 - After an apply: `git diff -- strings.ndjson` should touch only the edited keys.
+- After an `en` meaning change: `git diff -- strings.ndjson` shows `ru` re-authored and
+  every other target blanked to `""`, all flagged `dirty` + `unverified` (except `en`,
+  which is `dirty` only — never `unverified`) ([CR-CORPUS-SOURCE-CHANGE]).
 - After a metadata edit (`loc_apply_meta`): `git diff -- strings.ndjson` shows the
   changed `platforms` / `context` / `filenames` plus a `dirty_meta` marker on those
   keys; a `loc_corpus_import` dry-run lists them under "push metadata on N key(s)",

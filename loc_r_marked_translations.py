@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Extract and apply AI translations for the strings.ndjson translation backlog.
 
-This owns the workflow for translating keys that still need a target value. In
-the corpus world the iOS `|R|` source marker is replaced by Lokalise's review
-state: a key is "backlog" for <lang> when its translation is
+This owns the workflow for translating keys that still need a target value. The
+needs-translation signal is the corpus `unverified` marker plus an empty target
+(the iOS `|R|` source marker is retired): a key is "backlog" for <lang> when its
+translation is
 
   - unverified : present but flagged by Lokalise as needing review (source moved
                  or a prior translation is fuzzy) — the cross-platform redo signal;
@@ -21,7 +22,7 @@ Scope:
   - apply replaces a target value only for keys currently in the backlog for
     <lang> (unverified / missing / empty). Filled values are flagged `unverified`
     in the corpus — an AI translation needs human / Lokalise review before it
-    counts as verified (the two-signal guarantee the iOS `|R|` marker carried).
+    counts as verified (the guarantee the corpus `unverified` marker provides).
   - non-plural values are strings; plural values are {form: text} CLDR maps.
 """
 

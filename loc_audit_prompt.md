@@ -91,7 +91,7 @@ python3 loc_corpus_import.py --lang <lang>            # dry-run: что уйдё
 python3 loc_corpus_import.py --lang <lang> --apply    # пуш в Lokalise (оператор, [CR-ACCESS])
 ```
 
-Корпус-правки попадают к пользователям через Lokalise → экспорт в iOS / Android / server, не напрямую. iOS `make localization-lint` (`|R|` gate) к корпус-выходу не применяется: он проверяет iOS `.strings`, которые обновляются Lokalise-экспортом, а не этим workflow.
+Корпус-правки попадают к пользователям через Lokalise → экспорт в iOS / Android / server, не напрямую. iOS `make localization-lint` (legacy `|R|`-source gate, выводится из употребления) к корпус-выходу не применяется: он проверяет iOS `.strings`, которые обновляются Lokalise-экспортом, а не этим workflow.
 
 ### 6. Next batch
 
@@ -238,7 +238,7 @@ These are pilot-calibrated false positive patterns. DO NOT include them in findi
 4. **Trailing period on error messages** — soft rule with many legacy exceptions. Flag only if error is a complete sentence AND inconsistent with neighbors in the same comment-Type bucket.
 5. **Legacy "please" comma equivalent** in target — comment may explicitly say "preserve legacy punctuation".
 6. **Lexicon items intentionally explained in comment** (e.g. "preserve `norm` legacy phrasing for this surface").
-7. **Strings with `|R|` prefix in en** — agent-added markers awaiting Lokalise. Flag only if grammar / semantic broken beyond the marker. **Crucially:** if en has `|R|` and target holds an English-text fallback (untranslated), do NOT remove or auto-translate the target entry. The English fallback is an intentional stop-gap until Lokalise OTA translates the new key; removing it strips the user-visible value to nothing. Leave it as-is.
+7. **Empty (`""`) `unverified` target — untranslated, awaiting a translation pass / Lokalise.** This is the canonical "needs translation" marker ([CR-CORPUS-UNVERIFIED]), not a defect: do NOT flag an empty target as missing / broken, and do NOT auto-fill it during an audit. Leave it empty. (The audit reviews *existing* translations; filling the backlog is a separate translation task — `loc_r_marked_translations`.)
 8. **Beverage names that are simple nouns** (`Beer` = `Beer`, `Save` = `Save`) — flag only if actually wrong.
 9. **Casing variants intentionally explained in comment** (e.g. "Lowercase per i18n style").
 10. **Same issue twice** — once at en level and again at target level if target just inherited the en issue. Flag at en only.
@@ -332,7 +332,7 @@ Each entry below: `decision — why/origin — where it lives now`. New material
 - **#1 formal V-form/honorific in formal surfaces** — pilot 1-50 flagged all «вы»; formal register is intentional on ASC / paywall hero+CTA / legal / permission / error-with-recovery / medical-educational / Siri-educational. Generalized to all T-V/honorific langs (Phase 1). Paywall-CTA stays formal even when proven ru is casual-T (`reachTheGoal` legacy outlier, no live call-sites) — codified Pre-G6 (Face A).
 - **#2 legacy hard line break handling** — pilot 1-50 over-flagged mismatch; current policy is stricter: user-facing values should not contain manual hard line breaks.
 - **#3 straight quotes / #4 trailing period on errors / #5 legacy please-comma / #6 comment-explained lexicon / #8 simple-noun beverage / #9 comment-explained casing / #11 pure stylistic / #12 British-in-comments** — pilot 1-50 FP buckets (separate sweeps or legacy-acknowledged).
-- **#7 `|R|` + English-fallback in target** — post-13-27: do NOT delete / AI-translate a target entry holding English text when en has `|R|` (intentional stop-gap until Lokalise OTA). Incident: 18 siri/signup keys wrongly removed + restored.
+- **#7 empty (`""`) `unverified` target = untranslated, not a defect** — do NOT flag or auto-fill an empty target during audit; it awaits a translation pass / Lokalise ([CR-CORPUS-UNVERIFIED]). Supersedes the retired `|R|`-source-marker model (the original post-13-27 rule guarded English-text fallbacks under en `|R|` — incident: 18 siri/signup keys wrongly removed + restored).
 - **#10 same defect en+target → flag en only** — cross-language dedup; en is the root.
 - **#13 singular/plural en for multi-select** — post-13-27: fix at en source, don't pluralize target (`chooseYourGoal`).
 - **#14 gendered count-caption** — post-13-27: don't flip M-sg → plural as a "fix" (reads as "multiple subjects"); needs `M`/`F` split (`sharesOfTheApp`).
@@ -386,6 +386,6 @@ Each entry below: `decision — why/origin — where it lives now`. New material
 - `loc_r_marked_translations.py` / `loc_apply_lang.py` / `loc_merge_languages.py` — translation backlog, `{key:value}` apply, language-set merge (all corpus-backed).
 - `loc_audit_lang_calibration/<lang>.md` — per-language calibration profiles for weak-AI-signal targets (ar, hi, vi, id, ms).
 - `TRANSLATION_STYLE.md` — canonical style / linguistics (this repo: § Translation discipline, § Brand voice, § Translator context); `mywater_ios docs/LOCALIZATION.md § Shared localisation corpus & tooling` — iOS-side pipeline overview, `§ Comment encoding` — iOS `.strings` comment mechanics.
-- `mywater_ios utility/localization/localization_lint.py` — iOS-only `|R|` lint on iOS `.strings` (not this corpus).
+- `mywater_ios utility/localization/localization_lint.py` — iOS-only lint on iOS `.strings` (not this corpus); guards the legacy `|R|` source marker, now being retired ([CR-CORPUS-UNVERIFIED]).
 - `ai_reports/tasks/2026-05-15_localization_audit_19_langs_plan.md` (mywater_ios) — historical 19-language iOS `.strings` audit plan.
 - Pilot results were applied in commits leading up to 2026-05-15 (`git log -- "water/Supporting Files/Localization/"`).

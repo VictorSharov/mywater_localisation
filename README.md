@@ -195,10 +195,11 @@ Gotchas:
   clearing it fixes the manual download but could relocate where the integration
   writes those keys. The repo already shipping them flat indicates flat is the
   target — but verify the integration isn't relying on the path before clearing.
-- **`|R|` in values** is the [CR-CORPUS-UNVERIFIED] "not human-verified" marker; an
-  export carrying `|R|` is a pre-verification snapshot (fine for layout / QA, not
-  release). Clear `|R|` / unverified in Lokalise before a release export — no
-  download toggle removes it.
+- **`unverified` / untranslated strings** are the [CR-CORPUS-UNVERIFIED] "not yet
+  human-verified" / "needs translation" markers; an export carrying them is a
+  pre-verification snapshot (fine for layout / QA, not release — untranslated keys
+  fall back to the English base under "Replace with base language"). Clear
+  `unverified` in Lokalise before a release export — no download toggle removes it.
 - **"N unassigned keys → Localizable.strings"** is cosmetic — unassigned keys
   correctly default to the flat `Localizable.strings`.
 - **Routing a key to a non-default file** (e.g. an Info.plist key →
@@ -287,8 +288,8 @@ Non-obvious choices:
   iOS-/server-only keys (and any non-Android placeholder form) out of
   `strings.xml`. Requires the Android platform assignment in Lokalise to be correct.
 - **Include description / comments = off** (same as iOS) — Android `strings.xml`
-  goes straight to production `res/`, so notes / `|R|` stay out of the shipped
-  bundle; translator-context lives in the corpus, not the platform files.
+  goes straight to production `res/`, so translator descriptions stay out of the
+  shipped bundle; translator-context lives in the corpus, not the platform files.
 
 Gotchas:
 - **The export never produces `values/`** — the `values-en/`→`values/` rename
@@ -298,10 +299,10 @@ Gotchas:
   fails ("Multiple substitutions specified in non-positional format"). Build the
   app after import to catch it; if Lokalise drops the attribute, switch the source
   to positional args (`%1$s` / `%2$s`).
-- **`|R|` in values** is the [CR-CORPUS-UNVERIFIED] "not human-verified" marker; an
-  export carrying `|R|` is a pre-verification snapshot (fine for layout / QA, not
-  release). No download toggle removes it — clear `|R|` / unverified in Lokalise
-  before a release export.
+- **`unverified` / untranslated strings** are the [CR-CORPUS-UNVERIFIED] "not yet
+  human-verified" / "needs translation" markers; an export carrying them is a
+  pre-verification snapshot (fine for layout / QA, not release). No download toggle
+  removes it — clear `unverified` in Lokalise before a release export.
 - **Region-only dirs match only that region.** `values-es-rES` serves
   Spanish (Spain) only — Spanish (Mexico) etc. fall back to `values/` (English);
   `values-zh-rCN` / `values-pt-rBR` are Simplified-China / Brazil only. Deliberate
@@ -365,7 +366,8 @@ Lokalise (same release gate as iOS / Android above).
 Linguistic / translation-quality rules (brand voice, register, calque
 discipline, punctuation, translator-context comments) are canonical in this repo:
 [`TRANSLATION_STYLE.md`](TRANSLATION_STYLE.md); `loc_audit_prompt.md`
-operationalizes them for the audit sub-agent. The `|R|` marker that iOS `.strings` use for an
-unverified source maps to the corpus `unverified` field; apply scripts mark an
-edited language `unverified` so AI/edited translations stay flagged for human /
-Lokalise review. Agent-facing rules: `CLAUDE.md`.
+operationalizes them for the audit sub-agent. The cross-platform "not yet
+human-verified" / "needs translation" markers are the corpus `unverified` field plus
+an empty (`""`) target ([CR-CORPUS-UNVERIFIED]); apply scripts mark an edited language
+`unverified` so AI/edited translations stay flagged for human / Lokalise review.
+Agent-facing rules: `CLAUDE.md`.

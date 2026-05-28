@@ -307,7 +307,7 @@ def unknown_lang_message(records: Iterable[dict[str, Any]], lang: str) -> str | 
 # --------------------------------------------------------------------------- #
 # Edit — set a translation in place. Apply scripts go through here so the
 # "AI / freshly-edited translation stays unverified until human review" rule is
-# enforced in one place (the ndjson analog of the iOS `|R|` marker).
+# enforced in one place (the corpus `unverified` marker; [CR-CORPUS-UNVERIFIED]).
 # --------------------------------------------------------------------------- #
 def set_translation(
     record: dict[str, Any],
@@ -329,10 +329,10 @@ def set_translation(
       successful push clears the pushed languages.
     - `unverified` (review state): when `mark_unverified` is True (default) and
       `lang` is a target (not SOURCE_LANG), the language is added to `unverified`
-      — an edited/fresh translation still needs human / Lokalise review, the same
-      two-signal guarantee the iOS `|R|` marker carries. SOURCE_LANG is never
-      `unverified` (it is the dev source of truth, not a review target) and the
-      importer always pushes it verified.
+      — an edited/fresh translation still needs human / Lokalise review, the
+      cross-platform guarantee the corpus `unverified` marker provides. SOURCE_LANG
+      is never `unverified` (it is the dev source of truth, not a review target) and
+      the importer always pushes it verified.
 
     The two are separate because pushing is not verifying: a pushed translation
     leaves `dirty` at once (it is synced) but stays `unverified` until a human
