@@ -63,6 +63,38 @@ strings.ndjson + Lokalise ─(loc_export.py --apply)→ iOS .strings / Android .
   (`loc_apply_lang` / `loc_audit_apply`, which write the corpus) runs **one at a time**.
   Each language is a disjoint `t[lang]` and the writer is deterministic, so sequential
   applies compose into one clean diff in any order. Recipe: § Parallel translation passes.
+- **[CR-CORPUS-WORKTREE] The working tree is shared state — never destroy uncommitted corpus edits.**
+  Because parallel agents emit per-language artifacts (`/tmp/loc_<lang>.json`) and
+  apply them as **uncommitted edits** to `strings.ndjson` in the *same working tree*
+  ([CR-CORPUS-CONCURRENCY], § Parallel translation passes), the working-tree
+  contents of `strings.ndjson` are someone else's in-flight work — not your private
+  scratchpad. Destructive git operations on the corpus are therefore equivalent to
+  a clobbering apply and produce the same silent loss of translations as the
+  concurrent-write race in [CR-CORPUS-CONCURRENCY]: `git checkout strings.ndjson`,
+  `git restore strings.ndjson`, `git reset --hard`, `git stash push -- strings.ndjson`
+  followed by drop, `git clean -fd` — all wipe uncommitted edits and emit *no error*.
+  Reflog tracks commits, not working-tree edits; `git fsck --lost-found` tracks
+  orphaned blobs in the objects DB, but uncommitted modifications never enter it.
+  So once those edits are gone they are **unrecoverable** locally — only the
+  per-language `/tmp/loc_<lang>.json` artifacts (if the originating agent saved
+  them) can be re-applied.
+  - **Always assume `strings.ndjson` may carry someone else's pending work.** Run
+    `git diff --stat strings.ndjson` before any operation that could overwrite it,
+    and treat a non-empty diff as a hold signal — confirm with the operator before
+    proceeding. A clean diff is the only safe precondition for a `git checkout` /
+    `git restore` / `git reset` on the corpus.
+  - **Test apply scripts against a copy via `--corpus`, never against the live corpus
+    followed by a revert.** Every apply script (`loc_apply_lang.py`,
+    `loc_audit_apply.py`, etc.) accepts `--corpus <path>` specifically so dev /
+    debugging runs leave the working tree untouched. Recipe:
+    ```
+    cp strings.ndjson /tmp/test_corpus.ndjson
+    python3 loc_apply_lang.py <lang> /tmp/test.json --corpus /tmp/test_corpus.ndjson
+    diff strings.ndjson /tmp/test_corpus.ndjson    # inspect freely; live corpus untouched
+    ```
+    Pattern to avoid: applying to the live corpus and then `git checkout strings.ndjson`
+    to "undo" — that revert also wipes any uncommitted parallel-agent work that was
+    sitting in the working tree before the test apply.
 - **[CR-CORPUS-UNVERIFIED] Edited ⇒ unverified; untranslated ⇒ empty + unverified.**
   `set_translation` flags an edited target language `unverified`. This field is the
   **canonical, cross-platform owner** of the localization review state; the consuming
@@ -304,8 +336,13 @@ concurrent corpus writes ([CR-CORPUS-CONCURRENCY]):
    runs `loc_corpus_import --apply` ([CR-ACCESS]).
 
 Never: let an agent write the corpus directly (race + [CR-CORPUS-OWNER]); run two
-applies concurrently; or regenerate (`loc_corpus_ndjson.py`) mid-pass — it overwrites
-the corpus from Lokalise and discards every un-imported edit.
+applies concurrently; regenerate (`loc_corpus_ndjson.py`) mid-pass — it overwrites
+the corpus from Lokalise and discards every un-imported edit; or run a destructive
+git operation on `strings.ndjson` (`git checkout` / `git restore` / `git reset --hard` /
+`git stash` + drop / `git clean`) — uncommitted edits in the working tree are
+someone else's in-flight fan-in and a revert wipes them silently and unrecoverably
+([CR-CORPUS-WORKTREE]). For dev / debugging always run apply scripts against a
+copy via `--corpus /tmp/test_corpus.ndjson`, not against the live corpus.
 
 ## Canonical linguistic rules live here
 
@@ -327,8 +364,15 @@ docs; this canon owns *style and meaning* only.
 ## Verification
 
 - `python3 -m py_compile <changed>.py` for any touched script.
+- **Before any action that could touch the corpus:** `git diff --stat strings.ndjson`
+  — a non-empty diff is someone else's in-flight fan-in and must be preserved
+  ([CR-CORPUS-WORKTREE]). Apply-script smoke tests run against a copy via
+  `--corpus /tmp/test_corpus.ndjson`, never against the live corpus followed by a
+  `git checkout` revert.
 - After a `loc_corpus.py` change: round-trip the corpus and assert byte-identical
-  (`read_records` → `write_records` → `diff`).
+  (`read_records` → `write_records` → `diff`) **against a copy** (e.g. write the
+  round-trip into `/tmp/strings.ndjson.roundtrip` and `filecmp` against the live
+  file) so the live working tree is never overwritten.
 - After an apply: `git diff -- strings.ndjson` should touch only the edited keys.
 - After an `en` meaning change: `git diff -- strings.ndjson` shows `ru` re-authored and
   every other target blanked to `""`, all flagged `dirty` + `unverified` (except `en`,

@@ -29,6 +29,12 @@ dedicated plural workflow for those.
 
 New source strings are NOT appended here: add them to the corpus directly (so
 every platform sees them) and let loc_corpus_import.py create them in Lokalise.
+
+For dev / debugging runs use `--corpus /tmp/test_corpus.ndjson` (copy the live
+corpus first) so the working-tree `strings.ndjson` is never touched. Do NOT apply
+to the live corpus and then `git checkout strings.ndjson` to "undo" — that revert
+also wipes any uncommitted parallel-agent edits sitting in the working tree
+([CR-CORPUS-WORKTREE]).
 """
 
 from __future__ import annotations
@@ -88,26 +94,36 @@ def parse_table(path: Path, target_lang: str) -> list[tuple[str, str]]:
 
 def apply_changes(
     records: list[dict],
-    changes: dict[str, str],
+    changes: dict[str, str | dict[str, str]],
     lang: str,
-) -> tuple[int, list[str], list[str]]:
-    """Set `t[lang]` for each matching non-plural key. Returns
-    (replaced, unmatched_keys, plural_skipped_keys). Records are mutated in place."""
+) -> tuple[int, list[str], list[str], list[str]]:
+    """Set `t[lang]` for each matching key. A value is a string for a non-plural
+    record or a `{cldr_form: text}` dict for a plural record. Returns
+    (replaced, unmatched_keys, plural_skipped_keys, type_mismatched_keys):
+    `plural_skipped` = string value passed for a plural record (findings tables
+    cannot express CLDR forms); `type_mismatched` = dict value passed for a
+    non-plural record (malformed input). Records are mutated in place."""
     index = index_by_key_name(records)
     replaced = 0
     unmatched: list[str] = []
     plural_skipped: list[str] = []
+    type_mismatched: list[str] = []
     for key, value in changes.items():
         record = index.get(key)
         if record is None:
             unmatched.append(key)
             continue
-        if is_plural(record):
+        record_is_plural = is_plural(record)
+        value_is_dict = isinstance(value, dict)
+        if record_is_plural and not value_is_dict:
             plural_skipped.append(key)
+            continue
+        if not record_is_plural and value_is_dict:
+            type_mismatched.append(key)
             continue
         set_translation(record, lang, value)
         replaced += 1
-    return replaced, unmatched, plural_skipped
+    return replaced, unmatched, plural_skipped, type_mismatched
 
 
 def main() -> int:
@@ -145,7 +161,7 @@ def main() -> int:
     if message:
         print(f"error: {message}", file=sys.stderr)
         return 2
-    replaced, unmatched, plural_skipped = apply_changes(records, changes, lang)
+    replaced, unmatched, plural_skipped, _ = apply_changes(records, changes, lang)
 
     if replaced:
         write_records(corpus_path, records)
