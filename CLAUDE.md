@@ -16,6 +16,14 @@ relevant script docstring, and review it as a git diff. Reserve private memory f
 personal working preferences only; never let correctness-relevant project
 knowledge live only in memory.
 
+**Scratch stays out of the working tree.** Probes, debug dumps, one-off analysis
+output and any other throwaway files go in `/tmp` (the tooling already does this —
+`/tmp/loc_<lang>.json`, `/tmp/loc_merge_*.txt`), never the repo root. Clean up
+anything you create. The working tree must stay clean so a corpus edit reads as a
+reviewable `git diff` and untracked junk never masks a real change — the whole
+pipeline is diff-review based. Don't lean on `.gitignore` to hide scratch (a broad
+ignore pattern would also hide real files).
+
 ## Pipeline (read this first)
 
 ```
