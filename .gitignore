@@ -3,3 +3,6 @@
 __pycache__/
 *.pyc
 .DS_Store
+# Pre-write corpus snapshots produced by loc_corpus.write_records — local-only
+# safety net against accidental working-tree wipes ([CR-CORPUS-WORKTREE]).
+.loc_backup/

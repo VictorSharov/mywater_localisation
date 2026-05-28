@@ -41,12 +41,23 @@ Consumers that may run from another CWD add
 from __future__ import annotations
 
 import json
+import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 # The corpus and its meta sidecar live next to the scripts (shared repo root).
 DEFAULT_CORPUS = SCRIPT_DIR / "strings.ndjson"
+# Pre-write snapshot directory — write_records copies the live corpus here before
+# overwriting it, so any later wipe (errant `git checkout`, crashed write, a
+# regenerate that drops un-imported edits) is recoverable as a plain `cp` from
+# the most recent snapshot. Defends against the working-tree-state failure class
+# in CLAUDE.md [CR-CORPUS-WORKTREE]. Snapshots are taken ONLY when writing to
+# DEFAULT_CORPUS (the live corpus); test runs with `--corpus /tmp/test.ndjson`
+# stay snapshot-free. The directory is gitignored.
+SNAPSHOT_DIR = SCRIPT_DIR / ".loc_backup"
+SNAPSHOT_RETAIN = 20
 # CLDR plural categories in canonical order, mirrored from loc_corpus_ndjson.py
 # so plural maps render and serialize predictably across producers.
 PLURAL_CATEGORIES = ("zero", "one", "two", "few", "many", "other")
@@ -92,6 +103,38 @@ def read_records(path: Path | str = DEFAULT_CORPUS) -> list[dict[str, Any]]:
     return records
 
 
+def _snapshot_before_write(path: Path) -> None:
+    """Copy the live corpus to `.loc_backup/strings.ndjson.<ts>` before write_records
+    overwrites it. No-op when:
+      - the target is not the canonical DEFAULT_CORPUS (test runs with --corpus
+        /tmp/test.ndjson stay snapshot-free), or
+      - the target file does not yet exist (first write — nothing to back up).
+    After snapshotting, rotates `.loc_backup/strings.ndjson.*` down to the most
+    recent SNAPSHOT_RETAIN entries. Recovery: `cp .loc_backup/strings.ndjson.<ts>
+    strings.ndjson` (CLAUDE.md [CR-CORPUS-WORKTREE]).
+    """
+    try:
+        if path.resolve() != DEFAULT_CORPUS.resolve():
+            return
+    except FileNotFoundError:
+        # path didn't exist yet; nothing to back up
+        return
+    if not path.exists():
+        return
+    SNAPSHOT_DIR.mkdir(exist_ok=True)
+    # Microsecond precision so back-to-back writes (fan-in sequence) don't collide.
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    dst = SNAPSHOT_DIR / f"strings.ndjson.{ts}"
+    shutil.copy2(path, dst)
+    snapshots = sorted(SNAPSHOT_DIR.glob("strings.ndjson.*"))
+    for stale in snapshots[:-SNAPSHOT_RETAIN]:
+        try:
+            stale.unlink()
+        except OSError:
+            # Best-effort rotation — a failure here must not block the write.
+            pass
+
+
 def write_records(path: Path | str, records: Iterable[dict[str, Any]]) -> None:
     """Write records as deterministic NDJSON (matches the generator's output).
 
@@ -104,8 +147,16 @@ def write_records(path: Path | str, records: Iterable[dict[str, Any]]) -> None:
     so it is NOT concurrency-safe: concurrent writers lose updates or interleave into
     a broken line. Callers serialize corpus writes — parallel translation passes fan
     out generation but apply one language at a time (CLAUDE.md [CR-CORPUS-CONCURRENCY]).
+
+    Before every write to the live corpus, the current on-disk content is copied
+    to `.loc_backup/` (gitignored) and the directory is rotated to the most recent
+    SNAPSHOT_RETAIN snapshots, so any later wipe (errant `git checkout`, a crashed
+    write, a regenerate that drops un-imported edits) is recoverable as a plain
+    `cp` from the most recent snapshot ([CR-CORPUS-WORKTREE]). Test runs against
+    a non-DEFAULT_CORPUS path stay snapshot-free.
     """
     path = Path(path)
+    _snapshot_before_write(path)
     prepared = [_normalized(record) for record in records]
     prepared.sort(key=lambda record: (record.get("key_id") is None, record.get("key_id")))
     path.parent.mkdir(parents=True, exist_ok=True)

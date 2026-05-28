@@ -75,9 +75,13 @@ strings.ndjson + Lokalise ─(loc_export.py --apply)→ iOS .strings / Android .
   followed by drop, `git clean -fd` — all wipe uncommitted edits and emit *no error*.
   Reflog tracks commits, not working-tree edits; `git fsck --lost-found` tracks
   orphaned blobs in the objects DB, but uncommitted modifications never enter it.
-  So once those edits are gone they are **unrecoverable** locally — only the
+  So once those edits are gone they are **unrecoverable through git** — only the
   per-language `/tmp/loc_<lang>.json` artifacts (if the originating agent saved
-  them) can be re-applied.
+  them) and the local pre-write snapshots in `.loc_backup/` (rotated, last
+  `loc_corpus.SNAPSHOT_RETAIN` writes; gitignored) can restore the prior state.
+  Recovery: `cp .loc_backup/strings.ndjson.<ts> strings.ndjson`. Snapshots are
+  written automatically by `loc_corpus.write_records` before every mutation of
+  the live corpus; tests against `--corpus /tmp/test.ndjson` stay snapshot-free.
   - **Always assume `strings.ndjson` may carry someone else's pending work.** Run
     `git diff --stat strings.ndjson` before any operation that could overwrite it,
     and treat a non-empty diff as a hold signal — confirm with the operator before
