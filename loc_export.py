@@ -169,6 +169,7 @@ SERVER = Platform(
         "placeholder_format": "printf",
         "escape_percent": False,  # "Convert all [%] to %%: off"
         "indentation": "4sp",  # "Indentation: 4 spaces"
+        "add_newline_eof": True,  # repo convention: JSON files end with a trailing newline
     },
     language_mapping={"es": "es_ES"},
     exclude_langs=frozenset({"ar"}),

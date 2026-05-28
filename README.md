@@ -238,7 +238,7 @@ grep -rl '= "";' .                                      # empty -> no blank valu
 grep -rln '/\*' .                                       # empty -> no description comments (Include description=off)
 ```
 
-### Android — XML  *(settings finalized 2026-05-27; not yet validated against a real export)*
+### Android — XML  *(settings finalized 2026-05-27; validated against a real export, 2026-05-28)*
 
 Lokalise → **Download**, file format **Android Resources (.xml)**. Set exactly:
 
@@ -369,6 +369,9 @@ Locked export settings (Lokalise "Download" for the `web` JSON target):
 - **Convert all `[%]` to `%%`:** **off** — server strings are not run through
   `sprintf`, so a literal `%` must stay `%` (this is an iOS-only printf escape).
 - **Indentation:** 4 spaces.
+- **Add new line at EOF:** **on** — the committed `resources/locale/*.json` end
+  with a trailing newline; without this every file diffs by one line and trips a
+  final-newline lint.
 
 **`unverified` / untranslated:** dev-only. A pre-release export may carry
 untranslated en-only keys for layout / QA, but a **production** server release
