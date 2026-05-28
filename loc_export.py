@@ -22,6 +22,12 @@ Flow (per platform, under --apply):
   bundle). The repo is left as an unstaged git diff for the operator to review and
   commit — same diff-review discipline as the rest of the pipeline.
 
+Platforms are independent and optional: if a platform's repo isn't checked out on
+this machine (its localization dir is absent) that platform is SKIPPED, not fatal,
+so a missing iOS/Android/server repo never blocks the others. Each run ends with a
+summary listing what was exported, skipped and failed; the exit code is non-zero
+only on a real failure (download / sanity error), never on a skip.
+
 Token discipline (CLAUDE.md [CR-SECRETS] / [CR-ACCESS]): the default is a DRY RUN
 that prints the fully-resolved params, language mapping and target paths with no
 token and no network — the agent-runnable review artifact. --apply performs the
@@ -193,31 +199,47 @@ def main() -> int:
                 "Pass --apply to execute.\n"
             )
             for platform in platforms:
-                print_plan(platform, langs, dest_dir_for(platform, args))
+                dest = dest_dir_for(platform, args)
+                will_skip = args.to is None and not dest.is_dir()
+                print_plan(platform, langs, dest, will_skip)
                 print()
             return 0
 
         config = config_from_args(args)
         client = LokaliseClient(config)
-        all_ok = True
+        succeeded: list[str] = []
+        skipped: list[tuple[str, str]] = []
+        failed: list[tuple[str, str]] = []
         for platform in platforms:
             dest = dest_dir_for(platform, args)
-            ensure_dest(platform, dest, args)
-            ok = export_platform(
-                client,
-                platform,
-                langs,
-                dest,
-                poll_timeout=args.poll_timeout,
-                http_timeout=args.timeout,
-                run_sanity=not args.no_sanity,
-            )
-            all_ok = all_ok and ok
-        if all_ok:
-            print("\nDone. Review each repo (git status / git diff) before committing.")
-            return 0
-        print("\nOne or more platforms failed sanity checks; see errors above.", file=sys.stderr)
-        return 1
+            skip_reason = prepare_dest(platform, dest, args)
+            if skip_reason is not None:
+                print(f"[{platform.name}] skipped: {skip_reason}", file=sys.stderr)
+                skipped.append((platform.name, skip_reason))
+                continue
+            try:
+                ok = export_platform(
+                    client,
+                    platform,
+                    langs,
+                    dest,
+                    poll_timeout=args.poll_timeout,
+                    http_timeout=args.timeout,
+                    run_sanity=not args.no_sanity,
+                )
+            except LokaliseError as error:
+                # Per-platform download/export failure: record and keep going so one
+                # platform's outage never blocks the others (config-level errors raise
+                # before the loop and still abort).
+                print(f"[{platform.name}] error: {error}", file=sys.stderr)
+                failed.append((platform.name, str(error)))
+                continue
+            if ok:
+                succeeded.append(platform.name)
+            else:
+                failed.append((platform.name, "export failed (see messages above)"))
+        print_summary(succeeded, skipped, failed)
+        return 1 if failed else 0
     except LokaliseError as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
@@ -334,24 +356,53 @@ def dest_dir_for(platform: Platform, args: argparse.Namespace) -> Path:
     return repo_root_for(platform, args) / platform.dest_subdir
 
 
-def ensure_dest(platform: Platform, dest: Path, args: argparse.Namespace) -> None:
+def prepare_dest(platform: Platform, dest: Path, args: argparse.Namespace) -> str | None:
+    """Make the destination usable, or report why the platform should be skipped.
+
+    Returns None when `dest` is ready to receive files; returns a human-readable
+    skip reason when the platform's repo isn't checked out on this machine (a
+    missing repo is optional, not fatal — the other platforms still export). With
+    --to the dir is created on demand, so there is never a skip."""
     if args.to is not None:
         dest.mkdir(parents=True, exist_ok=True)
-        return
+        return None
     if not dest.is_dir():
-        raise LokaliseError(
-            f"[{platform.name}] localization dir not found: {dest} "
+        return (
+            f"localization dir not found: {dest} "
             f"(set --{platform.name}-repo or {platform.repo_env})"
         )
+    return None
 
 
-def print_plan(platform: Platform, langs: list[str], dest: Path) -> None:
+def print_plan(platform: Platform, langs: list[str], dest: Path, will_skip: bool = False) -> None:
     params, included = build_download_params(platform, langs)
     codes = export_codes(platform, included)
     print(f"=== {platform.name} ===")
-    print(f"  dest:      {dest}")
+    note = "   (SKIP under --apply: localization dir not present)" if will_skip else ""
+    print(f"  dest:      {dest}{note}")
     print(f"  languages: {len(included)} -> {', '.join(codes)}")
     print(f"  params:    {json.dumps(params, ensure_ascii=False, sort_keys=True)}")
+
+
+def print_summary(
+    succeeded: list[str],
+    skipped: list[tuple[str, str]],
+    failed: list[tuple[str, str]],
+) -> None:
+    print("\n=== summary ===")
+    print(f"  exported: {', '.join(succeeded) if succeeded else '(none)'}")
+    if skipped:
+        print("  skipped:")
+        for name, reason in skipped:
+            print(f"    - {name}: {reason}")
+    if failed:
+        print("  failed:")
+        for name, reason in failed:
+            print(f"    - {name}: {reason}")
+    if succeeded:
+        print("\nReview each exported repo (git status / git diff) before committing.")
+    elif not failed:
+        print("\nNothing exported (all requested platforms skipped).")
 
 
 def export_platform(
@@ -374,7 +425,7 @@ def export_platform(
         extract_bundle(content, root)
         staged = STAGERS[platform.name](root)
         if not staged:
-            print(f"[{platform.name}] bundle contained no expected files — skipping.", file=sys.stderr)
+            print(f"[{platform.name}] bundle contained no expected files.", file=sys.stderr)
             return False
 
         issues = VALIDATORS[platform.name](staged, codes) if run_sanity else []

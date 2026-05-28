@@ -25,7 +25,12 @@ corpus maintains (so a push is a no-op unless something was edited locally):
     endpoint (update_key), translations through the per-translation endpoint (below).
 
 What gets pushed:
-  - which keys: every key by default; `--key NAME` (repeatable) restricts the
+  - which keys: every key by default — INCLUDING archived keys. `archived` is just
+    a Lokalise status: a key can be un-archived and reused later, so its local edits
+    (dirty langs / dirty_meta) must still sync, or the next regenerate would silently
+    drop them (un-pushable edit → lost on pull). The dirty/named/lang gating below
+    still limits the push to keys that were actually edited, so an untouched archived
+    key is a no-op. `--key NAME` (repeatable) restricts the
     push to the named key(s) — e.g. to ship a placeholder fix to just those keys
     without a subset corpus. A requested name with no corpus match is reported on
     stderr, not silently dropped (so you never claim a push that did not happen).
@@ -231,8 +236,7 @@ def main() -> int:
     meta_pushed: list[tuple[dict[str, Any], set[str]]] = []  # (record, corpus fields) parallel to meta_updates
 
     for record in records:
-        if record.get("archived"):
-            continue
+        # archived keys are not skipped — `archived` is just a Lokalise status; the dirty/named/lang gating below limits the push to actual edits (see module docstring "which keys").
         if requested_keys is not None:
             names = [name for name in key_names(record) if name in requested_keys]
             if not names:
@@ -445,7 +449,8 @@ def verify_pushed(client: LokaliseClient, sent_by_key: dict[int, dict[str, Any]]
     that silently no-ops a format change ([%s] == sequential [%1$s][%2$s], % == %%)."""
     if not sent_by_key:
         return []
-    fetched = client.list_keys(filter_key_ids=list(sent_by_key), include_translations=True)
+    # filter_archived="include": the importer pushes archived keys too (archive is just a status), so the re-fetch must see them or it false-flags every archived push as "<key not found on re-fetch>".
+    fetched = client.list_keys(filter_key_ids=list(sent_by_key), include_translations=True, filter_archived="include")
     by_id = {int(key["key_id"]): key for key in fetched if key.get("key_id") is not None}
     mismatches: list[dict[str, Any]] = []
     for key_id, lang_values in sent_by_key.items():
@@ -473,7 +478,8 @@ def verify_meta_pushed(client: LokaliseClient, meta_updates: list[dict[str, Any]
     if not meta_updates:
         return []
     key_ids = [item["key_id"] for item in meta_updates]
-    fetched = client.list_keys(filter_key_ids=key_ids, include_translations=False)
+    # filter_archived="include" — see verify_pushed: archived keys are pushable, so verify must re-fetch them too, else their metadata push is wrongly reported as not landed.
+    fetched = client.list_keys(filter_key_ids=key_ids, include_translations=False, filter_archived="include")
     by_id = {int(key["key_id"]): key for key in fetched if key.get("key_id") is not None}
     mismatches: list[dict[str, Any]] = []
     for item in meta_updates:

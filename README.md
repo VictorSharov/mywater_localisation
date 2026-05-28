@@ -126,6 +126,10 @@ the validated per-platform settings below baked in, downloading each bundle stra
 into its repo (replacing the error-prone manual Lokalise-UI download). It is
 operator-run (`--apply` needs the token; dry-run prints the resolved plan token-free)
 and leaves an unstaged `git diff` in each platform repo to review before committing.
+Platforms are independent and optional: a platform whose repo isn't checked out on
+this machine (localization dir absent) is **skipped**, not fatal, so a missing
+iOS/Android/server repo never blocks the others. Each run prints a summary of what
+was exported / skipped / failed and exits non-zero only on a real failure, not a skip.
 **The per-platform tables below are the spec `loc_export.py` implements** — keep them
 and the script's profiles in sync, and they double as the manual-UI fallback. What
 each platform's bundle must end up as:
