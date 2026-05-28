@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make help)",
+      "Bash(make lint)",
+      "Bash(make diff)",
+      "Bash(make push-dry)",
+      "Bash(python3 loc_qa.py *)",
+      "Bash(python3 loc_placeholder_lint.py *)"
+    ]
+  }
+}
