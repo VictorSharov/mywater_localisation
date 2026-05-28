@@ -53,7 +53,7 @@ Arabic uses the Arabic script and is **RTL (right-to-left)**. iOS implications:
 
 - EN: "Stay hydrated!"
   Literal calque ❌: ابقَ مُرَطَّبًا! (ibqa muraṭṭaban — "remain moistened/lubricated", clinical/odd, sounds like skin care)
-  Natural restructure ✓: لا تنسَ شرب الماء! (lā tansa shurb al-māʾ — "don't forget to drink water!") or حافظ على ترطيب جسمك (ḥāfiẓ ʿalā tarṭīb jismik — "keep your body hydrated")
+  Natural restructure ✓: لا تنسَ شرب الماء! (lā tansa shurb al-māʾ — "don't forget to drink water!") or حافظ على ترطيب جسمك (ḥāfiẓ ʿalā tarṭīb jismak — "keep your body hydrated")
   (Reason: "hydrated" as adjective applied to a person doesn't exist idiomatically in Arabic; restructure into action verb)
 
 - EN: "You crushed your goal today!"
@@ -82,8 +82,8 @@ Arabic has **all 6 CLDR plural categories**: zero, one, two, few, many, other. T
 
 - **zero**: n = 0 (e.g., 0 كوب — "0 cups", requires its own form لا يوجد أكواب or 0 كوب)
 - **one**: n = 1 (e.g., 1 كوب — "1 cup", uses singular)
-- **two**: n = 2 (e.g., 2 كوبان — uses Arabic **dual** form, kūbān not kūbayn, ending changes)
-- **few**: n % 100 = 3..10 (e.g., 3-10, 103-110 — uses broken plural with singular noun-form, e.g., 3 أكواب)
+- **two**: n = 2 — uses the Arabic **dual**, whose ending is **case-conditioned**: `-ān` in the nominative (كوبان "two cups"; يومان "two days") but `-ayn` in the accusative/genitive (object / adverbial position: مرتين "twice", مشروبين "two drinks"). Both are correct in their syntactic slot — do **not** "fix" a valid oblique `-ayn` to `-ān`.
+- **few**: n % 100 = 3..10 (e.g., 3-10, 103-110 — counted noun in the **broken plural, genitive**, e.g., 3 أكواب; مرات; مشروبات)
 - **many**: n % 100 = 11..99 (e.g., 11-99, 111-199 — uses **accusative singular**, e.g., 11 كوبًا — note the tanwīn fatḥa)
 - **other**: everything else, including fractions and n % 100 = 0 (e.g., 100, 200, 1000, 2.5 — uses **genitive singular**, e.g., 100 كوب)
 

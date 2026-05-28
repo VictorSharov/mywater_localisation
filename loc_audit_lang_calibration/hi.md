@@ -32,36 +32,41 @@ Hindi has a three-tier pronoun system:
 
 ## Gender system in grammar
 
-Hindi has **two grammatical genders (masculine / feminine)** and verb past-tense + many adjectives + predicates agree with the **subject's** gender. This collides directly with apps that don't know the user's gender at runtime.
+Hindi has **two grammatical genders (masculine / feminine)**, but *what the verb agrees with depends on the construction* — and most "you did X" app strings do **not** leak the user's gender. Getting this backwards is the #1 Hindi audit trap (false positives + ungrammatical "fixes"), so read this carefully.
 
-**The leak pattern is past-tense verb endings and predicate adjectives:**
+**The governing rule is split ergativity:**
 
-| EN source | Masc. user | Fem. user | Issue |
-|---|---|---|---|
-| You drank 250 ml of water | तुमने 250 मिली पानी **पिया** | तुमने 250 मिली पानी **पी** | Past participle ending |
-| You're ready! | तुम **तैयार** हो | तुम **तैयार** हो | Safe — adjective doesn't inflect here |
-| You did it! | तुमने कर **दिया**! | तुमने कर **दी**! | Compound verb agreement |
-| You're awesome | तुम **शानदार** हो | तुम **शानदार** हो | Safe (invariant -ार adj) |
-| You're hydrated | तुम **हाइड्रेटेड** हो | तुम **हाइड्रेटेड** हो | Safe (English loan, invariant) |
-| Great job, champion! | शानदार, **चैंपियन**! | शानदार, **चैंपियन**! | Safe (vocative noun, no agreement) |
+- **Perfective transitive verbs take the ergative marker `ने` (तुमने / मैंने / आपने), and the verb agrees with the DIRECT OBJECT — never with the subject (the user).** So "you drank water" / "you completed the goal" render *identically* for a male and a female user, because the verb tracks पानी / मात्रा / लक्ष्य, not the addressee. If the object is `को`-marked or absent, the verb defaults to **masculine singular** — still invariant to user gender.
+- **Intransitive perfectives (no `ने`), modals (`सकना`), and all non-perfective forms (present / future / progressive / habitual) agree with the SUBJECT.** These *do* leak the user's gender.
+- **Predicate adjectives:** native `-ा` adjectives inflect (`थका`/`थकी`, `अच्छा`/`अच्छी`) → leak; borrowed / consonant-final adjectives are invariant (`तैयार`, `शानदार`, `हाइड्रेटेड`, `खुश`) → safe.
 
-**Key audit rule:** flag any past-tense verb form (**-या / -ी / -ए / -ईं** endings: किया/की, पिया/पी, गया/गई, हुआ/हुई) addressed to the user as a **gender leak**. Same for compound verbs (कर दिया / कर दी, ले लिया / ले ली, पी लिया / पी ली).
+| EN source | Construction | Masc. user | Fem. user | Leaks user gender? |
+|---|---|---|---|---|
+| You drank 250 ml of water | perfective **transitive** (पीना + ने) → agrees with पानी (m) | तुमने 250 मिली पानी **पिया** | तुमने 250 मिली पानी **पिया** | **No** — invariant (object-agreement) |
+| You completed the goal! | perfective **transitive** (करना + ने) → agrees with लक्ष्य (m) | तुमने लक्ष्य पूरा कर **लिया**! | तुमने लक्ष्य पूरा कर **लिया**! | **No** — invariant (object-agreement) |
+| You reached your goal! | perfective **intransitive** (पहुँचना, no ने) → agrees with subject | तुम लक्ष्य तक **पहुँच गए**! | तुम लक्ष्य तक **पहुँच गई**! | **Yes** — गए / गई |
+| You can do it! | modal (सकना) → agrees with subject | तुम कर **सकते** हो! | तुम कर **सकती** हो! | **Yes** — सकते / सकती |
+| You're getting better! | progressive → agrees with subject | तुम बेहतर **हो रहे** हो! | तुम बेहतर **हो रही** हो! | **Yes** — रहे / रही |
+| You're ready! | predicate adj (invariant loan) | तुम **तैयार** हो | तुम **तैयार** हो | No — safe (invariant adj) |
+| You're awesome | predicate adj (invariant) | तुम **शानदार** हो | तुम **शानदार** हो | No — safe |
+| Great job, champion! | vocative noun, no agreement | शानदार, **चैंपियन**! | शानदार, **चैंपियन**! | No — safe |
 
-**Mitigation patterns translators should use (recommend in audit findings):**
+**Key audit rule:** a verb leaks the user's gender **only when it agrees with the subject** — intransitive perfectives (`गया`/`गई`, `पहुँचा`/`पहुँची`, `हुआ`/`हुई`), modals (`सकते`/`सकती`), future (`-ओगे`/`-ओगी`, `जाओगे`/`जाओगी`), progressive / habitual (`हो रहे`/`रही`, `करते`/`करती`), and inflecting `-ा`/`-ी` predicate adjectives. **Do NOT flag perfective transitive forms** (`पिया`, `किया`, `कर दिया`, `कर लिया`, `पी ली`, `ले लिया`) as user-gender leaks: with `ने` they agree with the object (or default to masculine), so they are *correctly identical* for a male and a female user. Proposing the "feminine" `पी` / `कर ली` for a masculine object (पानी, लक्ष्य) is an **ungrammatical** fix.
 
-1. **Restructure to imperative/infinitive** — no past-tense agreement: "पानी पियो" (drink water), "लक्ष्य पूरा करो" (complete goal), instead of "तुमने पानी पिया."
-2. **Restructure to nominal/present** — "तुम्हारा लक्ष्य पूरा!" (your goal complete!) instead of "तुमने लक्ष्य पूरा किया."
-3. **Use stat-noun phrasing** — "आज: 250 मिली पानी ✓" instead of "तुमने 250 मिली पानी पिया."
+**Mitigation patterns translators should use (recommend in audit findings) — to avoid a *subject-agreeing* leak:**
+
+1. **Restructure to imperative/infinitive** — doesn't inflect for the addressee: "पानी पियो" (drink water), "लक्ष्य पूरा करो" (complete goal), instead of the subject-agreeing "तुम लक्ष्य तक पहुँच गए/गई".
+2. **Restructure to nominal/present** — "तुम्हारा लक्ष्य पूरा!" (your goal complete!) instead of "तुम लक्ष्य तक पहुँच गए/गई".
+3. **Use stat-noun phrasing** — "आज: 250 मिली पानी ✓" (no verb at all).
 4. **English loan adjective** — "तुम हाइड्रेटेड हो" doesn't inflect.
+5. **A perfective-transitive is already gender-safe** — "तुमने पानी पिया" / "तुमने लक्ष्य पूरा कर लिया" agree with the object, so they need no restructuring to work for an unknown-gender user.
 
-**Keys-ending-in-M/F pattern from base prompt:** if the project ships parallel keys like `streak_completed_male` / `streak_completed_female`, both must be present and the gendered forms must actually differ. Flag if:
-- Only one variant exists,
-- Variants are identical (translator didn't gender-adapt),
-- Variants are swapped (M ending used in `_female` key).
+**Keys-ending-in-M/F pattern from base prompt:** if the project ships parallel keys like `streak_completed_male` / `streak_completed_female`, both must be present. But **whether the two values must differ depends on the construction** (split-ergativity rule above) — identical values are frequently *correct* for Hindi:
+- **Identical M/F is correct — do NOT flag — when the verb agrees with the object or is otherwise invariant** (perfective transitive with `ने`, imperative, nominal, invariant predicate adjective). Real corpus examples: `socialShareTextVk` (both "…मात्रा **पी ली**", agrees with मात्रा f) and `text3_6` (both "…रास्ता तय **कर लिया**", agrees with रास्ता m) are *legitimately* identical at the verb.
+- **M/F must differ — flag if identical — only when the verb agrees with the subject** (intransitive perfective, modal, future, progressive, inflecting adjective). Real corpus examples that correctly differ: `socialShareTextFb` (पहुँच **गया**/**गई**), `text3_2` (पहुँच **गए**/**गई**), `text1_8` (कर सक**ते**/सक**ती** हो).
+- **Still flag:** only one variant present, or M/F **swapped** (a subject-agreeing masculine ending sitting in the `_female` key).
 
-Hydration app realistic examples:
-- `goal_reached_male` → "तुमने आज का लक्ष्य पूरा कर **लिया**!" vs `goal_reached_female` → "तुमने आज का लक्ष्य पूरा कर **ली**!" — both required, must differ.
-- If only neutral key exists, the safest translation is restructured: "आज का लक्ष्य पूरा!" — flag the gendered participle form as a gender leak when no gender info is available.
+If only a neutral (gender-unknown) key exists and the natural phrasing would use a *subject-agreeing* verb, restructure to an invariant form — imperative "आज का लक्ष्य पूरा करो!", nominal "तुम्हारा लक्ष्य पूरा!", or a perfective-transitive "तुमने लक्ष्य पूरा कर लिया!" (invariant) — rather than committing to पहुँच गया (masculine) for an unknown user.
 
 ## Script & direction
 
@@ -81,7 +86,7 @@ Hydration app realistic examples:
 
 ## Common EN→target calque patterns
 
-- EN: "Drink water"  Literal calque ❌: "पानी पिओ" (terse, missing register marker)  Natural restructure ✓: "**पानी पियो**" / "**पानी पीते रहो**" (drink-keep-going, more habitual)  (reason: bare imperative `पिओ` sounds curt; `पियो` with proper तुम-imperative form sounds natural; for repeated daily reminders, `पीते रहो` matches habit-building tone)
+- EN: "Drink water"  One-shot ⚠️: "**पानी पियो**" (correct तुम-imperative, but for a *daily reminder* a bare one-off command reads abrupt)  Natural restructure ✓: "**पानी पीते रहो**" (drink-keep-going, habitual) for recurring nudges  (reason: `पियो` is the right तुम-imperative and is fine for a one-off CTA; for repeated daily reminders the habitual `पीते रहो` matches the habit-building tone. Note: `पिओ` and `पियो` are spelling variants of the *same* तुम-imperative — `पियो` is the standard spelling — not a register difference.)
 
 - EN: "Stay hydrated!"  Literal calque ❌: "हाइड्रेटेड रहो!" (acceptable, but...)  Natural restructure ✓: "**पानी पीते रहो!**" or "**खुद को हाइड्रेटेड रखो!**"  (reason: "हाइड्रेटेड रहो" is grammatically fine and English-loanword-acceptable in modern Hindi UI, but reads slightly clinical/medical; "पानी पीते रहो" (keep drinking water) is friendlier and matches the brand voice. Both acceptable — flag only if context demands warmer tone)
 
@@ -138,14 +143,14 @@ Hindi has **2 CLDR plural categories: `one` (n=1) and `other` (n=0, 2+)**.
 
 5. **Both `.` and `।` as sentence terminators are acceptable** in app UI. Flag only if mixed inconsistently within the same screen or used incorrectly.
 
-6. **Past-participle endings -या/-ई are gender forms, not typos.** Do not flag `पी` (fem.) as a misspelling of `पिया` — it is the correct feminine past participle. Flag only when the gendered form leaks into a gender-unknown context (see Gender section).
+6. **Gender-inflected verb endings -या/-ी/-ए/-ईं are grammatical forms, not typos.** Do not flag `गई` (fem.) as a misspelling of `गया` — it is the correct feminine of an intransitive perfective. Flag a *subject-agreeing* form only when it leaks into a gender-unknown context (see Gender section). Note: for *transitive* perfectives `पिया` vs `पी` tracks the **object's** gender (पानी m → पिया, चाय f → पी), not the user's — so neither is a leak and neither is a typo.
 
 **Auditor false-positive patterns common to Hindi:**
 
 - **"Looks like English"** — flagging नोटिफिकेशन / बटन / ऐप as untranslated. These are the natural Hindi UI register, not laziness.
 - **"Missing honorific" / "rude tone"** — flagging तुम-form as disrespectful. For a casual hydration companion, तुम is the correct brand register; आप would be too distant.
 - **"Wrong plural"** — flagging "5 गिलास" because गिलास didn't pluralize. Many masculine nouns don't inflect in nominative direct case; this is correct.
-- **"Spelling error"** — flagging gendered verb form (पी vs पिया, गई vs गया) as misspelling. These are correct feminine/masculine forms.
+- **"Spelling error"** — flagging a gender-inflected verb form (गई vs गया for an intransitive subject; पी vs पिया tracking a feminine vs masculine *object*) as a misspelling. These are correct, grammatically-conditioned forms.
 - **"Period missing"** — demanding Devanagari danda `।` instead of ASCII `.`. ASCII is fine in modern UI.
 - **"Different from base"** — flagging when translator dropped articles ("a / an / the") in Hindi. Hindi has no indefinite article and uses bare nouns; keeping `एक` from EN literal often sounds worse.
 - **"Sanskritic word missing"** — pushing अनुप्रयोग instead of ऐप, अनुस्मारक instead of रिमाइंडर. These translations sound textbook/governmental for a casual fitness app and should not be required.

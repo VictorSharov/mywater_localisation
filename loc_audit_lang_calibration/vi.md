@@ -47,7 +47,7 @@ Latin script with diacritics (chữ Quốc ngữ), LTR. Vietnamese uses 6 tone m
 - `nước` (water) vs `nước` is correct; `nuoc` is wrong/missing-diacritic and not a Vietnamese word
 - `mà` (but) vs `má` (mother/cheek) vs `mả` (grave) vs `mã` (code) vs `mạ` (rice seedling) — all different words
 - `uông` is not a word; `uống` (drink) is correct
-- `mật` (honey) vs `mất` (lose) vs `mất` vs `mặt` (face) — flag any tone/diacritic that produces a different word
+- `mật` (honey) vs `mất` (lose) vs `mắt` (eye) vs `mặt` (face) — flag any tone/diacritic that produces a different word
 
 **Critical for audit:** Treat ANY missing or wrong diacritic as a likely typo/word-change error, not a stylistic choice. Particularly common AI errors:
 - `nuoc` → must be `nước`
