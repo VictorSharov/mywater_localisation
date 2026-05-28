@@ -1,7 +1,9 @@
 # mywater_localisation — operator entrypoint for the Lokalise round-trip.
 #
-# Thin, human-friendly wrapper over the three token-holding scripts the operator
-# runs by hand (the apply scripts agents run are token-free and stay out of here):
+# Thin, human-friendly wrapper over the token-holding scripts the operator runs by
+# hand. One token-free exception lives here on purpose: `make apply` is the serialized
+# single-writer fan-in (per-language /tmp/loc_<lang>.json -> corpus), kept as one
+# operator command so parallel per-language applies can't race ([CR-CORPUS-CONCURRENCY]):
 #
 #   Lokalise  ──pull──▶  strings.ndjson  ──push──▶  Lokalise  ──export──▶  iOS/Android/server
 #
@@ -20,7 +22,7 @@ CORPUS ?= strings.ndjson
 ARGS ?=
 
 .DEFAULT_GOAL := help
-.PHONY: help pull push push-dry export export-dry lint diff
+.PHONY: help pull push push-dry export export-dry lint diff apply
 
 help:
 	@printf '%s\n' \
@@ -35,11 +37,15 @@ help:
 	"  make export-dry   Экспорт (план) — dry-run Lokalise -> platform repos. ARGS=\"ios\"." \
 	"  make export       Экспорт — download Lokalise -> iOS/Android/server repos (--apply)." \
 	"" \
+	"  make apply        Fan-in — применить /tmp/loc_<lang>.json в корпус, по одному (token-free)." \
+	"                    Единый сериализованный писатель (без гонки applies). LANGS=\"vi nb de\"." \
 	"  make lint         Token-free QA: placeholder lint + value hygiene (run before push)." \
 	"  make diff         git diff of $(CORPUS) (review edits before push)." \
 	"" \
+	"  Workflow:  (agents emit /tmp/loc_<lang>.json)  ->  make apply LANGS=\"…\"  ->  make diff  ->  make push" \
+	"" \
 	"  Vars: ARGS=… passthrough to push/export; FORCE=1 skips the pull confirmation;" \
-	"        PY=… overrides the venv python ($(PY))."
+	"        LANGS=… space-separated languages for make apply; PY=… overrides the venv python ($(PY))."
 
 # Lokalise -> corpus. DESTRUCTIVE to local edits: it rewrites $(CORPUS) wholesale,
 # discarding any un-imported translation / metadata edits. Confirmation-gated so it
@@ -91,3 +97,24 @@ lint:
 
 diff:
 	@git diff -- $(CORPUS)
+
+# Serialized single-writer fan-in (token-free): apply per-language translation
+# artifacts /tmp/loc_<lang>.json into $(CORPUS), ONE AT A TIME in a single process.
+# Routing every apply through this one operator command IS the "single writer" — it
+# structurally avoids the concurrent read-mutate-write race that silently clobbers
+# translations (CLAUDE.md [CR-CORPUS-CONCURRENCY] / § Parallel translation passes).
+# Parallel fan-out agents only EMIT the artifacts; a clean `git diff --stat` is NOT a
+# substitute lock. Usage:  make apply LANGS="vi"  /  make apply LANGS="vi nb de"
+apply:
+	@if [ -z "$(LANGS)" ]; then \
+	  echo 'usage: make apply LANGS="vi"   (or LANGS="vi nb de")'; \
+	  echo 'applies /tmp/loc_<lang>.json into $(CORPUS), one language at a time'; \
+	  exit 2; \
+	fi
+	@for l in $(LANGS); do \
+	  f="/tmp/loc_$$l.json"; \
+	  if [ ! -f "$$f" ]; then echo "!! missing artifact $$f - skipping $$l"; continue; fi; \
+	  echo "==> apply $$l  <-  $$f"; \
+	  $(PY3) loc_apply_lang.py "$$l" "$$f" --corpus $(CORPUS) || exit 1; \
+	done
+	@echo "Review: make diff   then push: make push"

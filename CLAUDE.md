@@ -216,6 +216,22 @@ strings.ndjson + Lokalise ─(loc_export.py --apply)→ iOS .strings / Android .
 - **[CR-ACCESS] No silent API claims.** An agent without the token cannot run
   `--apply` against Lokalise — produce the dry-run plan and stop; the operator
   runs `--apply`. Do not claim a push happened without evidence.
+- **[CR-MAKE] Drive the pipeline through `make`, not raw scripts.** The `Makefile` is
+  the operator entrypoint — it bakes in the validated flags, dry-run defaults and
+  confirmation gates (e.g. `make pull` guards the destructive corpus overwrite), so
+  routing through it keeps everyone on the guarded path. Therefore:
+  - **Hand the operator a `make` target, never the raw script.** For the token-gated
+    steps you cannot run yourself: `make push` (not `loc_corpus_import.py --apply`),
+    `make push-dry`, `make pull`, `make export` / `make export-dry`. Pairs with
+    [CR-ACCESS] — you produce the plan, the operator runs `make push`.
+  - **For your own token-free runs, prefer the `make` target where one exists** —
+    `make lint` (placeholder + qa in one), `make diff`, `make apply LANGS="<lang>"`
+    (the serialized single-writer fan-in, § Parallel translation passes).
+  - **No target ⇒ run the script directly** — extract / audit / metadata / merge
+    (`loc_r_marked_translations.py` extract, `loc_audit_*`, `loc_apply_meta.py`,
+    `loc_merge_languages.py`, `lokalise_helper.py`) have no wrapper; use them as
+    documented (a mutating `--apply` is still operator-run, [CR-ACCESS]). `make help`
+    is the registry of what's wrapped.
 - **Import before regenerate.** `loc_corpus_ndjson.py` overwrites `strings.ndjson`
   from Lokalise. If the corpus has un-imported edits, regenerating discards them.
   Order: edit → review diff → `loc_corpus_import --apply` → (later) regenerate.
@@ -332,12 +348,24 @@ concurrent corpus writes ([CR-CORPUS-CONCURRENCY]):
    linguistic discipline (§ Self-translation discipline); fan-out parallelizes the
    *languages*, it does not license batch fan-out without per-key reasoning.
 2. **Fan-in — sequential, single writer.** Apply the artifacts one at a time —
-   `loc_apply_lang.py <lang> /tmp/loc_<lang>.json` per language, **never two at once**.
-   Each run is sub-second, touches only its `t[lang]`, and flags that language
-   `unverified` ([CR-CORPUS-UNVERIFIED]); disjoint languages + a deterministic writer
-   make the order free and the cumulative `git diff` clean.
-3. **Review & push.** `git diff -- strings.ndjson`, then the token-holding operator
-   runs `loc_corpus_import --apply` ([CR-ACCESS]).
+   `loc_apply_lang.py <lang> /tmp/loc_<lang>.json` per language (or `make apply
+   LANGS="…"`, which loops them in one process), **never two at once**. Each run is
+   sub-second, touches only its `t[lang]`, and flags that language `unverified`
+   ([CR-CORPUS-UNVERIFIED]); disjoint languages + a deterministic writer make the order
+   free and the cumulative `git diff` clean.
+   - **"Single writer" is a serialization guarantee, not a per-agent diff check.** The
+     only safe enforcement is that **one** process runs every apply in sequence — so the
+     parallel fan-out agents (step 1) should **emit their `/tmp/loc_<lang>.json` and
+     stop**, and let the operator drain them with a single `make apply LANGS="…"` run. A
+     fan-out agent applying its own language autonomously is safe **only if it is
+     demonstrably the sole writer at that instant**, which a clean `git diff --stat
+     strings.ndjson` does **not** establish: that check guards [CR-CORPUS-WORKTREE]
+     (don't bury someone's already-unsaved edits) but is **not a lock** — it cannot stop
+     another agent's `read→mutate→write` from interleaving with yours *during* the apply,
+     and two agents that both observe a clean diff and both apply will still lose-update
+     ([CR-CORPUS-CONCURRENCY]). When unsure: emit and defer.
+3. **Review & push.** `make diff`, then the token-holding operator runs `make push`
+   ([CR-ACCESS], [CR-MAKE]).
 
 Never: let an agent write the corpus directly (race + [CR-CORPUS-OWNER]); run two
 applies concurrently; regenerate (`loc_corpus_ndjson.py`) mid-pass — it overwrites
@@ -385,20 +413,21 @@ docs; this canon owns *style and meaning* only.
   changed `platforms` / `context` / `filenames` plus a `dirty_meta` marker on those
   keys; a `loc_corpus_import` dry-run lists them under "push metadata on N key(s)",
   and a successful `--apply` drains `dirty_meta` (a re-run plans 0) ([CR-CORPUS-META]).
-- After editing values: `python3 loc_placeholder_lint.py` (token-free) — no new
-  placeholder errors ([CR-PLACEHOLDER]). It also runs as a pre-flight in
-  `loc_corpus_import`; `--no-lint` overrides.
-- After editing values: `python3 loc_qa.py` (token-free) — value hygiene:
-  em-dash U+2014 ban + invisible/zero-width spaces + Cyrillic in the `en` source
-  (ERROR), `()` balance + edge/double whitespace + cross-language URL parity
-  (WARN). The Cyrillic-in-source check catches a translation mis-filed into the
-  `en` column (an AI agent leaving a Russian string in `en`), since `ru` is the
-  only Cyrillic-script language. Lints `t` values only,
-  never `context`. 2nd pre-flight in
-  `loc_corpus_import` (shares `--no-lint`). Enforces the em-dash ban of
-  `TRANSLATION_STYLE.md § Punctuation`; the linguistic layer (calque / register /
-  drift) stays with the audit sub-agent, not this gate.
-- `loc_corpus_import.py` / `lokalise_helper.py` dry-run is the agent-runnable
-  evidence; `--apply` is operator-run ([CR-ACCESS]).
+- After editing values: **`make lint`** (token-free) — runs both value gates in one
+  command (also pre-flighted inside `loc_corpus_import` / `make push`; `--no-lint`
+  overrides):
+    - **placeholder lint** (`loc_placeholder_lint.py`) — no new placeholder errors
+      ([CR-PLACEHOLDER]).
+    - **qa hygiene** (`loc_qa.py`) — em-dash U+2014 ban + invisible/zero-width spaces +
+      Cyrillic in the `en` source (ERROR), `()` balance + edge/double whitespace +
+      cross-language URL parity (WARN). The Cyrillic-in-source check catches a
+      translation mis-filed into the `en` column (an AI agent leaving a Russian string
+      in `en`), since `ru` is the only Cyrillic-script language. Lints `t` values only,
+      never `context`. Enforces the em-dash ban of `TRANSLATION_STYLE.md § Punctuation`;
+      the linguistic layer (calque / register / drift) stays with the audit sub-agent,
+      not this gate.
+- `make push-dry` (corpus-import dry-run) / `lokalise_helper.py` dry-run is the
+  agent-runnable evidence; `make push` / the helper's `--apply` is operator-run
+  ([CR-ACCESS], [CR-MAKE]).
 - Report what ran and what was deferred to the operator; never report `--apply`
   success you did not observe.

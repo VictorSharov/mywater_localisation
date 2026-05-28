@@ -354,14 +354,20 @@ def main() -> int:
         for item in updates:
             key_id = int(item["key_id"])
             lang_to_tid = tid_by_key.get(key_id, {})
+            sent: dict[str, Any] = {}
             for payload in item["translations"]:
                 tid = lang_to_tid.get(payload["language_iso"])
                 if tid is None:
                     print(f"warning: no translation in Lokalise for key_id={key_id} lang={payload['language_iso']}; skipped", file=sys.stderr)
                     continue
                 client.update_translation(tid, {"translation": payload["translation"], "is_unverified": payload["is_unverified"]})
+                sent[payload["language_iso"]] = payload["translation"]
             print(f"updated key_id={key_id} ({item['key']})")
-            sent_by_key[key_id] = {t["language_iso"]: t["translation"] for t in item["translations"]}
+            # Record only the languages actually sent — a skipped (tid-less) lang
+            # recorded here would be re-read by verify_pushed and false-flagged as
+            # "stored ''", and clear_synced_dirty would reason about a value never pushed.
+            if sent:
+                sent_by_key[key_id] = sent
         for start in range(0, len(creates), 500):
             chunk = creates[start : start + 500]
             record_chunk = create_records[start : start + 500]
@@ -429,7 +435,11 @@ def fetch_translation_ids(client: LokaliseClient, key_ids: list[int]) -> dict[in
     if not key_ids:
         return {}
     out: dict[int, dict[str, Any]] = {}
-    for key in client.list_keys(filter_key_ids=key_ids, include_translations=True):
+    # filter_archived="include": archived keys are still pushable (archive is just a
+    # status), so the push path must resolve their translation_ids too — with the
+    # default "exclude" the listing drops them, every (key, lang) is skipped tid-less
+    # and nothing is sent. Mirrors verify_pushed / verify_meta_pushed.
+    for key in client.list_keys(filter_key_ids=key_ids, include_translations=True, filter_archived="include"):
         key_id = key.get("key_id")
         if key_id is None:
             continue
