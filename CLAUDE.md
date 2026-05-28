@@ -30,15 +30,18 @@ ignore pattern would also hide real files).
 Lokalise ─(loc_corpus_ndjson.py)→ strings.ndjson ←─ agents read for dedup / audit
    ▲                                   │ apply scripts write edits INTO the corpus
    └─(loc_corpus_import.py --apply)─────┘
-strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
+strings.ndjson + Lokalise ─(loc_export.py --apply)→ iOS .strings / Android .xml / server JSON
 ```
 
 - `strings.ndjson` is a regenerable snapshot of **every** key, platform and
   language. It exists so an agent can decide "reuse an existing key (add the
   missing platform) vs create a new one" and audit translations without the
   per-platform blind spot the native files had.
-- This repo never writes platform files. Edits land in the corpus, are reviewed
-  as a `git diff`, imported into Lokalise, then Lokalise exports to each platform.
+- This repo's own tree never holds platform files. Edits land in the corpus, are
+  reviewed as a `git diff`, imported into Lokalise; the Lokalise→platform export is
+  then scripted by `loc_export.py`, which downloads each platform's bundle straight
+  into *its* repo (iOS / Android / server) with the validated export settings baked
+  in — the corpus repo still contains only `strings.ndjson`, not the native files.
 
 ## Critical rules
 
@@ -248,7 +251,8 @@ export ([CR-PLACEHOLDER]).
    the key in Lokalise (records without `key_id` → create) and stamps the new
    `key_id` back into the corpus — **commit the corpus** so a re-run updates instead
    of re-creating. Then translate / verify (audit sub-agent), and the operator runs
-   the per-platform export (README § Export from Lokalise) and commits the platform
+   the per-platform export (`loc_export.py --apply`, README § Export from Lokalise)
+   and commits the platform
    bundle, which replaces the scaffold and fans out every language. A new key (a new
    typed accessor) needs the platform's own release to appear; the export only
    updates values for keys already shipped.

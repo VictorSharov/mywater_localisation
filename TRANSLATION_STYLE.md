@@ -88,9 +88,9 @@ EN: "Use Siri or the Shortcuts app to log a drink hands-free."
 ❌ "...записывать напитки без рук."  — literal калька "hands-free"
 ✓ "...записывать напитки голосом."  — native ru: "голосом" (by voice)
 
-EN: "Added %1$@ of %2$@"  (%1$@ = amount + unit, %2$@ = drink name in nominative)
-❌ "Добавлено %1$@ %2$@"   — reads as "Добавлено 250 мл Вода"; drink в nominative awkward после количества
-✓ "Добавлено: %2$@, %1$@" — reorder + colon/comma label format = "Добавлено: Вода, 250 мл"
+EN: "Added [%1$s] of [%2$s]"  ([%1$s] = amount + unit, [%2$s] = drink name in nominative)
+❌ "Добавлено [%1$s] [%2$s]"   — reads as "Добавлено 250 мл Вода"; drink в nominative awkward после количества
+✓ "Добавлено: [%2$s], [%1$s]" — reorder + colon/comma label format = "Добавлено: Вода, 250 мл"
 
 EN: "Hydration today"  (Live Activity title — Dynamic Island / lock screen)
 ❌ "Гидратация сегодня"  — clinical calque, native ru speakers так не говорят в casual UI; Apple Health term register
@@ -368,9 +368,12 @@ universal placeholder**-формате — НЕ в платформенном `%
   `loc_r_marked_translations.py` сверяет набор плейсхолдеров source↔target и
   различает `[%s]` и `%s`.
 
-Примеры в § Translator context ниже показаны в iOS `.strings`-нотации
-(post-export, как ключ выглядит в native-файле) — в самом корпусе то же значение
-хранится в universal-форме (`[%.0f]` `[%s]`, не `%.0f` `%@`).
+Примеры в § Translator context ниже используют iOS `.strings`-обёртку (C-style
+блок `/* */` + `"key" = "value";`) для узнаваемости, но **плейсхолдеры в них
+записаны в корпусной universal-форме** (`[%s]`, `[%1$.0f]`) — её же указывает поле
+Placeholders, потому что `context` импортируется в Lokalise `description`
+кросс-платформенно и должен ссылаться на те же токены, что хранятся в значении.
+Платформенный вид (`%@` / `%.0f`) Lokalise производит на экспорте (§ Placeholders).
 
 ## Translator context (key comment / description)
 
@@ -393,7 +396,7 @@ universal placeholder**-формате — НЕ в платформенном `%
   Surface: <screen / section / surface — main app, widget, watch, Siri, notification>
   Type: <button label | screen title | section header | paragraph | placeholder | error message | accessibility label | notification body | permission prompt | beverage name | achievement title | etc.>
   Context: <one-sentence what the string communicates and when shown>
-  Placeholders: <each %@ / %d / %.0f / %1$@ with what it represents — if value has placeholders>
+  Placeholders: <each [%s] / [%i] / [%.0f] / [%1$s] with what it represents — universal form, matching the stored value; if value has placeholders>
   Constraints: <max length, abbreviation, line breaks, casing — only if real-world constraint exists>
   Tone: <formal / encouraging / urgent / playful — only if non-default>
 */
@@ -403,7 +406,7 @@ universal placeholder**-формате — НЕ в платформенном `%
 ### Обязательные поля
 
 - **Surface** — где появляется строка. Один экран («Goal calculation result screen»), секция («Settings → Integrations section header»), несколько мест («Reminders detail screen + onboarding step 3») или маркер `app-wide` для reusable строк (`Save`, `OK`, `Next`, `Cancel`).
-- **Type** — структурный тип элемента из словаря: `button label`, `screen title`, `section header`, `paragraph`, `placeholder`, `error message`, `accessibility label`, `notification body`, `notification title`, `permission prompt`, `beverage name`, `achievement title`, `achievement description`, `widget gallery title`, `Siri snippet`, `tutorial step`, `motivational text`, `tip`. Не плодить синонимы; если ничего не подходит — `paragraph` или `description` по умолчанию.
+- **Type** — структурный тип элемента из словаря: `button label`, `screen title`, `section header`, `paragraph`, `placeholder`, `error message`, `accessibility label`, `notification body`, `notification title`, `permission prompt`, `beverage name`, `achievement title`, `achievement description`, `widget gallery title`, `Siri snippet`, `tutorial step`, `motivational text`, `tip`. Не плодить синонимы; если ничего не подходит — `paragraph` или `description` по умолчанию. Значение Type — **без trailing-точки** (`motivational text`, не `motivational text.`): аудит бакетит по равенству Type, и `X` / `X.` расщепили бы один бакет надвое. Допустим необязательный жанрово-/тональный уточнитель в скобках (`paragraph (marketing claim)`, `section header (eyebrow)`, `status message (multi-line)`) — это под-тип, а не синоним.
 - **Context** — одно предложение: что строка коммуницирует пользователю и в какой момент показывается. Для reusable строк (`Save`) — указать grammatical role (imperative verb / noun) и общий смысл действия.
 
 ### Опциональные поля
@@ -431,10 +434,10 @@ universal placeholder**-формате — НЕ в платформенном `%
   Type: paragraph (educational).
   Context: Explains that the calculated goal is approximate; suggests consulting a doctor for exact value.
   Placeholders:
-    %.0f — daily goal amount (whole number, e.g. 1500)
-    %@ — measurement unit ("ml" / "l" / "fl oz")
+    [%1$.0f] — daily goal amount (whole number, e.g. 1500)
+    [%2$s] — measurement unit ("ml" / "l" / "fl oz")
 */
-"youShouldDrink0Digits" = "Based on your parameters, your estimated goal is %.0f %@ of water. Your doctor can determine the exact goal for you.";
+"youShouldDrink0Digits" = "Based on your parameters, your estimated goal is [%1$.0f] [%2$s] of water. Your doctor can determine the exact goal for you.";
 
 /*
   Surface: app-wide.

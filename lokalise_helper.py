@@ -65,6 +65,11 @@ except ImportError:
 DEFAULT_BASE_URL = "https://api.lokalise.com/api2"
 DEFAULT_ANDROID_REPO = Path("/Users/viktor/git/mywater_android")
 MAX_KEYS_LIMIT = 500
+# Max key_ids per list_keys request. filter_key_ids rides in the GET query string
+# as CSV, so a large list overflows the server request-URI limit (nginx → HTTP 414;
+# observed at ~1900 ids). ~10 digits + separator per id keeps a 200-id batch well
+# under the limit; each batch is still cursor-paginated and the results merged.
+MAX_FILTER_KEY_IDS = 200
 # QA check categories accepted by the translations endpoint's `filter_qa_issues`
 # query param — the dashboard "warnings". `spelling_and_grammar` is the
 # LanguageTool spell/grammar bucket (needs linguistic judgement); the rest mostly
@@ -243,30 +248,42 @@ class LokaliseClient:
         }
         if filter_keys:
             params["filter_keys"] = _csv(filter_keys)
-        if filter_key_ids:
-            params["filter_key_ids"] = _csv([str(key_id) for key_id in filter_key_ids])
         if filter_tags:
             params["filter_tags"] = _csv(filter_tags)
         if filter_platforms:
             params["filter_platforms"] = _csv(filter_platforms)
 
+        # filter_key_ids can be arbitrarily large (verify re-reads every pushed key);
+        # batch it so the CSV stays under the server request-URI limit (HTTP 414).
+        ids = list(filter_key_ids) if filter_key_ids else []
+        id_batches = (
+            [ids[start : start + MAX_FILTER_KEY_IDS] for start in range(0, len(ids), MAX_FILTER_KEY_IDS)]
+            if ids
+            else [None]
+        )
+
         out: list[dict[str, Any]] = []
-        cursor: str | None = None
-        while True:
-            page_params = dict(params)
-            if cursor:
-                page_params["cursor"] = cursor
-            collection = self._call(self._sdk.keys, self.project_path, page_params)
-            for model in collection.items:
-                record = _key_to_dict(model)
-                out.append(record)
-                key_id = record.get("key_id")
-                if key_id is not None:
-                    self._key_cache[int(key_id)] = record
-            if collection.has_next_cursor():
-                cursor = collection.next_cursor
-            else:
-                return out
+        for id_batch in id_batches:
+            batch_params = dict(params)
+            if id_batch:
+                batch_params["filter_key_ids"] = _csv([str(key_id) for key_id in id_batch])
+            cursor: str | None = None
+            while True:
+                page_params = dict(batch_params)
+                if cursor:
+                    page_params["cursor"] = cursor
+                collection = self._call(self._sdk.keys, self.project_path, page_params)
+                for model in collection.items:
+                    record = _key_to_dict(model)
+                    out.append(record)
+                    key_id = record.get("key_id")
+                    if key_id is not None:
+                        self._key_cache[int(key_id)] = record
+                if collection.has_next_cursor():
+                    cursor = collection.next_cursor
+                else:
+                    break
+        return out
 
     def list_translations(
         self,
@@ -375,6 +392,22 @@ class LokaliseClient:
                 self._key_cache.pop(key_id, None)
             deleted += len(chunk)
         return {"deleted": deleted}
+
+    def submit_async_download(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Queue an async file export (POST /files/async-download); returns the
+        queued-process dict (process_id / status / details). Async rather than the
+        sync download_files because a full-project bundle (every key x 21 langs)
+        trips Lokalise's sync size cap ('_response_too_big') — async has no such cap
+        and no tight per-minute rate limit. Poll the returned process_id with
+        get_process until status == 'finished'."""
+        model = self._call(self._sdk.download_files_async, self.project_path, params)
+        return _process_to_dict(model)
+
+    def get_process(self, process_id: str) -> dict[str, Any]:
+        """Fetch one queued process (GET /processes/{id}) — used to poll an async
+        export to completion. When finished, the bundle URL is in `details`."""
+        model = self._call(self._sdk.queued_process, self.project_path, process_id)
+        return _process_to_dict(model)
 
 
 def main() -> int:
@@ -1404,6 +1437,19 @@ def _translation_to_dict(model: Any) -> dict[str, Any]:
         "is_reviewed": getattr(model, "is_reviewed", None),
         # The SDK model omits qa_issues; read it from the raw response when present.
         "qa_issues": raw.get("qa_issues"),
+    }
+
+
+def _process_to_dict(model: Any) -> dict[str, Any]:
+    """Flatten a QueuedProcessModel (async export) to a plain dict. `details` holds
+    the bundle URL once `status` == 'finished' (key name varies by API version, so
+    callers read it defensively)."""
+    return {
+        "process_id": getattr(model, "process_id", None),
+        "type": getattr(model, "type", None),
+        "status": getattr(model, "status", None),
+        "message": getattr(model, "message", None),
+        "details": getattr(model, "details", None),
     }
 
 

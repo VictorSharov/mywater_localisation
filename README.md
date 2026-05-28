@@ -13,7 +13,7 @@ Lokalise ──(loc_corpus_ndjson.py)──▶ strings.ndjson  ◀── AI agen
    ▲                                       │
    │                                   apply scripts write edits INTO the corpus (stdlib, no token)
    └──(loc_corpus_import.py --apply)───────┘   one documented import step
-strings.ndjson + Lokalise ──export──▶ iOS .strings / Android .xml / server JSON
+strings.ndjson + Lokalise ──(loc_export.py --apply)──▶ iOS .strings / Android .xml / server JSON
 ```
 
 - **Lokalise** is the long-term source of truth for verified translations.
@@ -22,8 +22,9 @@ strings.ndjson + Lokalise ──export──▶ iOS .strings / Android .xml / se
   pull / read it — the Lokalise token never touches a consumer session.
 - Edits (audits, fresh translations, new source strings, and key metadata —
   **platforms** and **description**) are written back into the corpus, reviewed as
-  a clean `git diff`, then imported into Lokalise. From Lokalise each platform
-  exports its native format.
+  a clean `git diff`, then imported into Lokalise. The Lokalise → platform export
+  back out is scripted by **`loc_export.py`**, which downloads each platform's
+  bundle (with the validated settings baked in) straight into its repo.
 
 ## Setup
 
@@ -51,6 +52,7 @@ tagging touch Lokalise.
 | `loc_corpus.py` | shared read/write/lookup lib + the single owner of corpus serialization (not a CLI) | — |
 | `loc_corpus_ndjson.py` | regenerate `strings.ndjson` (+ `strings.meta.json`) from Lokalise | yes |
 | `loc_corpus_import.py` | push corpus edits into Lokalise (dry-run default, `--apply`) | yes (`--apply`) |
+| `loc_export.py` | download Lokalise exports into each platform repo (iOS/Android/server) with the validated per-platform settings baked in; dry-run default, `--apply`, post-download sanity checks | yes (`--apply`) |
 | `loc_qa_issues_fetch.py` | fetch Lokalise QA-flagged translations (`spelling_and_grammar` default; `--issue` for others) to `qa_issues.ndjson` for AI validation | yes |
 | `loc_audit_extract.py` | extract en+ru+`<lang>` audit batches from the corpus (opt. `--platform`) | — |
 | `loc_audit_apply.py` | apply validated audit findings into the corpus | — |
@@ -99,6 +101,12 @@ git diff -- strings.ndjson
 
 # Unused-key candidates (iOS + Android both required):
 .venv-lokalise/bin/python loc_unused_keys.py        # --repo-root <ios>, --android-repo <android>
+
+# Export Lokalise -> each platform repo (replaces the manual Lokalise UI download):
+python3 loc_export.py                                  # dry-run plan, all platforms (no token)
+.venv-lokalise/bin/python loc_export.py --apply        # download iOS + Android + server into their repos
+.venv-lokalise/bin/python loc_export.py ios --apply    # one platform
+.venv-lokalise/bin/python loc_export.py --to /tmp/exp --apply   # write to /tmp instead of the repos (test)
 ```
 
 ## Consuming the corpus from another repo
@@ -113,7 +121,13 @@ operator push it with `loc_corpus_import --apply`, instead of creating a duplica
 ## Export from Lokalise
 
 The corpus → Lokalise **import** is built (`loc_corpus_import.py`); the Lokalise →
-platform **export** is operator-run from the Lokalise UI (this repo writes no platform files). What
+platform **export** is built too — **`loc_export.py`** drives the download API with
+the validated per-platform settings below baked in, downloading each bundle straight
+into its repo (replacing the error-prone manual Lokalise-UI download). It is
+operator-run (`--apply` needs the token; dry-run prints the resolved plan token-free)
+and leaves an unstaged `git diff` in each platform repo to review before committing.
+**The per-platform tables below are the spec `loc_export.py` implements** — keep them
+and the script's profiles in sync, and they double as the manual-UI fallback. What
 each platform's bundle must end up as:
 
 | Platform | File format | Placeholder format | Plural | Path (expected) |
