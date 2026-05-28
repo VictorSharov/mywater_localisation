@@ -110,6 +110,24 @@ class Platform:
     dest_subdir: str  # resource dir under the repo where files land
 
 
+def _resolve_repo_default(platform_name: str) -> Path:
+    """Pick the platform repo path that exists on this machine. Both known
+    dev layouts (Viktor + current operator) place repos under ~/git/, so
+    `Path.home() / "git" / "mywater_<name>"` auto-resolves correctly for
+    whoever runs the script. The explicit /Users/viktor/git/ path is a
+    cross-user fallback (e.g. running as a different login on Viktor's machine).
+    Returns the first existing candidate, or the home-based path otherwise
+    (export gracefully skips a missing platform repo)."""
+    candidates = [
+        Path.home() / "git" / f"mywater_{platform_name}",
+        Path(f"/Users/viktor/git/mywater_{platform_name}"),
+    ]
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    return candidates[0]
+
+
 # --- iOS: Apple Strings (README "iOS — Apple Strings", validated 2026-05-27) ----
 # Multiple files per language (assigned filenames) so InfoPlist.strings splits from
 # Localizable.strings and plurals land in Localizable.stringsdict; directory prefix
@@ -131,7 +149,7 @@ IOS = Platform(
     language_mapping={"pt_BR": "pt-BR", "zh_CN": "zh-Hans"},
     exclude_langs=frozenset(),
     repo_env="MYWATER_IOS_REPO",
-    repo_default=Path("/Users/viktor/git/mywater_ios"),
+    repo_default=_resolve_repo_default("ios"),
     dest_subdir="water/Supporting Files/Localization",
 )
 
@@ -156,7 +174,7 @@ ANDROID = Platform(
     language_mapping={"es": "es-rES", "id": "in", "pt_BR": "pt-rBR", "zh_CN": "zh-rCN"},
     exclude_langs=frozenset(),
     repo_env="MYWATER_ANDROID_REPO",
-    repo_default=Path("/Users/viktor/git/mywater_android"),
+    repo_default=_resolve_repo_default("android"),
     dest_subdir="modules/resources/lib-strings/src/main/res",
 )
 
@@ -180,7 +198,7 @@ SERVER = Platform(
     language_mapping={"es": "es_ES"},
     exclude_langs=frozenset({"ar"}),
     repo_env="MYWATER_SERVER_REPO",
-    repo_default=Path("/Users/viktor/git/mywater_server"),
+    repo_default=_resolve_repo_default("server"),
     dest_subdir="resources/locale",
 )
 
@@ -188,7 +206,15 @@ PLATFORMS: dict[str, Platform] = {p.name: p for p in (IOS, ANDROID, SERVER)}
 
 
 def main() -> int:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    if not args.platforms:
+        args.platforms = list(PLATFORMS)
+    unknown = [name for name in args.platforms if name not in PLATFORMS]
+    if unknown:
+        parser.error(
+            f"invalid platform(s) {unknown}: choose from {', '.join(PLATFORMS)}"
+        )
     try:
         langs = read_corpus_langs(args.meta)
         platforms = [PLATFORMS[name] for name in args.platforms]
@@ -255,8 +281,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "platforms",
         nargs="*",
-        choices=tuple(PLATFORMS),
-        default=list(PLATFORMS),
+        metavar="{" + ",".join(PLATFORMS) + "}",
         help="Platforms to export. Default: all three.",
     )
     parser.add_argument(
