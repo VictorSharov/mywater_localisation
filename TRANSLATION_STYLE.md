@@ -186,6 +186,8 @@ EN: "What goal shall we set for today?"  (onboarding goal-set prompt, casual int
 
     В этих surfaces V-form — intentional, не ошибка. Не помечать formal register как failure при audit, когда surface формальный.
 
+  - **Key-level Register signal — write-time anchor для T-/V- решения.** Канонический per-key анкор для register-решения — поле `Register:` в translator-context (`§ Translator context § Опциональные поля`). Значения: `Register: casual T-form` / `Register: formal V-form` / `Register: neutral`. Поле не отменяет surface→register default map выше; оно фиксирует решение на write-time, чтобы AI-переводчик (training-prior которого тянет к formal V-form) не делал V-form leak в casual surface. Cross-platform — применимо ко всем 16 T-V / honorific языкам корпуса; на Scandinavian / `en` работает как tone-shift hint (lexical formality), не pronoun-swap. Audit-sub-agent читает `Register:` как authoritative override для surface-based default; отсутствие `Register:` **не** значит casual — fallback к surface-based default из списка выше.
+
   - **Pre-commit detection signal (ru) — обязательная проверка перед записью перевода в casual surface:**
     - **Imperative окончание** — `-ите` / `-айте` / `-йте` / `-ьте`? Подозрение на V-form leak. Swap to T-form `-и` / `-ай` / `-й` / `-ь`:
       - `добавьте` → `добавь`, `выпейте` → `выпей`, `пейте` → `пей`, `начните` → `начни`, `следуйте` → `следуй`, `оставайтесь` → `оставайся`, `не забывайте` → `не забывай`, `позаботьтесь` → `позаботься`, `освежите` → `освежи`, `используйте` → `используй`, `откройте` → `открой`, `попробуйте` → `попробуй`, `создайте` → `создай`, `выберите` → `выбери`, `сделайте` → `сделай`, `нажмите` → `нажми`, `проверьте` → `проверь`, `отслеживайте` → `отслеживай`, `учитывайте` → `учитывай`, `записывайте` → `записывай`, `рассчитайте` → `рассчитай`, `поставьте` → `поставь`.
@@ -394,11 +396,12 @@ Placeholders, потому что `context` импортируется в Lokali
 ```
 /*
   Surface: <screen / section / surface — main app, widget, watch, Siri, notification>
-  Type: <button label | screen title | section header | paragraph | placeholder | error message | accessibility label | notification body | permission prompt | beverage name | achievement title | etc.>
+  Type: <one value from the canonical Type vocabulary (see below) — optional `(subtype)` qualifier>
   Context: <one-sentence what the string communicates and when shown>
   Placeholders: <each [%s] / [%i] / [%.0f] / [%1$s] with what it represents — universal form, matching the stored value; if value has placeholders>
   Constraints: <max length, abbreviation, line breaks, casing — only if real-world constraint exists>
-  Tone: <formal / encouraging / urgent / playful — only if non-default>
+  Register: <casual T-form | formal V-form | neutral — when the T-/V- / honorific decision is non-trivial; see § Brand voice § Pronouns>
+  Tone: <encouraging | urgent | playful | celebratory | promotional | reasoned | etc. — affective layer only, NEVER T-/V-form (use Register: for that); only if non-default for this Surface/Type>
 */
 "key" = "value";
 ```
@@ -406,17 +409,35 @@ Placeholders, потому что `context` импортируется в Lokali
 ### Обязательные поля
 
 - **Surface** — где появляется строка. Один экран («Goal calculation result screen»), секция («Settings → Integrations section header»), несколько мест («Reminders detail screen + onboarding step 3») или маркер `app-wide` для reusable строк (`Save`, `OK`, `Next`, `Cancel`).
-- **Type** — структурный тип элемента из словаря: `button label`, `screen title`, `section header`, `paragraph`, `placeholder`, `error message`, `accessibility label`, `notification body`, `notification title`, `permission prompt`, `beverage name`, `achievement title`, `achievement description`, `widget gallery title`, `Siri snippet`, `tutorial step`, `motivational text`, `tip`. Не плодить синонимы; если ничего не подходит — `paragraph` или `description` по умолчанию. Значение Type — **без trailing-точки** (`motivational text`, не `motivational text.`): аудит бакетит по равенству Type, и `X` / `X.` расщепили бы один бакет надвое. Допустим необязательный жанрово-/тональный уточнитель в скобках (`paragraph (marketing claim)`, `section header (eyebrow)`, `status message (multi-line)`) — это под-тип, а не синоним.
-- **Context** — одно предложение: что строка коммуницирует пользователю и в какой момент показывается. Для reusable строк (`Save`) — указать grammatical role (imperative verb / noun) и общий смысл действия.
+- **Type** — структурный тип элемента **из закрытого словаря** ниже. Цель закрытости: audit бакетит ключи по равенству Type (`loc_audit_prompt.md` rule #4 / rule #9 «inconsistent with neighbors in the same comment-Type bucket»), и каждый синоним тихо расщепляет бакет надвое (`button label` vs `button label (alert confirmation)` ≠ один bucket; `settings row value` vs `toggle state label` ≠ один bucket). Если ничего из словаря не подходит — `paragraph` (для прозы) или `label` (для коротких UI-фрагментов) по умолчанию; **не изобретать новое значение**. Допустим необязательный жанрово-/тональный уточнитель в скобках (`paragraph (marketing claim)`, `section header (eyebrow)`, `status message (multi-line)`) — это под-тип, а не синоним. Значение Type — **без trailing-точки** (`motivational text`, не `motivational text.`): один и тот же тип с точкой и без неё расщепили бы bucket. Канонический словарь (расширять только через PR к этому документу — не drive-by в корпусе):
+  - **Buttons & controls:** `button label`, `badge`, `toggle`, `picker option`, `segmented option`.
+  - **Headers & titles:** `screen title`, `section header`, `card title`, `feature row title`, `popup title`, `alert title`, `confirmation alert title`, `tab title`.
+  - **Settings:** `settings row title`, `settings row value`, `settings row label`, `option label`.
+  - **Body text:** `paragraph`, `paragraph (educational)`, `paragraph (marketing claim)`, `paragraph (subscription terms)`, `paragraph (instructional)`, `paragraph (informational)`, `paragraph (disclaimer)`, `paragraph (social share)`, `paragraph (encouraging)`, `paragraph (celebratory)`, `paragraph (empty state)`.
+  - **Messaging:** `notification title`, `notification body`, `alert message`, `error message`, `success message`, `status message`, `warning message`, `motivational text`, `tip`, `tip headline`.
+  - **Domain:** `beverage name`, `unit abbreviation`, `container name`, `character name`, `achievement title`, `achievement description`.
+  - **Widget / system:** `widget gallery title`, `widget gallery description`, `permission prompt`, `home screen quick action label`, `screenshot caption`, `App Store title`, `App Store keywords`, `accessibility label`, `accessibility hint`.
+  - **Siri / voice:** `AppIntent title`, `AppIntent description`, `AppIntent dialog`, `AppIntent prompt`, `AppIntent parameter label`, `Siri snippet`.
+  - **Onboarding / forms:** `tutorial step`, `form field label`, `placeholder`.
+  - **Generic fallback:** `paragraph` (для прозы), `label` (для коротких UI-фрагментов).
+- **Context** — одно предложение: что строка коммуницирует пользователю и в какой момент показывается. Для reusable строк (`Save`) — указать grammatical role (imperative verb / noun) и общий смысл действия. **Не использовать слово `Educational` для casual surfaces** (tips / motivational / notifications): это слово AI-переводчику читается как сигнал formal V-form, тогда как brand voice для tips — casual T-form (`§ Brand voice § По типу поверхности`). Для tips писать «Plain-language hydration tip — …», не «Educational hydration tip — …».
 
 ### Опциональные поля
 
-- **Placeholders** — обязательно, если в значении есть плейсхолдер (`[%s]`, `[%i]`, `[%.1f]`, `[%1$s]`, `[%2$s]` — universal-форма, § Placeholders). Перечислить каждый отдельной строкой с подписью и примером значения. Indexed placeholders (`[%1$s]`, `[%2$s]`) проговорить явно, чтобы переводчик мог менять порядок без потери семантики.
+- **Placeholders** — обязательно, если в значении есть плейсхолдер (`[%s]`, `[%i]`, `[%.1f]`, `[%1$s]`, `[%2$s]` — **universal-форма**, § Placeholders). Перечислить каждый отдельной строкой с подписью и примером значения. Indexed placeholders (`[%1$s]`, `[%2$s]`) проговорить явно, чтобы переводчик мог менять порядок без потери семантики. **Сам поле Placeholders записывать в universal-форме**, как и значение: `[%s]` / `[%i]` / `[%.1f]` / `[%1$s]` — никогда не iOS-native (`%@` / `%li` / `%ld`), Android-native (`%s` без скобок / `%d`) или server-template (`{{0}}`). Контекст импортируется в Lokalise `description` кросс-платформенно и должен ссылаться на те же токены, что хранятся в значении (`§ Placeholders`, [CR-PLACEHOLDER]); рассинхронизация поля Placeholders с фактическим набором — типичный legacy-баг старых iOS-комментариев и ловится pre-flight'ом `loc_placeholder_lint.py`.
 - **Constraints** — указывать когда есть real-world ограничение: widget short title (≤ ~12 chars), watch complication, button width на узких устройствах, запрет хрупких ручных `\n` в reactive-wrap copy (см. правило ниже), сокращения единиц («ml», не «millilitres»), запрет точки в конце button label.
   - **Length numbers (`≤N chars`) — рекомендации, не hard limits.** Цель — короткое и качественное; если в target language нет качественной короткой формулировки, допустимо превысить указанное число. Большинство UI surfaces используют авто-перенос / auto-shrink, поэтому перевод на 1-5 символов длиннее не ломает layout. Не flag-ать перевод как ошибку только из-за превышения `≤N` рекомендации, если короткой натуральной альтернативы нет.
   - **Hard structural constraints — остаются binding** (не «рекомендации»): запрет точки в конце button label, точное соответствие universal-плейсхолдеров `[%s]` / `[%i]` / `[%.1f]` (count и порядка; § Placeholders), обязательное соблюдение abbreviation form («ml» vs «millilitres», «yr» vs «year»), preservation hashtags / brand quotes / emoji.
   - **Хрупкие ручные переносы (`\n`) — не использовать в reactive-wrap copy.** Для текста, который рендерится в авто-переносимый label (Dynamic Type, auto-shrink, multi-line wrap), визуальный ритм даёт UI-движок и layout, а не escaped `\n` внутри значения: hard `\n` ломается при росте шрифта и при более длинном переводе. EN — source of truth для смысла, не для visual line positions. Если значение стало читабельнее за счёт `\n` — предпочесть пунктуацию / реструктуризацию предложения. Platform-specific carve-out (где `\n` намеренный — fixed-canvas image/PDF рендеры, structural списки-буллеты, разделение дискретных items в alert, не-user-facing структурные сепараторы) — у платформенного owner'а (iOS `mywater_ios docs/LOCALIZATION.md § Comment encoding (iOS .strings)`); перед flag-ом `\n` проверить, не попадает ли consumer в carve-out.
-- **Tone** — только если строка отклоняется от default tone (`§ Brand voice`). Большинство строк tone не указывают.
+  - **`platforms: ["other"]` carve-out для литерального `%`.** Если key — App Store / server-only (значение не форматируется), литеральный «70%» допустим без `[%]`-обёртки. Если значение содержит литеральный `%` без формат-аргумента, это стоит проговорить в Constraints, чтобы переводчик не «починил» в `[%]` (`§ Placeholders` carve-out).
+- **Register** — `casual T-form` | `formal V-form` | `neutral`. **Не отменяет** surface→register default map из `§ Brand voice § Pronouns`; служит явным сигналом write-time AI-переводчику, чьи training-priors перекошены в сторону formal V-form. Когда указывать:
+  - **Указывать обязательно** на ключах, где default register **не очевиден из Surface/Type** или где Context содержит слова, провоцирующие V-form leak (`Educational`, `Instruct`, «system message», «statement» — AI читает как formal). Примеры обязательного указания: tips, motivational text, push retention, awards, paywall casual asks, social share text, in-app feature card / upsell copy в casual register.
+  - **Указывать рекомендуется** на ключах формальных surfaces (permission prompts, App Store, paywall hero/CTA, error-with-recovery, Siri educational placeholder, legal notice): фиксирует intentional formal carve-out и проходит через audit skip rule #1 как явно formal, не «забыли».
+  - **Можно пропустить** на тривиальных ключах (`ml`, `kg`, beverage-names как «Beer» — без T-/V-выбора в принципе) и на reusable buttons (`Save`, `OK`, `Cancel` — нет грамматического спряжения для choice).
+  - Применимо ко **всем 16 T-V / honorific языкам** (ru, de, fr, es, it, pl, tr, nl, pt-BR, zh-Hans, hi, id, ms, vi, ja, ko, plus ar tone-shift). На Scandinavian (`da`, `nb`, `sv`) и `en` Register не имеет морфологического носителя — поле работает как tone-shift hint (lexical formality), audit rule #8 там N/A.
+  - Семантика значений: `casual T-form` = ты / du / tu / tú / 你 / आप-избегать-tum-default / kamu / 해요체-default; `formal V-form` = вы / Sie / vous / usted / 您 / आप-default / Anda / 합쇼체. Для ja / ko / ar / vi проговаривать кратко: `Register: casual (해요체)`, `Register: formal (敬語)`, `Register: formal (MSA)`, `Register: casual (bạn)`.
+  - **Когда Register conflicts с Tone:** Tone — affective слой (encouraging / playful / celebratory / promotional / urgent). Никогда не использовать Tone для T-/V- выбора (`Tone: friendly` ≠ T-form сигнал, его надо записать в Register). Tone применяется поверх Register: `Register: casual T-form` + `Tone: celebratory` для awards-congratulation; `Register: formal V-form` + `Tone: reasoned` для permission prompts. Tone редко указывают на settings / labels / generic — default tone берётся из Surface/Type через `§ Brand voice § По типу поверхности`.
+- **Tone** — affective tone (`encouraging`, `urgent`, `playful`, `celebratory`, `promotional`, `reasoned`, `gentle`, `testimonial`, `apologetic`). **Только** если строка отклоняется от default tone для своего Surface/Type (см. tone-table в `§ Brand voice § По типу поверхности`). **Не использовать Tone для T-/V-form** — это всегда Register. Большинство строк Tone не указывают.
 
 ### Reusable / generic ключи
 
@@ -431,17 +452,18 @@ Placeholders, потому что `context` импортируется в Lokali
 ```
 /*
   Surface: Goal calculation result screen, below the recommended goal number.
-  Type: paragraph (educational).
+  Type: paragraph (educational)
   Context: Explains that the calculated goal is approximate; suggests consulting a doctor for exact value.
   Placeholders:
     [%1$.0f] — daily goal amount (whole number, e.g. 1500)
     [%2$s] — measurement unit ("ml" / "l" / "fl oz")
+  Register: formal V-form — onboarding educational paragraph references medical authority (doctor); see § Brand voice § Pronouns formal-surface list.
 */
 "youShouldDrink0Digits" = "Based on your parameters, your estimated goal is [%1$.0f] [%2$s] of water. Your doctor can determine the exact goal for you.";
 
 /*
   Surface: app-wide.
-  Type: button label.
+  Type: button label
   Context: Imperative verb. Generic save action used across forms (profile, drink editor, settings, beverage editor).
   Constraints: Keep short (≤10 chars on narrow screens).
 */
@@ -449,18 +471,36 @@ Placeholders, потому что `context` импортируется в Lokali
 
 /*
   Surface: Drink coefficients screen, beverage row title.
-  Type: beverage name.
+  Type: beverage name
   Context: Display name for herbal tea in the standard beverage catalog. Lowercase per i18n style for non-proper-noun beverage names.
 */
 "herbalTea" = "Herbal tea";
 
 /*
   Surface: Onboarding promo screen 1 / paywall hero header.
-  Type: paragraph (marketing claim).
+  Type: paragraph (marketing claim)
   Context: Marketing claim about user count. Translate the equivalent short form in target language if EN source ever abbreviates ("млн" in ru, "Mio." in de, etc.); current EN source uses full word "million".
   Constraints: Fits hero header on one line.
+  Register: formal V-form — paywall marketing hero (intentional single-register, paired with paywall CTA); see § Brand voice § Pronouns formal-surface list.
 */
 "more5MillionUsers" = "More than 7 million happy users";
+
+/*
+  Surface: Tips screen — single tip card / tip-of-the-day notification body.
+  Type: tip
+  Context: Plain-language hydration tip — drinking a glass of water helps the body cells clear metabolic waste.
+  Register: casual T-form — tips are friendly health-conscious companion voice, not medical lecture (see § Brand voice § По типу поверхности). Default for AI training data is formal V-form; setting Register here prevents V-form leak.
+*/
+"tip8" = "A glass of water helps your body flush out waste.";
+
+/*
+  Surface: Push retention notification — body text, sent to inactive users to re-engage them.
+  Type: notification body
+  Context: Encourages self-care framing — adequate hydration helps the body feel better. Emoji intentional per brand voice for retention pushes; translators preserve the same emoji.
+  Register: casual T-form — push retention is casual companion voice (T-form across all T-V / honorific languages).
+  Tone: encouraging
+*/
+"pushRetention_2" = "Enough water helps your body feel better. Take care of yourself today 😊";
 ```
 
 ### Bad → fixed examples
