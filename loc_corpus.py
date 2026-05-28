@@ -23,10 +23,13 @@ Record shape (see loc_corpus_ndjson.py docstring for the canonical spec):
      "unverified":["ru"],"t":{"en":"Select your country","ru":"Выберите страну"}}
 
 Plural keys keep nested CLDR forms per language in `t`; flat `en` is the
-`other` form. An optional `"dirty":["en","ru"]` lists languages whose value was
-edited locally and not yet pushed to Lokalise (see set_translation), and an
-optional `"dirty_meta":["context","platforms"]` lists key-level fields (not
-languages) edited locally and not yet pushed (see set_platforms / set_context).
+`other` form. A key may also carry an optional per-platform export-file routing
+map `"filenames":{"ios":"InfoPlist.strings"}` — present only for keys routed to a
+non-default file (an absent map exports to the default `Localizable.*` bundle).
+An optional `"dirty":["en","ru"]` lists languages whose value was edited locally
+and not yet pushed to Lokalise (see set_translation), and an optional
+`"dirty_meta":["filenames","platforms"]` lists key-level fields (not languages)
+edited locally and not yet pushed (see set_platforms / set_context / set_filename).
 Both are local-only — the generator never emits them, so a regenerate clears
 them, and a successful push clears exactly the pushed languages / fields.
 
@@ -56,8 +59,10 @@ PLATFORM_ORDER = ("ios", "android", "web", "other")
 # Key-level (not per-language) fields the corpus owns and pushes to Lokalise; the
 # values of a record's `dirty_meta` set are drawn from here. `context` is the
 # corpus field name — loc_corpus_import maps it to the Lokalise `description`
-# field on push (see that script and loc_corpus_ndjson's fold).
-META_FIELDS = ("platforms", "context")
+# field on push (see that script and loc_corpus_ndjson's fold). `filenames` is the
+# per-platform export-file routing map (e.g. iOS InfoPlist.strings vs the default
+# Localizable.strings) — pushed as the Lokalise `filenames` object (set_filename).
+META_FIELDS = ("platforms", "context", "filenames")
 
 
 # --------------------------------------------------------------------------- #
@@ -127,6 +132,18 @@ def _normalized(record: dict[str, Any]) -> dict[str, Any]:
                 record[field] = deduped
             else:
                 record.pop(field, None)
+    # `filenames` (per-platform export-file routing, a key-level META field) is
+    # canonicalized to PLATFORM_ORDER with empty slots dropped, so the diff is
+    # deterministic; an all-empty map drops the field (the key then exports to the
+    # default Localizable.* bundle).
+    fnames = record.get("filenames")
+    if isinstance(fnames, dict):
+        ordered = {p: fnames[p] for p in PLATFORM_ORDER if isinstance(fnames.get(p), str) and fnames[p]}
+        ordered.update({p: fnames[p] for p in sorted(fnames) if p not in PLATFORM_ORDER and isinstance(fnames.get(p), str) and fnames[p]})
+        if ordered:
+            record["filenames"] = ordered
+        else:
+            record.pop("filenames", None)
     return record
 
 
@@ -152,6 +169,17 @@ def has_platform(record: dict[str, Any], platform: str) -> bool:
     return not plats or platform in plats
 
 
+def filenames(record: dict[str, Any]) -> dict[str, str]:
+    """The key's per-platform export-file routing map (corpus field `filenames`):
+    {platform: filename} for any platform routed to a non-default file (e.g.
+    {"ios":"InfoPlist.strings"}). An absent / empty map means the key exports to the
+    default `Localizable.*` bundle on every platform. Only non-empty slots are kept."""
+    fnames = record.get("filenames")
+    if not isinstance(fnames, dict):
+        return {}
+    return {platform: value for platform, value in fnames.items() if isinstance(value, str) and value}
+
+
 def unverified_langs(record: dict[str, Any]) -> set[str]:
     return set(record.get("unverified") or [])
 
@@ -167,8 +195,9 @@ def dirty_langs(record: dict[str, Any]) -> set[str]:
 def meta_dirty(record: dict[str, Any]) -> set[str]:
     """Key-level fields edited locally and not yet pushed — the metadata analog of
     dirty_langs. Values are corpus field names from META_FIELDS ('platforms',
-    'context'); loc_corpus_import pushes them via the keys endpoint (update_key),
-    clearing each on a successful push. Local-only: a regenerate never emits it."""
+    'context', 'filenames'); loc_corpus_import pushes them via the keys endpoint
+    (update_key), clearing each on a successful push. Local-only: a regenerate never
+    emits it."""
     return set(record.get("dirty_meta") or [])
 
 
@@ -372,5 +401,36 @@ def set_context(record: dict[str, Any], text: str) -> bool:
         record.pop("context", None)
     if value != previous:
         _mark_meta_dirty(record, "context")
+        return True
+    return False
+
+
+def set_filename(record: dict[str, Any], platform: str, filename: str) -> bool:
+    """Set (or clear) one platform's export filename — the corpus `filenames` map,
+    which loc_corpus_import pushes to the Lokalise `filenames` object so the export
+    routes the key to that file (e.g. iOS `InfoPlist.strings` instead of the default
+    `Localizable.strings`). A blank `filename` clears that platform's slot; clearing
+    the last slot drops the field (the key returns to the default bundle). Other slots
+    are preserved (merge, not replace), so routing iOS never disturbs Android. When the
+    slot's value changes, `filenames` is added to `dirty_meta`; on push the full
+    per-platform object is sent (a full replace — Lokalise has no per-slot update, so
+    the corpus map is authoritative and a regenerate captures every slot back). Returns
+    True iff the value changed. Callers validate the platform name; this only
+    canonicalizes (PLATFORM_ORDER, empty slots dropped)."""
+    current = {p: v for p, v in (record.get("filenames") or {}).items() if isinstance(v, str) and v}
+    value = (filename or "").strip()
+    previous = current.get(platform, "")
+    if value:
+        current[platform] = value
+    else:
+        current.pop(platform, None)
+    ordered = {p: current[p] for p in PLATFORM_ORDER if current.get(p)}
+    ordered.update({p: current[p] for p in sorted(current) if p not in PLATFORM_ORDER})
+    if ordered:
+        record["filenames"] = ordered
+    else:
+        record.pop("filenames", None)
+    if value != previous:
+        _mark_meta_dirty(record, "filenames")
         return True
     return False

@@ -845,8 +845,9 @@ def cmd_normalize_filenames(client: LokaliseClient, args: argparse.Namespace) ->
     dead nested path `<lang>.lproj/Localization/<lang>.lproj/Localizable.strings`
     that iOS never reads, so those keys silently drop out of the bundle. Clearing
     the filename (default) returns the key to the default `Localizable.*` bundle,
-    flat with every other unassigned key. Lokalise-side only — the corpus stores no
-    filenames, so this never touches strings.ndjson.
+    flat with every other unassigned key. This writes Lokalise directly and does not
+    touch the corpus (strings.ndjson); a later regenerate reconciles the flattened
+    filename into the corpus `filenames` metadata.
     """
     all_platforms = ("ios", "android", "web", "other")
     scope = tuple(args.platform) if args.platform else all_platforms
@@ -928,9 +929,12 @@ def cmd_set_filename(client: LokaliseClient, args: argparse.Namespace) -> int:
     file. The filename is platform-specific (iOS `.strings` names are not Android
     `.xml` names), so the default slot is `ios` — pass `--platform` to target
     others. Sends the full four-slot `filenames` dict per key so untargeted slots
-    are preserved. Lokalise-side only — the corpus stores no filenames, so this
-    never touches strings.ndjson. A `.lproj/` path is rejected because it recreates
-    the dead nested export path that `normalize-filenames` exists to fix.
+    are preserved. This writes Lokalise directly and does not touch the corpus
+    (strings.ndjson); the corpus owns `filenames` as key metadata (loc_apply_meta
+    --set-filename -> loc_corpus_import), so prefer that source-of-truth path — a
+    regenerate reconciles a direct change here into the corpus. A `.lproj/` path is
+    rejected because it recreates the dead nested export path that
+    `normalize-filenames` exists to fix.
     """
     if ".lproj/" in args.to:
         raise LokaliseError(

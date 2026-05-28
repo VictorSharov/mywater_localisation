@@ -14,12 +14,15 @@ those edits into Lokalise. From Lokalise the translations export to iOS / Androi
 This pushes two kinds of edit, both keyed off a local-only push-pending marker the
 corpus maintains (so a push is a no-op unless something was edited locally):
   - translation values — keyed off each key's per-language `dirty` set;
-  - key metadata (platforms, description) — keyed off each key's key-level
-    `dirty_meta` set (set by loc_apply_meta / loc_corpus.set_platforms /
-    set_context). Platforms are sent as a full-array replace (so adding/removing a
-    platform propagates as the resulting set); the corpus `context` field is pushed
-    to the Lokalise `description` field. Metadata goes through the keys endpoint
-    (update_key), translations through the per-translation endpoint (below).
+  - key metadata (platforms, description, filenames) — keyed off each key's
+    key-level `dirty_meta` set (set by loc_apply_meta / loc_corpus.set_platforms /
+    set_context / set_filename). Platforms are sent as a full-array replace (so
+    adding/removing a platform propagates as the resulting set); the corpus `context`
+    field is pushed to the Lokalise `description` field; the corpus `filenames` map
+    (per-platform export-file routing, e.g. iOS InfoPlist.strings vs the default
+    Localizable.strings) is pushed as the Lokalise `filenames` object — also a full
+    replace, so the corpus map is authoritative. Metadata goes through the keys
+    endpoint (update_key), translations through the per-translation endpoint (below).
 
 What gets pushed:
   - which keys: every key by default; `--key NAME` (repeatable) restricts the
@@ -27,7 +30,7 @@ What gets pushed:
     without a subset corpus. A requested name with no corpus match is reported on
     stderr, not silently dropped (so you never claim a push that did not happen).
     Naming a key also re-pushes its metadata (platforms + any existing
-    description), regardless of `dirty_meta`.
+    description + any existing filenames routing), regardless of `dirty_meta`.
   - which languages, per key:
     - default: the languages in the key's `dirty` set — the ones an apply script
       (or set_translation) edited locally and that have not been pushed yet,
@@ -45,14 +48,15 @@ What gets pushed:
       default scope would push nothing — naming the key means "push this key".
 
 Keys with no key_id are created (key_name + platforms + translations + the
-description, when the corpus carries one). Existing keys have each translation
+description and filenames routing, when the corpus carries them). Existing keys
+have each translation
 edited through the per-translation endpoint (update_translation by
 translation_id) — NOT the keys endpoint: a key-update's `translations` array only
 sets values at create time and is silently ignored on an existing key (verified: a
 changed `translation` left the stored value and its modified_at untouched), which
 made earlier imports report success while writing nothing. A key's metadata
-(platforms / description) IS settable on an existing key, and does go through the
-keys endpoint (update_key) — see meta_updates below. Plural values are sent as a CLDR-forms object (`{"one":…,"other":…}`) —
+(platforms / description / filenames) IS settable on an existing key, and does go
+through the keys endpoint (update_key) — see meta_updates below. Plural values are sent as a CLDR-forms object (`{"one":…,"other":…}`) —
 what the API accepts; the JSON-string form is only what it returns. Pushed target
 translations are marked unverified so a human / Lokalise reviewer still signs off
 (pass --mark-verified to override) — the same two-signal guarantee the corpus
@@ -86,9 +90,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from loc_corpus import (  # noqa: E402
     DEFAULT_CORPUS,
     META_FIELDS,
+    PLATFORM_ORDER,
     SOURCE_LANG,
     dirty_langs,
     display_key,
+    filenames,
     is_plural,
     key_names,
     meta_dirty,
@@ -170,6 +176,8 @@ def meta_fields_for(record: dict[str, Any], *, named: bool, lang_filtered: bool)
         fields = {"platforms"}
         if record.get("context"):
             fields.add("context")
+        if filenames(record):
+            fields.add("filenames")
         return fields
     return meta_dirty(record) & set(META_FIELDS)
 
@@ -179,12 +187,18 @@ def build_meta_payload(record: dict[str, Any], fields: set[str]) -> dict[str, An
     maps to the Lokalise `description` field (the translator-notes field these notes
     live in); an absent context pushes an empty description (a clear). Platforms go
     as a full-array replace — Lokalise has no add/remove, so the resulting set is the
-    edit."""
+    edit. `filenames` goes as the full per-platform object (every slot, empty for the
+    ones the corpus does not route) — Lokalise has no per-slot update, so the corpus
+    map is authoritative; a slot absent from the corpus is sent empty (the key exports
+    to the default Localizable.* bundle there)."""
     payload: dict[str, Any] = {}
     if "platforms" in fields:
         payload["platforms"] = platforms(record)
     if "context" in fields:
         payload["description"] = record.get("context") or ""
+    if "filenames" in fields:
+        routed = filenames(record)
+        payload["filenames"] = {p: routed.get(p, "") for p in PLATFORM_ORDER}
     return payload
 
 
@@ -213,7 +227,7 @@ def main() -> int:
     create_records: list[dict[str, Any]] = []  # parallel to creates: the source record per create payload
     touched_langs: set[str] = set()
     pushed: list[tuple[dict[str, Any], list[str]]] = []
-    meta_updates: list[dict[str, Any]] = []  # update_key payloads for existing keys (platforms / description)
+    meta_updates: list[dict[str, Any]] = []  # update_key payloads for existing keys (platforms / description / filenames)
     meta_pushed: list[tuple[dict[str, Any], set[str]]] = []  # (record, corpus fields) parallel to meta_updates
 
     for record in records:
@@ -245,14 +259,18 @@ def main() -> int:
                 if is_plural(record):
                     payload["is_plural"] = True
                 # A new key ships its full corpus state on creation: the create payload
-                # carries platforms + description, so it needs no separate update_key.
+                # carries platforms + description + filenames, so it needs no separate
+                # update_key.
                 description = record.get("context")
                 if description:
                     payload["description"] = description
+                routed = filenames(record)
+                if routed:
+                    payload["filenames"] = {p: routed.get(p, "") for p in PLATFORM_ORDER}
                 creates.append(payload)
                 create_records.append(record)
 
-        # Key metadata (platforms / description) for EXISTING keys goes through the
+        # Key metadata (platforms / description / filenames) for EXISTING keys goes through the
         # keys endpoint (update_key), separate from the per-translation endpoint above.
         if meta_fields and key_id is not None:
             meta_updates.append({"key_id": int(key_id), "key": display_key(record), "payload": build_meta_payload(record, meta_fields), "fields": meta_fields})
@@ -347,7 +365,7 @@ def main() -> int:
             print(f"created {len(chunk)} key(s)")
             record_created_sent(result, chunk, sent_by_key, record_chunk)
         # Key metadata goes through the keys endpoint (update_key) — unlike the
-        # translations array, a key-update's platforms / description DO take effect.
+        # translations array, a key-update's platforms / description / filenames DO take effect.
         for item in meta_updates:
             client.update_key(item["key_id"], item["payload"])
             print(f"updated metadata key_id={item['key_id']} ({item['key']}): {','.join(sorted(item['payload']))}")
@@ -474,17 +492,25 @@ def verify_meta_pushed(client: LokaliseClient, meta_updates: list[dict[str, Any]
             stored_desc = key.get("description") or ""
             if stored_desc != payload["description"]:
                 mismatches.append({"key_id": key_id, "key": item["key"], "field": "context", "sent": payload["description"], "stored": stored_desc})
+        if "filenames" in payload:
+            stored_fn = key.get("filenames") if isinstance(key.get("filenames"), dict) else {}
+            sent_fn = payload["filenames"]
+            if {p: (stored_fn.get(p) or "") for p in PLATFORM_ORDER} != {p: (sent_fn.get(p) or "") for p in PLATFORM_ORDER}:
+                mismatches.append({"key_id": key_id, "key": item["key"], "field": "filenames", "sent": sent_fn, "stored": stored_fn})
     return mismatches
 
 
 def payload_corpus_fields(payload: dict[str, Any]) -> list[str]:
-    """The corpus field names a meta payload touches ('platforms' / 'context'),
-    mapping the Lokalise `description` key back to the corpus `context` field."""
+    """The corpus field names a meta payload touches ('platforms' / 'context' /
+    'filenames'), mapping the Lokalise `description` key back to the corpus `context`
+    field (`platforms` and `filenames` share their name on both sides)."""
     fields = []
     if "platforms" in payload:
         fields.append("platforms")
     if "description" in payload:
         fields.append("context")
+    if "filenames" in payload:
+        fields.append("filenames")
     return fields
 
 

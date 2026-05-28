@@ -201,12 +201,17 @@ Gotchas:
   download toggle removes it.
 - **"N unassigned keys → Localizable.strings"** is cosmetic — unassigned keys
   correctly default to the flat `Localizable.strings`.
-- **Routing a key to a non-default file** (e.g. a new Info.plist key →
+- **Routing a key to a non-default file** (e.g. an Info.plist key →
   `InfoPlist.strings`): the `ios` filename slot decides `InfoPlist.strings` vs the
-  default `Localizable.strings`. Assign it from the toolchain with
+  default `Localizable.strings`. The corpus owns this routing (field `filenames`,
+  CLAUDE.md [CR-CORPUS-META]) — set it with
+  `python3 loc_apply_meta.py --key <name> --set-filename InfoPlist.strings` (flags
+  `dirty_meta`), then `python3 loc_corpus_import.py --apply`; a regenerate reads it
+  back. A direct Lokalise-side change still works —
   `python3 lokalise_helper.py set-filename --key <name> --to InfoPlist.strings`
-  (dry-run → `--apply`), or set it in the Lokalise UI. Lokalise-side only — the
-  corpus stores no filenames, so this never touches `strings.ndjson`.
+  (dry-run → `--apply`) or the Lokalise UI — and the next regenerate captures it into
+  the corpus. The push is a full per-platform replace, so regenerate before the first
+  routing push so any pre-existing slot is captured first.
 
 Sanity-check a download (run in the unzipped export folder):
 

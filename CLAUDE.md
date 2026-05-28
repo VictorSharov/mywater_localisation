@@ -72,22 +72,29 @@ strings.ndjson + Lokalise ─export→ iOS .strings / Android .xml / server JSON
   `loc_corpus_import --apply`, then drains — not silently dropped, not endlessly
   re-sent.
 - **[CR-CORPUS-META] Key metadata is corpus-owned too — `dirty_meta`.** The corpus
-  is the source of truth not only for translation values but for two key-level
-  fields: `platforms` and the translator description (corpus field `context`). Edit
-  them through `loc_apply_meta.py` (token-free) or `loc_corpus.set_platforms` /
-  `set_context` — never hand-edit ([CR-CORPUS-OWNER]). A change adds the field to a
+  is the source of truth not only for translation values but for three key-level
+  fields: `platforms`, the translator description (corpus field `context`), and
+  per-platform export-file routing (`filenames`). Edit them through
+  `loc_apply_meta.py` (token-free) or `loc_corpus.set_platforms` / `set_context` /
+  `set_filename` — never hand-edit ([CR-CORPUS-OWNER]). A change adds the field to a
   key-level `dirty_meta` set (the metadata analog of `dirty`), and
   `loc_corpus_import` pushes those fields via the **keys endpoint** (`update_key`),
   separate from the per-translation endpoint: `platforms` as a full-array replace
-  (so add/remove a platform = the resulting set), and corpus `context` → the
-  Lokalise **`description`** field (this project's translator-notes field). A
-  successful `--apply` clears the pushed fields from `dirty_meta` (re-run is a
-  no-op); a regenerate never emits it (self-clears) and reads `description` back
+  (so add/remove a platform = the resulting set), corpus `context` → the Lokalise
+  **`description`** field (this project's translator-notes field), and `filenames` →
+  the Lokalise **`filenames`** object as a full per-platform replace (the iOS slot
+  decides `InfoPlist.strings` vs the default `Localizable.strings`; an unset slot
+  exports to the default bundle — so the corpus map is authoritative). A successful
+  `--apply` clears the pushed fields from `dirty_meta` (re-run is a no-op); a
+  regenerate never emits it (self-clears) and reads `description` + `filenames` back
   first so a pushed value round-trips. Metadata has **no** review state — unlike a
   translation it is never `unverified`. Naming a key (`--key`) re-pushes its
-  platforms + any existing description regardless of `dirty_meta`; to *clear* a
-  description use `loc_apply_meta --clear-description` (the dirty path pushes an
-  empty value).
+  platforms + any existing description + any existing filenames regardless of
+  `dirty_meta`; to *clear* a description / routing use `loc_apply_meta
+  --clear-description` / `--clear-filename` (the dirty path pushes an empty value).
+  Because the push is a full replace, run `loc_corpus_import` against a freshly
+  regenerated corpus the first time, so any pre-existing Lokalise `filenames` slot
+  is captured before it could be overwritten with an empty.
 - **[CR-CORPUS-SOURCE-CHANGE] An `en` source edit obsoletes that key's translations.**
   When you change a key's `en` value in a way that changes meaning, every existing
   target translation now renders the *old* English and is stale. Do not leave stale
@@ -177,7 +184,12 @@ export ([CR-PLACEHOLDER]).
 2. **Add the source to the corpus**, through `loc_corpus.write_records` (or a thin
    constructor) — never hand-edit the ndjson ([CR-CORPUS-OWNER]). One new record:
    `key` (a valid-everywhere identifier — [CR-KEY-NAME]), `platforms` (the consuming
-   platforms), `t.en`.
+   platforms), `t.en`. For a key that must export to a non-default file — an iOS
+   Info.plist key (permission `NS*UsageDescription`, `CFBundle*`, home-screen
+   quick-action title) — also set its routing with `loc_apply_meta --key <name>
+   --set-filename InfoPlist.strings` (corpus field `filenames`, [CR-CORPUS-META]);
+   without it the key exports to `Localizable.strings` and the localized Info.plist
+   value never takes effect.
    - Non-plural: `t.en` is a string in **universal placeholders** (`[%s]` / `[%i]`
      / `[%.1f]` / `[%]`), never a bare `%@` / `%d` / `%s`. Author the universal form
      directly — there is no "convert from a platform string" step, so there is no
@@ -250,9 +262,9 @@ docs; this canon owns *style and meaning* only.
   (`read_records` → `write_records` → `diff`).
 - After an apply: `git diff -- strings.ndjson` should touch only the edited keys.
 - After a metadata edit (`loc_apply_meta`): `git diff -- strings.ndjson` shows the
-  changed `platforms` / `context` plus a `dirty_meta` marker on those keys; a
-  `loc_corpus_import` dry-run lists them under "push metadata on N key(s)", and a
-  successful `--apply` drains `dirty_meta` (a re-run plans 0) ([CR-CORPUS-META]).
+  changed `platforms` / `context` / `filenames` plus a `dirty_meta` marker on those
+  keys; a `loc_corpus_import` dry-run lists them under "push metadata on N key(s)",
+  and a successful `--apply` drains `dirty_meta` (a re-run plans 0) ([CR-CORPUS-META]).
 - After editing values: `python3 loc_placeholder_lint.py` (token-free) — no new
   placeholder errors ([CR-PLACEHOLDER]). It also runs as a pre-flight in
   `loc_corpus_import`; `--no-lint` overrides.

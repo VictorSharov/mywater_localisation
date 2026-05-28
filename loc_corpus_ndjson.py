@@ -25,9 +25,9 @@ language / platform sets + counts — so a consumer can spot a stale corpus and
 orient without scanning the whole file.
 
 Lean by design: false/empty fields (`plural`, `archived`, `context`,
-`char_limit`, `unverified`) are omitted. Keys are sorted by key_id and languages
-within `t` are sorted, so a regenerated corpus diffs cleanly (only the meta
-timestamp churns).
+`char_limit`, `unverified`, `filenames`) are omitted. Keys are sorted by key_id
+and languages within `t` are sorted, so a regenerated corpus diffs cleanly (only
+the meta timestamp churns).
 
 Lokalise is the source of truth for the snapshot; this file is a regenerable
 cache — do not hand-edit, regenerate instead. Stale cache reintroduces duplicate
@@ -37,11 +37,13 @@ written by loc_corpus.set_translation, and the key-level `dirty_meta` set writte
 by set_platforms / set_context) are dropped — by then the edits have been pushed,
 so the markers have served their purpose.
 
-Note that a few fields flow the OTHER way too: an edit to a key's `platforms` or
-`context` (description) is made in the corpus and pushed to Lokalise by
-loc_corpus_import (keyed off `dirty_meta`), the same corpus-as-source-of-truth
-discipline translations follow. The corpus `context` field maps to the Lokalise
-`description` field (read back first on regenerate so a pushed value round-trips).
+Note that a few fields flow the OTHER way too: an edit to a key's `platforms`,
+`context` (description) or `filenames` (per-platform export-file routing, e.g. iOS
+InfoPlist.strings) is made in the corpus and pushed to Lokalise by loc_corpus_import
+(keyed off `dirty_meta`), the same corpus-as-source-of-truth discipline translations
+follow. The corpus `context` field maps to the Lokalise `description` field, and
+`filenames` to the Lokalise `filenames` object (both read back on regenerate so a
+pushed value round-trips).
 
 Output defaults next to this script (the shared localisation repo) so iOS /
 Android / server sessions read one file (attach it via
@@ -72,6 +74,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from loc_corpus import (  # noqa: E402
     DEFAULT_CORPUS,
+    PLATFORM_ORDER,
     PLURAL_CATEGORIES,
     flat_source,
     write_records,
@@ -165,6 +168,17 @@ def key_record(key: dict[str, Any]) -> dict[str, Any]:
     }
     if key.get("is_plural"):
         record["plural"] = True
+    # Per-platform export-file routing (Lokalise `filenames`): keep only the slots
+    # routed to a non-default file (e.g. iOS InfoPlist.strings), in PLATFORM_ORDER.
+    # An unassigned key has all-empty slots and carries no `filenames` field — it
+    # exports to the default Localizable.* bundle. Read back so a pushed routing
+    # round-trips, the same corpus-as-source-of-truth discipline platforms/context use.
+    fnames = key.get("filenames")
+    if isinstance(fnames, dict):
+        routed = {p: fnames[p] for p in PLATFORM_ORDER if isinstance(fnames.get(p), str) and fnames[p]}
+        routed.update({p: fnames[p] for p in sorted(fnames) if p not in PLATFORM_ORDER and isinstance(fnames.get(p), str) and fnames[p]})
+        if routed:
+            record["filenames"] = routed
     # The corpus `context` field binds to the Lokalise `description` field (where
     # this project keeps translator notes and what loc_corpus_import pushes back),
     # falling back to the Lokalise `context` field for any key that only has one.
