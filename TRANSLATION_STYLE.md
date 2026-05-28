@@ -257,6 +257,11 @@ EN: "What goal shall we set for today?"  (onboarding goal-set prompt, casual int
 ### Punctuation
 
 - **Button labels** — без точки в конце. `Save`, `Add a drink`, `Try free`, `Connect`.
+- **Точка в конце — разделитель, не финализатор (UI-микрокопи).** В user-facing значении точка ставится **только** между двумя предложениями как разделитель, не в самом конце. Заголовок / кнопка / label / subtitle / tip / Siri-dialog / widget-описание / share-subtitle с **одним** предложением — **без trailing period**. Body из **двух и более** предложений — точка между ними, но **без trailing period** после последнего. `?` / `!` / `:` остаются (это не точка): `Stop re-sync? Drinks already uploaded will stay in Apple Health` — ок.
+  - ✅ `Show today's hydration progress` (1 предложение — без точки) — ❌ `Show today's hydration progress.`
+  - ✅ `Join me on My Water. Drinking water is easier together` (2 предложения — точка-разделитель, без trailing) — ❌ `…easier together.`
+  - **Исключения:** (1) **error message с recovery-инструкцией** следует полной прозе и **заканчивается точкой** (см. буллет «Errors» ниже — `…please contact us.`); (2) намеренный **visual-style** trailing period как часть дизайна (`Energized.` / `Hydrated.` / `Done.` — share-карточки, где comment явно фиксирует «trailing period is part of the visual style»).
+  - **Применять** к `en`-источнику **и** ко всем target-переводам (mirror EN-пунктуацию; не добавлять trailing point в локалях). Read-aloud Siri-dialog (`ProvidesDialog`) — тоже без trailing: TTS читает завершающую интонацию по контексту, trailing period не нужен как «finalization signal». Translator-comment constraint: `Single sentence — no trailing period` или `Period between the sentences only — no trailing period after "<last word>"`. Существующие legacy-строки drive-by не переписывать (§ Translation discipline); enforced при новом ключе / смене `en`-источника.
 - **Notifications** — `!` или `?` допустимы и часто используются. Не cluster: один `!` или `?` на сообщение, не `!!!`.
 - **Errors** — точка в конце; запятая после `Please` (legacy: `Please, restart...` — оставлять как есть; новые строки — без запятой: `Please restart...`).
 - **Awards / motivational** — `!` поощряется; manual hard line breaks не использовать, rhythm держать через copy и layout wrapping.
