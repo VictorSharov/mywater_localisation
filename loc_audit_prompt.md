@@ -80,7 +80,7 @@ Severity: `error` (clear bug) / `warn` (style/convention) / `info` (consider —
 ### 4. Apply fixes
 
 - Применять validated accept/modify findings в корпус: `python3 loc_audit_apply.py <lang> <validated_findings.md>` — пишет `t[lang]` в `strings.ndjson` и помечает язык `unverified` (correction нуждается в human / Lokalise review). en-source правки (`<lang>=en`) делает оператор вручную в корпусе (dev language).
-- Replace-only: ключ, которого нет в корпусе, не добавляется, а репортится (upstream transcription error). Plural-ключи findings-таблица не выражает — править их `t` в корпусе вручную.
+- Replace-only: ключ, которого нет в корпусе, не добавляется, а репортится (upstream transcription error). Plural-ключи findings-таблица (одна плоская ячейка) не выражает — применять их через `loc_apply_lang.py` с CLDR-map `{форма: текст}` (тонкий адаптер над тем же `apply_changes`, тот же replace-инвариант), а не ручной правкой `t`.
 - Не заводить новый ключ через audit: новые строки добавляются в корпус напрямую (видны всем платформам) и создаются в Lokalise при импорте.
 
 ### 5. Verify & import

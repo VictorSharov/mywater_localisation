@@ -24,8 +24,10 @@ Rules:
 Replace-only: a finding whose key is not in the corpus is reported as UNMATCHED
 and the process exits non-zero (an unmatched key is an upstream transcription
 error, not a new string — audit fixes only correct existing values). Plural keys
-cannot be expressed in one findings cell and are reported as skipped — use a
-dedicated plural workflow for those.
+cannot be expressed in one findings cell (it holds a single flat string) and are
+reported as skipped — apply those through `loc_apply_lang.py` with a `{cldr_form:
+text}` map (a thin JSON adapter over this module's apply_changes, so the corpus
+replace invariant is identical), not by hand-editing `t`.
 
 New source strings are NOT appended here: add them to the corpus directly (so
 every platform sees them) and let loc_corpus_import.py create them in Lokalise.
@@ -172,9 +174,9 @@ def main() -> int:
 
     if plural_skipped:
         print(
-            f"\nPLURAL KEYS SKIPPED ({len(plural_skipped)}): findings tables carry one "
-            f"value per row and cannot express CLDR plural forms — fix plural keys "
-            f"by editing the corpus `t` directly.",
+            f"\nPLURAL KEYS SKIPPED ({len(plural_skipped)}): a findings-table cell carries "
+            f"one flat value and cannot express CLDR plural forms — apply these via "
+            f"`loc_apply_lang.py <lang> <map.json>` with a {{form: text}} CLDR map.",
             file=sys.stderr,
         )
         for key in sorted(plural_skipped):

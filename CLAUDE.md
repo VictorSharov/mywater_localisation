@@ -246,8 +246,11 @@ strings.ndjson + Lokalise ─(loc_export.py --apply)→ iOS .strings / Android .
 - **Apply scripts are stdlib-only and token-free** (`loc_audit_apply`,
   `loc_apply_lang`, `loc_apply_meta`, `loc_r_marked_translations apply`). They
   mutate `strings.ndjson` in place; replace-only (an unknown key is reported, not
-  appended). Plural keys are CLDR-forms maps in `t`; flat-string apply paths skip
-  them. `loc_apply_meta` edits key metadata (platforms / description) rather than
+  appended). Plural keys are CLDR-forms maps in `t`: the audit findings-table path
+  (`loc_audit_apply`) can't express CLDR in one cell so it skips them, but
+  `loc_apply_lang` applies a plural key whose JSON value is a `{cldr_form: text}`
+  map (a thin adapter over the same `apply_changes`, identical replace invariant) —
+  not a hand-edit of `t`. `loc_apply_meta` edits key metadata (platforms / description) rather than
   translation values ([CR-CORPUS-META]).
 - **New source strings / new keys** — see `§ Adding a new key (every platform)`
   below for the full flow.
