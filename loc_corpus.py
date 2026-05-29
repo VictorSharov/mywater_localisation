@@ -83,8 +83,9 @@ def read_records(path: Path | str = DEFAULT_CORPUS) -> list[dict[str, Any]]:
     """Parse the NDJSON corpus into a list of record dicts (one per line).
 
     Blank lines are skipped. Field insertion order from the file is preserved
-    (json.loads keeps object order), so a value-only edit re-serializes with the
-    same field order the generator produced.
+    (json.loads keeps object order); write_records re-canonicalizes top-level order
+    on the way out (`t` last, state lists before it), so an edit re-serializes in
+    the generator's field order regardless of how the in-memory dict was built.
     """
     path = Path(path)
     records: list[dict[str, Any]] = []
@@ -167,9 +168,11 @@ def write_records(path: Path | str, records: Iterable[dict[str, Any]]) -> None:
 
 
 def _normalized(record: dict[str, Any]) -> dict[str, Any]:
-    """In-place canonicalize a record's sub-collections (sort `t`, sort/prune the
-    `unverified` and `dirty` lang lists, re-sync flat `en`). Top-level field order
-    is left untouched."""
+    """In-place canonicalize a record (sort `t`, sort/prune the `unverified` and
+    `dirty` lang lists, re-sync flat `en`) AND its top-level field order: `t` is
+    moved last, with the review/push-state lists (`unverified`, `dirty`,
+    `dirty_meta`) pulled in just before it — matching the generator, so a record
+    re-serializes identically no matter how its fields were inserted in memory."""
     translations = record.get("t")
     if isinstance(translations, dict):
         record["t"] = dict(sorted(translations.items()))
@@ -200,6 +203,21 @@ def _normalized(record: dict[str, Any]) -> dict[str, Any]:
             record["filenames"] = ordered
         else:
             record.pop("filenames", None)
+    # Canonical top-level field order. The generator emits `t` last with
+    # `unverified` right before it; but set_translation, when it first flags a key,
+    # does `record["unverified"] = …` on a dict read from file without that field,
+    # so Python appends it AFTER `t` (same for `dirty`). Such a record serializes as
+    # `…,"t":{…},"unverified":[…]}` and survives any number of pure read→write cycles
+    # (order preserved) until the next regenerate flips it back — churning the
+    # push→pull diff. Re-inserting `t` (and the state lists right before it) here
+    # makes read→mutate→write byte-identical to a regenerate. Idempotent: a record
+    # already in canonical order is unchanged.
+    if "t" in record:
+        t_value = record.pop("t")
+        for field in ("unverified", "dirty", "dirty_meta"):
+            if field in record:
+                record[field] = record.pop(field)
+        record["t"] = t_value
     return record
 
 
