@@ -263,11 +263,15 @@ copy in `/tmp`, and never `git checkout` / `reset` away uncommitted edits
 
 ## Tooling
 
-- **`loc_glossary_apply.py`** (token-free) — apply a `{term: {...}}` or
-  `{term: {lang: translation}}` edit map into `glossary.ndjson` through
-  `write_records`; replace-only, like `loc_apply_lang.py`. Planned for larger fill
-  passes; today small glossary edits can be authored through a thin one-off
-  constructor that calls `write_records`.
+- **`loc_glossary_apply.py`** (token-free) — apply a `{term: translation}` (one
+  language: `loc_glossary_apply.py <lang> edits.json`) or `{term: {lang:
+  translation}}` (`--map`) edit map into `glossary.ndjson` through `write_records`;
+  replace-only and single-writer, like `loc_apply_lang.py` (an unknown term is
+  reported, not appended; an empty value clears the language). This is the fan-in
+  tool for a parallel multi-language fill (§ Fill workflow pass 2): fan out the
+  per-language reasoning read-only, then serialize the applies one language (or one
+  `--map`) at a time ([CR-CORPUS-CONCURRENCY]). Test against a `--glossary
+  /tmp/x.ndjson` copy, never the live file + revert ([CR-CORPUS-WORKTREE]).
 - **`loc_glossary_import.py`** + a `make glossary-push` / `make glossary-push-dry`
   target (operator-run, token-gated) — render `to_api_terms` and upsert into the
   Lokalise glossary API; dry-run validates locally and prints a token-free plan
