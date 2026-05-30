@@ -21,14 +21,9 @@ Hindi has a three-tier pronoun system:
 
 **तू → तुम leak (rare but possible):** intimate-tier verbs ending in bare stem **-Ø** (पी!, ले!, चल!) or pronoun **तू**. Flag as **register-too-intimate** — never appropriate, sounds rude even if translator intended "warm."
 
-**आप appropriate (do NOT flag as V-form leak):**
-- Permission prompts ("क्या यह ऐप आपको नोटिफिकेशन भेज सकता है?")
-- Paywall hero / legal copy / Terms / Privacy
-- Error recovery requiring trust ("कुछ गलत हो गया। कृपया दोबारा कोशिश करें।")
-- HealthKit / sensitive data consent
-- First-time auth flow CTAs
+**आप formal-surface carve-out — DEPRECATED (2026-05-30; `ты`/`вы` split retired, `TRANSLATION_STYLE.md § Brand voice § Pronouns`).** Friendly तुम is now the **universal** register — the surfaces that previously took आप (permission prompts, paywall hero / legal / Terms / Privacy, error recovery, HealthKit / sensitive-data consent, first-time auth CTAs) are **तुम** too. Do **not** *defend* an आप target on these as "intentional formal." But legacy आप there is **grandfathered** (the operator declined a re-translation sweep) — do not mass-flag it; flag only clearly new / source-changed strings, severity `warn`. New strings on every surface: तुम. (The तू-intimate leak above is unchanged — still wrong everywhere.)
 
-**Mixed-register within one screen is a real bug.** If the paywall hero uses आप but the CTA button uses तुम, flag as consistency issue.
+**Mixed-register within one screen is a real bug.** Mixing तुम and आप in the same connected text without semantic reason — flag as consistency issue.
 
 ## Gender system in grammar
 

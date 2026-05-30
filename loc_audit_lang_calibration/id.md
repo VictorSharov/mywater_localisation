@@ -11,7 +11,7 @@ Indonesian has a binary register split for second person:
 - Also exists: `lo` / `lu` (Jakarta slang) — too colloquial, **never** for product UI; flag as wrong register.
 - First person: `aku` (casual, pairs with `kamu`) vs `saya` (neutral-formal, pairs with `Anda` or stands alone). App self-reference "we" → **`kami`** (excludes addressee, correct for "our app speaks") — not `kita` (which includes the user).
 
-**Hydration app default: `kamu` + `-mu` + `kami`** for app voice. `Anda` reserved for: paywall legal microcopy, Terms / Privacy, account deletion confirmations, error-state apologies if a corporate tone is intentional. The base prompt's "T-form throughout" rule maps to `kamu`/`-mu`.
+**Hydration app default: `kamu` + `-mu` + `kami`** for app voice — now **universal** (the `ты`/`вы` split is deprecated, `TRANSLATION_STYLE.md § Brand voice § Pronouns`, 2026-05-30). `Anda` is **deprecated on every surface**, including the formerly-formal ones (paywall legal microcopy, Terms / Privacy, account deletion confirmations, error-state apologies) — new strings there use `kamu`/`-mu`; legacy `Anda` is grandfathered (no mass sweep — flag only new / source-changed strings, severity `warn`). The base prompt's "T-form throughout" rule maps to `kamu`/`-mu`.
 
 **Leak patterns to flag:**
 

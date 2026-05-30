@@ -20,7 +20,7 @@ Malay second-person system:
 - Example formal (WRONG voice for this app): `Adakah anda telah meminum air hari ini?`
 
 **Audit flags:**
-- `anda` in casual notifications/CTAs/motivational push → V-form leak (flag).
+- `anda` is off-brand on **every** surface now — friendly `awak` (or dropped pronoun) is universal: the `ты`/`вы` split is deprecated (`TRANSLATION_STYLE.md § Brand voice § Pronouns`, 2026-05-30), there is no longer a formal-surface carve-out that keeps `anda`. In casual notifications/CTAs/motivational push → V-form leak (flag). On former-formal surfaces (paywall / legal / permission / error) legacy `anda` is grandfathered — do not mass-flag; flag only new / source-changed strings, severity `warn`.
 - `kau` / `engkau` / `aku` anywhere → register error.
 - Indonesian `kamu` is fine in id but in ms feels childish/dated for app UI — prefer `awak` or drop.
 - Mixing `awak` and `anda` within same screen → inconsistency.

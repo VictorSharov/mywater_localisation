@@ -8,6 +8,8 @@
 
 **Self-reference for the app:** `chúng tôi` (formal "we", excludes listener — appropriate when the app speaks as a company/team), or `My Water` as the brand name in marketing contexts. Avoid `chúng ta` ("we" including the listener) for app voice — it implies the app and the user are one party, which feels off in CTAs and notifications.
 
+**Universal register (2026-05-30):** the base prompt's `ты`/`вы` split is deprecated (`TRANSLATION_STYLE.md § Brand voice § Pronouns`) — the friendly `bạn` register is universal across **every** surface, including formerly-formal ones (App Store / paywall / legal / permission / error / Siri); `quý khách` / `quý vị` / `ngài` stay wrong everywhere. Legacy formal strings are grandfathered (no sweep); new strings everywhere use the `bạn` register.
+
 **Forms to flag as INAPPROPRIATE register:**
 - `anh` / `chị` (older brother / older sister) — presumes user is younger than the speaker, gendered. Wrong for an app addressing arbitrary users. Acceptable only in specifically-targeted onboarding where age/gender is known.
 - `em` (younger sibling) — condescending from app to user, presumes user is younger. Flag immediately.

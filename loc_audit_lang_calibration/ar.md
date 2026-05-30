@@ -8,6 +8,8 @@ Arabic does not have a productive T-V pronoun distinction like French tu/vous. T
 
 For a casual health companion, the right register is **Simplified MSA** — fuṣḥā grammar but with everyday lexicon, short sentences, and imperative direct address using plain أنتَ/أنتِ. Avoid حضرتك, سيادتك, لِسَيادتكم, and avoid the deferential يُرجى منكم / نأمل من سيادتكم. Pure colloquial (Egyptian, Levantine, Gulf) is inappropriate for pan-Arab iOS distribution — choose one dialect and you alienate the others.
 
+**Universal register (2026-05-30):** the base prompt's `ты`/`вы` split is deprecated (`TRANSLATION_STYLE.md § Brand voice § Pronouns`) — friendly Simplified MSA is the register for **every** surface, including the formerly-formal ones (App Store / paywall / legal / permission / error / Siri). There is no honorific carve-out: حضرتك / سيادتك / يُرجى منكم stay wrong everywhere. Legacy formal-register strings are grandfathered (no sweep); new strings everywhere use Simplified MSA.
+
 ## Gender system in grammar
 
 **Yes — Arabic has mandatory grammatical gender, and second-person singular verbs/pronouns/adjectives all agree with the addressee's gender.**
