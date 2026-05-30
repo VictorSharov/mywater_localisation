@@ -112,17 +112,17 @@ _CANONICAL_ORDER = (
 # --------------------------------------------------------------------------- #
 # Lokalise glossary CSV column headers.
 #
-# VERIFY BEFORE THE FIRST IMPORT. These header strings (and their casing — note
-# Lokalise's own mix: lowercase `casesensitive`, capital `Forbidden`) are taken
-# from the Lokalise glossary docs, not from a live template — this repo has no
-# Lokalise token ([CR-ACCESS]). Before the first real upload, download a CSV from
-# Lokalise (Glossary > More > Download CSV) and align these constants to it; they
-# are isolated here precisely so that is a one-line fix. CSV is semicolon-
-# separated, UTF-8, with a header row. Per-language columns are the bare project
-# ISO code (translation) and `<iso>_description` (the per-language note). See
-# GLOSSARY.md § Lokalise mapping.
+# VERIFIED against a real Lokalise export (operator downloaded Glossary > More >
+# Download CSV, 2026-05). The header row is ALL LOWERCASE:
+#   term;description;casesensitive;translatable;forbidden;tags;<iso>;<iso>_description;...
+# The earlier docs-guess of a capitalized `Forbidden` was WRONG — it is `forbidden`.
+# CSV is semicolon-separated, UTF-8, with a header row. Per-language columns are the
+# bare project ISO code (translation) and `<iso>_description` (the per-language note);
+# the export also carries an `en` column we leave empty (the term headword IS the en
+# form). Lokalise maps columns by header NAME, so our alphabetical language order
+# imports fine. See GLOSSARY.md § Lokalise mapping.
 # --------------------------------------------------------------------------- #
-CSV_FIXED_HEADERS = ("term", "description", "casesensitive", "translatable", "Forbidden", "tags")
+CSV_FIXED_HEADERS = ("term", "description", "casesensitive", "translatable", "forbidden", "tags")
 CSV_DELIMITER = ";"
 
 

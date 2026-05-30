@@ -1,5 +1,4 @@
 {"term":"#mywater","description":"Brand social hashtag on share posts; lowercase, one word, never translated.","case_sensitive":true,"translatable":false,"tags":["brand"]}
-{"term":"%","description":"Percent SIGN. In runtime values a displayed percent is stored as the universal placeholder [%] (loc_placeholder_lint.py owns that rule), never a bare %. App Store / server-only values may use a literal % ([%]-carve-out). Documentation entry, not a translation target.","translatable":false,"tags":["unit"]}
 {"term":"Account","description":"User account. Keep «Аккаунт» (not «Учётная запись») for consistency.","tags":["ui"],"t":{"ru":"Аккаунт"}}
 {"term":"Achievements","description":"The achievements screen / section (the gamification feature).","tags":["ui"],"t":{"ru":"Достижения"}}
 {"term":"alcohol","description":"Tracking-category umbrella for alcoholic drinks (stats / summary / Health export) — distinct from the specific rows beer / wine / strong alcohol.","tags":["domain","beverage"],"t":{"ru":"алкоголь"}}
@@ -27,12 +26,13 @@
 {"term":"Email","description":"Keep «Email» (not «Эл. почта»/«Почта») for consistency in auth copy.","tags":["ui"],"t":{"ru":"Email"}}
 {"term":"energy drink","description":"Fixed drink type; colloquial «энергетик». The onboarding category phrase «энергетические напитки» is separate copy.","tags":["beverage"],"t":{"ru":"энергетик"}}
 {"term":"Facebook","description":"Social network for sharing / social-proof copy. Verbatim.","translatable":false,"tags":["brand"]}
-{"term":"fl oz","description":"Volume unit — US fluid ounces (imperial system).","tags":["unit"],"t":{"ru":"жидк. унц"}}
+{"term":"fl oz","description":"Volume unit — US fluid ounces (imperial system).","tags":["unit"],"t":{"ru":"жидк. унц."}}
 {"term":"fluid","description":"Non-water liquids collectively; use when the source means fluids beyond water. Contrast «вода».","tags":["domain"],"t":{"ru":"жидкость"}}
 {"term":"free trial","description":"The free trial period before billing. Warm in CTAs, formal in terms.","tags":["domain","legal"],"t":{"ru":"пробный период"}}
 {"term":"Friends","description":"Social friends list.","tags":["ui"],"t":{"ru":"Друзья"}}
 {"term":"full version","description":"LEGACY label for the paid tier; superseded by 'My Water Premium'. Flag in new strings.","tags":["domain"],"t":{"ru":"полная версия"}}
 {"term":"g","description":"Weight / nutrient unit — grams (sugar, caffeine).","tags":["unit"],"t":{"ru":"г"}}
+{"term":"glass","description":"A glass of water — quick-add measure and the recurring 'glass of water' phrase. Norm «стакан»; the diminutive «стаканчик» is banned (familiarity, TRANSLATION_STYLE.md § Фамильярность).","tags":["domain"],"t":{"ru":"стакан"}}
 {"term":"goal","description":"The user's daily water target; CURRENT term, and the recurring UI label 'Goal'. Legacy «норма» is retired — do not reintroduce.","tags":["domain","ui"],"t":{"ru":"цель"}}
 {"term":"habit","description":"The healthy water-drinking habit the app helps build.","tags":["domain"],"t":{"ru":"привычка"}}
 {"term":"healthy","description":"Health-framing adjective (healthy lifestyle / habit). The noun 'health' = «здоровье».","tags":["domain"],"t":{"ru":"здоровый"}}
@@ -47,11 +47,11 @@
 {"term":"kefir","description":"Fixed drink type (fermented milk drink).","tags":["beverage"],"t":{"ru":"кефир"}}
 {"term":"kg","description":"Weight unit — kilograms (metric).","tags":["unit"],"t":{"ru":"кг"}}
 {"term":"kissel","description":"Fixed drink type (starch-thickened fruit drink); Slavic transliteration.","tags":["beverage"],"t":{"ru":"кисель"}}
-{"term":"kombucha","description":"Fixed drink type (fermented tea). RU = «Комбуча» (the modern drink name), NOT «Чайный гриб» (which names the SCOBY organism). Corpus key 'combucha' to be re-aligned.","tags":["beverage"],"t":{"ru":"Комбуча"}}
+{"term":"kombucha","description":"Fixed drink type (fermented tea). RU = «комбуча» (the modern drink name — lowercase common noun, like the other beverages), NOT «Чайный гриб» (which names the SCOBY organism). Corpus key 'combucha' to be re-aligned.","tags":["beverage"],"t":{"ru":"комбуча"}}
 {"term":"kompot","description":"Fixed drink type (fruit compote drink). EN headword is the transliteration 'Kompot', not English 'compote'.","tags":["beverage"],"t":{"ru":"компот"}}
 {"term":"kvass","description":"Fixed drink type (fermented bread drink); Slavic transliteration — fix the EN headword so targets transliterate consistently.","tags":["beverage"],"t":{"ru":"квас"}}
 {"term":"l","description":"Volume unit — litres. Abbreviation form, no trailing period.","tags":["unit"],"t":{"ru":"л"}}
-{"term":"lb","description":"Weight unit — pounds (imperial).","tags":["unit"],"t":{"ru":"фн"}}
+{"term":"lb","description":"Weight unit — pounds (imperial).","tags":["unit"],"t":{"ru":"фн."}}
 {"term":"lemonade","description":"Fixed drink type. Keep distinct from 'soda' = «газировка».","tags":["beverage"],"t":{"ru":"лимонад"}}
 {"term":"lifestyle","description":"Healthy / active lifestyle framing in reminders and onboarding.","tags":["domain"],"t":{"ru":"образ жизни"}}
 {"term":"Live Activities","description":"iOS lock-screen / Dynamic Island live-update feature showing hydration progress. Apple's official RU term is «Эфир активности» (Apple iPhone User Guide, support.apple.com/ru-ru) — use it, NOT verbatim 'Live Activities' nor the corpus drift «Live-активности».","tags":["brand"],"t_notes":{"ru":"Официальный термин Apple (руководство iPhone). Сверить точную подпись тумблера в Настройках iOS перед pass-2; реконсилить дрейф «Live-активности» в корпусе."},"t":{"ru":"Эфир активности"}}
@@ -70,9 +70,9 @@
 {"term":"My Water Premium","description":"Current name of the paid subscription tier (replaces legacy 'Full version'). Keep verbatim.","translatable":false,"tags":["brand"]}
 {"term":"non-alcoholic beer","description":"Fixed drink type.","tags":["beverage"],"t":{"ru":"безалкогольное пиво"}}
 {"term":"Notifications","description":"Settings section / system notifications.","tags":["ui"],"t":{"ru":"Уведомления"}}
-{"term":"Off","description":"Toggle OFF state. «Выкл» (abbrev) — pair with 'On' = «Вкл».","tags":["ui"],"t":{"ru":"Выкл"}}
-{"term":"On","description":"Toggle ON state. «Вкл» — pair with 'Off' = «Выкл».","tags":["ui"],"t":{"ru":"Вкл"}}
-{"term":"oz","description":"Weight unit — ounces (imperial).","tags":["unit"],"t":{"ru":"унц"}}
+{"term":"Off","description":"Toggle OFF state. «Выкл.» (abbrev, Apple iOS RU form with trailing period) — pair with 'On' = «Вкл.».","tags":["ui"],"t":{"ru":"Выкл."}}
+{"term":"On","description":"Toggle ON state. «Вкл.» (abbrev, Apple iOS RU form with trailing period) — pair with 'Off' = «Выкл.».","tags":["ui"],"t":{"ru":"Вкл."}}
+{"term":"oz","description":"Weight unit — ounces (imperial).","tags":["unit"],"t":{"ru":"унц."}}
 {"term":"Premium","description":"Standalone premium subscription/feature. Keep Latin 'Premium'; RU inflects around it («подписка Premium»).","translatable":false,"tags":["brand"]}
 {"term":"Privacy Policy","description":"Legal document title. Register: formal.","tags":["legal"],"t":{"ru":"Политика конфиденциальности"}}
 {"term":"Profile","description":"The user profile screen / section.","tags":["ui"],"t":{"ru":"Профиль"}}
@@ -88,11 +88,12 @@
 {"term":"Siri","description":"Apple's voice assistant; the app ships a Siri shortcut to log a drink. Verbatim.","translatable":false,"tags":["brand"]}
 {"term":"smoothie","description":"Fixed drink type.","tags":["beverage"],"t":{"ru":"смузи"}}
 {"term":"soda","description":"Fixed drink type. Keep distinct from 'lemonade' = «лимонад» (they collide in some locales).","tags":["beverage"],"t":{"ru":"газировка"}}
+{"term":"Sound","description":"Settings row — notification / app sound. The loudness sense is «громкость»; complements the Volume entry's not-loudness guard.","tags":["ui"],"t":{"ru":"Звук"}}
 {"term":"soup","description":"Fixed liquid-intake type (corpus key 'Boullion', EN 'Soup'). Logged as a fluid source.","tags":["beverage"],"t":{"ru":"суп"}}
 {"term":"sports drink","description":"Fixed drink type (isotonic).","tags":["beverage"],"t":{"ru":"спортивный напиток"}}
-{"term":"st","description":"Weight unit — stone (British). Rare.","tags":["unit"],"t_notes":{"ru":"«стоун» (брит. ед. веса); «ст» может коллидировать с другими сокращениями — подтвердить в pass-2."},"t":{"ru":"ст"}}
+{"term":"st","description":"Weight unit — stone (British). Rare.","tags":["unit"],"t_notes":{"ru":"Брит. единица веса. Пишем словом «стоун»: двухбуквенное «ст» коллидирует со «столовая ложка» (ст. л.) и «стакан» (ст.). Подтвердить отображение в iOS-пикере единиц."},"t":{"ru":"стоун"}}
 {"term":"Statistics","description":"The statistics screen / section.","tags":["ui"],"t":{"ru":"Статистика"}}
-{"term":"streak","description":"Consecutive days the daily goal was met (gamification). Use «дни подряд» (count phrasing, inflects день/дня/дней); retire the «серия» variant.","tags":["domain","ui"],"t":{"ru":"дни подряд"}}
+{"term":"streak","description":"Consecutive days the daily goal was met (gamification). «дни подряд» for the inflected count ('5 дней подряд'); «серия» stays acceptable for a bare stat label and possessive ('твоя серия', 'не прерывай серию') — see ru note. Not a hard one-form rule.","tags":["domain","ui"],"t_notes":{"ru":"«дни подряд» — для счётной формы (5 дней подряд; инфлексия день/дня/дней). «серия» — ок для компактного лейбла и притяжательных конструкций («твоя серия», «не прерывай серию»), где «дни подряд» грамматически не ложится. Не загонять «дни подряд» в голый заголовок силой."},"t":{"ru":"дни подряд"}}
 {"term":"strong alcohol","description":"Fixed drink type (spirits).","tags":["beverage"],"t":{"ru":"крепкий алкоголь"}}
 {"term":"subscription","description":"The paid subscription. Register varies: warm T-form in CTAs, formal in subscription terms.","tags":["domain","legal"],"t":{"ru":"подписка"}}
 {"term":"tea","description":"Fixed drink type.","tags":["beverage"],"t":{"ru":"чай"}}
@@ -109,6 +110,6 @@
 {"term":"Widget","description":"Home-screen / lock-screen widget.","tags":["ui"],"t":{"ru":"Виджет"}}
 {"term":"wine","description":"Fixed alcoholic drink type.","tags":["beverage"],"t":{"ru":"вино"}}
 {"term":"yogurt","description":"Fixed drink type (drinkable yogurt).","tags":["beverage"],"t":{"ru":"йогурт"}}
-{"term":"гидратация","description":"FORBIDDEN (RU calque) — clinical rendering of 'hydration' on casual surfaces. The en word 'hydration' is fine; only this RU calque is banned. Use «вода» / «выпито» / «прогресс».","forbidden":true,"tags":["domain"],"t":{"ru":"гидратация"}}
-{"term":"консумация","description":"FORBIDDEN (RU calque) — non-standard clinical calque of 'consumption'. Use plain «вода» / «выпито».","forbidden":true,"tags":["domain"],"t":{"ru":"консумация"}}
-{"term":"потребление воды","description":"FORBIDDEN (RU calque) — Apple Health's formal term, clinical for our friendly tracker. Use «вода» / «дневной объём» / «цель».","forbidden":true,"tags":["domain"],"t":{"ru":"потребление воды"}}
+{"term":"гидратация","description":"FORBIDDEN (RU calque) — clinical rendering of 'hydration' on casual surfaces. The en word 'hydration' is fine; only this RU calque is banned. Use «вода» / «выпито» / «прогресс».","forbidden":true,"tags":["domain"]}
+{"term":"консумация","description":"FORBIDDEN (RU calque) — non-standard clinical calque of 'consumption'. Use plain «вода» / «выпито».","forbidden":true,"tags":["domain"]}
+{"term":"потребление воды","description":"FORBIDDEN (RU calque) — Apple Health's formal term, clinical for our friendly tracker. Use «вода» / «дневной объём» / «цель».","forbidden":true,"tags":["domain"]}
