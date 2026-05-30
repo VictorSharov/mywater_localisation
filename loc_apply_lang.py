@@ -33,7 +33,7 @@ the corpus (a fresh map still needs human / Lokalise review).
 Not concurrency-safe: this rewrites the whole corpus (read-all -> mutate -> write-all),
 so a parallel translation pass must run the apply step one language at a time — fan out
 the per-language JSON generation, serialize the applies (CLAUDE.md
-[CR-CORPUS-CONCURRENCY], § Parallel translation passes).
+[CR-CORPUS-CONCURRENCY], PIPELINE.md § Parallel translation passes).
 
 For dev / debugging runs use `--corpus /tmp/test_corpus.ndjson` (copy the live
 corpus first) so the working-tree `strings.ndjson` is never touched. Do NOT apply

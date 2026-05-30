@@ -102,7 +102,7 @@ diff:
 # artifacts /tmp/loc_<lang>.json into $(CORPUS), ONE AT A TIME in a single process.
 # Routing every apply through this one operator command IS the "single writer" — it
 # structurally avoids the concurrent read-mutate-write race that silently clobbers
-# translations (CLAUDE.md [CR-CORPUS-CONCURRENCY] / § Parallel translation passes).
+# translations (CLAUDE.md [CR-CORPUS-CONCURRENCY] / PIPELINE.md § Parallel translation passes).
 # Parallel fan-out agents only EMIT the artifacts; a clean `git diff --stat` is NOT a
 # substitute lock. Usage:  make apply LANGS="vi"  /  make apply LANGS="vi nb de"
 apply:

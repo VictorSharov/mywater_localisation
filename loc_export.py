@@ -8,10 +8,10 @@ loc_corpus_import.py pushes):
 
 Until now that export was clicked by hand in the Lokalise "Download" UI — dozens of
 toggles per platform, plus per-language code overrides, that are easy to get wrong
-(README.md "Export from Lokalise" documents them). This script encodes those
+(EXPORT.md documents them). This script encodes those
 validated settings as per-platform profiles and drives the download API, so the
 settings live in one reviewable place instead of a human's memory. Each `params`
-entry below maps 1:1 to a documented README setting; that table stays the
+entry below maps 1:1 to a documented EXPORT.md setting; that table stays the
 human-readable spec this script implements.
 
 Flow (per platform, under --apply):

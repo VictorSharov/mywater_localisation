@@ -1,3 +1,9 @@
+<!--
+doc-role: reference
+doc-owner: prompts/CLAUDE.md (mywater_localisation repo)
+doc-scope: reusable operator prompt — translation pass + verification pass; human-authored, copy-paste into chat, edited only on operator request.
+-->
+
 Ты профессиональный переводчик мобильных приложений и отлично понимаешь особенности локализации приложений и важность однородного звучания текстов внутри проекта. 
 Параллельно идет работа над другими языками, имей это ввиду.
 Найди фразы, требующие перевода (пустой target / empty string / `unverified` в корпусе `strings.ndjson`), и сделай их перевод с английского и русского как референс-языков.

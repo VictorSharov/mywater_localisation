@@ -1,8 +1,16 @@
+<!--
+doc-role: canonical
+doc-owner: CLAUDE.md (mywater_localisation repo) — the agent contract
+doc-scope: agent contract + navigation — bootstrap, task / reverse routing, critical rules (terse [CR-*] anchors), corpus workflow, self-translation discipline, verification. Detailed corpus mechanics → PIPELINE.md; linguistic canon → TRANSLATION_STYLE.md; export settings → EXPORT.md.
+-->
+
 # mywater_localisation — agent instructions (`AGENTS.md` / `CLAUDE.md`)
 
 Cross-platform localization **source-of-truth corpus + tooling** for MyWater
 (iOS / Android / server). Setup, the full script table, and human commands are in
-[`README.md`](README.md); this file is the agent contract.
+[`README.md`](README.md); the detailed corpus mechanics are in
+[`PIPELINE.md`](PIPELINE.md); the linguistic canon is in
+[`TRANSLATION_STYLE.md`](TRANSLATION_STYLE.md). This file is the agent contract.
 
 Ты коллаборатор, не исполнитель. Не заявляй об успехе без проверки.
 
@@ -11,10 +19,10 @@ developers work here, and an agent's private / session memory is per-developer �
 it is never shared, so another contributor's agent does not see it. Keep all
 durable project knowledge (pipeline state, Lokalise export settings, placeholder /
 translation conventions, gotchas, decisions) in the tracked docs — this file,
-[`README.md`](README.md), [`TRANSLATION_STYLE.md`](TRANSLATION_STYLE.md) — or the
-relevant script docstring, and review it as a git diff. Reserve private memory for
-personal working preferences only; never let correctness-relevant project
-knowledge live only in memory.
+[`README.md`](README.md), [`PIPELINE.md`](PIPELINE.md),
+[`TRANSLATION_STYLE.md`](TRANSLATION_STYLE.md) — or the relevant script docstring,
+and review it as a git diff. Reserve private memory for personal working
+preferences only; never let correctness-relevant project knowledge live only in memory.
 
 **Scratch stays out of the working tree.** Probes, debug dumps, one-off analysis
 output and any other throwaway files go in `/tmp` (the tooling already does this —
@@ -24,7 +32,42 @@ reviewable `git diff` and untracked junk never masks a real change — the whole
 pipeline is diff-review based. Don't lean on `.gitignore` to hide scratch (a broad
 ignore pattern would also hide real files).
 
-## Pipeline (read this first)
+## Bootstrap — read order
+
+1. **This file** — § Critical rules + § Task router (always); the rest by need.
+2. **The owner doc for your task** — pick the row in § Task router below.
+3. **[`PIPELINE.md`](PIPELINE.md)** before any task that *writes* the corpus (apply /
+   fan-in / metadata / `en` source change). **[`TRANSLATION_STYLE.md`](TRANSLATION_STYLE.md)**
+   before translating or editing any user-facing text.
+
+Before any action that could touch the corpus, run `git diff --stat strings.ndjson` —
+a non-empty diff is someone else's in-flight work and must be preserved ([CR-CORPUS-WORKTREE]).
+
+## Task router (forward — "doing X → read first")
+
+| Task | Read first | Tools (token-free unless noted) |
+|---|---|---|
+| Translate a language / fill the backlog | `TRANSLATION_STYLE.md` + § Self-translation discipline + `PIPELINE.md § Parallel translation passes` | `loc_r_marked_translations.py`, `loc_apply_lang.py`, `make apply` |
+| Audit existing translations | `loc_audit_prompt.md` (+ `loc_audit_lang_calibration/<lang>.md` for ar/hi/vi/id/ms) | `loc_audit_extract.py`, `loc_audit_apply.py` |
+| Add a new key | § Adding a new key (every platform) — reuse-search first | `loc_corpus_import.py` (operator `--apply`) |
+| Edit key metadata (platforms / description / filenames) | [CR-CORPUS-META] → [`PIPELINE.md`](PIPELINE.md) | `loc_apply_meta.py` |
+| Change an `en` source value | [CR-CORPUS-SOURCE-CHANGE] → [`PIPELINE.md`](PIPELINE.md) | `loc_apply_lang.py` |
+| Write / apply the corpus, parallel passes, recovery | § Critical rules + [`PIPELINE.md`](PIPELINE.md) | apply scripts, `make apply` / `make diff` |
+| Linguistic style / brand voice / register / placeholders | `TRANSLATION_STYLE.md` | `make lint` |
+| Push edits to Lokalise | [CR-MAKE] / [CR-ACCESS] — operator-run | `make push` / `make push-dry` |
+| Export Lokalise → platforms | `EXPORT.md` — operator-run | `make export` / `make export-dry` |
+| Lint / verify an edit | § Verification | `make lint` |
+
+## Reverse routing (changed X → also update Y)
+
+| Changed | Update / re-verify |
+|---|---|
+| `loc_corpus.py` (the serializer) | Round-trip byte-identical test against a copy ([CR-CORPUS-OWNER], § Verification) |
+| A rule in `TRANSLATION_STYLE.md § Brand voice` / discipline | Mirror its **operational** form into `loc_audit_prompt.md` — the sub-agent reads it verbatim with no doc access, so this duplication is intentional — and add a dated `§ Calibration changelog` entry |
+| An export setting (Lokalise download) | `EXPORT.md` table + the matching profile in `loc_export.py` (keep in sync) |
+| A `[CR-*]` rule's mechanics in `PIPELINE.md` | Keep the terse statement in § Critical rules in sync (same `[CR-*]` anchor) |
+
+## Pipeline
 
 ```
 Lokalise ─(loc_corpus_ndjson.py)→ strings.ndjson ←─ agents read for dedup / audit
@@ -45,170 +88,66 @@ strings.ndjson + Lokalise ─(loc_export.py --apply)→ iOS .strings / Android .
 
 ## Critical rules
 
-- **[CR-CORPUS-OWNER] One serializer.** `loc_corpus.py` owns corpus read/write.
-  Never hand-edit `strings.ndjson` formatting or re-serialize it another way —
-  go through `loc_corpus.write_records` (or an apply script). A round-trip
-  read→write must be byte-identical (deterministic diff). Field order, sorted
-  `t`, sorted `unverified`, lean omission, compact separators are part of the
-  contract.
-- **[CR-CORPUS-CONCURRENCY] Corpus writes are whole-file and unsynchronized — fan out generation, serialize applies.**
-  `write_records` rewrites the *entire* `strings.ndjson` from an in-memory snapshot
-  (`open("w")`, buffered, no lock, no atomic rename) and every apply script is
-  read-all → mutate → write-all ([CR-CORPUS-OWNER]). So two apply processes on the
-  same corpus race: the slower one's write silently clobbers the faster one's edits
-  (lost update — no error, clean diff, translations just gone), and interleaved buffer
-  flushes can emit a broken NDJSON line. Reads are safe for any number of readers.
-  Therefore the **translation reasoning** (read corpus → emit a per-language
-  `{key:value}` JSON) fans out across agents freely, but the **apply** step
-  (`loc_apply_lang` / `loc_audit_apply`, which write the corpus) runs **one at a time**.
-  Each language is a disjoint `t[lang]` and the writer is deterministic, so sequential
-  applies compose into one clean diff in any order. Recipe: § Parallel translation passes.
-- **[CR-CORPUS-WORKTREE] The working tree is shared state — never destroy uncommitted corpus edits.**
-  Because parallel agents emit per-language artifacts (`/tmp/loc_<lang>.json`) and
-  apply them as **uncommitted edits** to `strings.ndjson` in the *same working tree*
-  ([CR-CORPUS-CONCURRENCY], § Parallel translation passes), the working-tree
-  contents of `strings.ndjson` are someone else's in-flight work — not your private
-  scratchpad. Destructive git operations on the corpus are therefore equivalent to
-  a clobbering apply and produce the same silent loss of translations as the
-  concurrent-write race in [CR-CORPUS-CONCURRENCY]: `git checkout strings.ndjson`,
-  `git restore strings.ndjson`, `git reset --hard`, `git stash push -- strings.ndjson`
-  followed by drop, `git clean -fd` — all wipe uncommitted edits and emit *no error*.
-  Reflog tracks commits, not working-tree edits; `git fsck --lost-found` tracks
-  orphaned blobs in the objects DB, but uncommitted modifications never enter it.
-  So once those edits are gone they are **unrecoverable through git** — only the
-  per-language `/tmp/loc_<lang>.json` artifacts (if the originating agent saved
-  them) and the local pre-write snapshots in `.loc_backup/` (rotated, last
-  `loc_corpus.SNAPSHOT_RETAIN` writes; gitignored) can restore the prior state.
-  Recovery: `cp .loc_backup/strings.ndjson.<ts> strings.ndjson`. Snapshots are
-  written automatically by `loc_corpus.write_records` before every mutation of
-  the live corpus; tests against `--corpus /tmp/test.ndjson` stay snapshot-free.
-  - **Always assume `strings.ndjson` may carry someone else's pending work.** Run
-    `git diff --stat strings.ndjson` before any operation that could overwrite it,
-    and treat a non-empty diff as a hold signal — confirm with the operator before
-    proceeding. A clean diff is the only safe precondition for a `git checkout` /
-    `git restore` / `git reset` on the corpus.
-  - **Test apply scripts against a copy via `--corpus`, never against the live corpus
-    followed by a revert.** Every apply script (`loc_apply_lang.py`,
-    `loc_audit_apply.py`, etc.) accepts `--corpus <path>` specifically so dev /
-    debugging runs leave the working tree untouched. Recipe:
-    ```
-    cp strings.ndjson /tmp/test_corpus.ndjson
-    python3 loc_apply_lang.py <lang> /tmp/test.json --corpus /tmp/test_corpus.ndjson
-    diff strings.ndjson /tmp/test_corpus.ndjson    # inspect freely; live corpus untouched
-    ```
-    Pattern to avoid: applying to the live corpus and then `git checkout strings.ndjson`
-    to "undo" — that revert also wipes any uncommitted parallel-agent work that was
-    sitting in the working tree before the test apply.
+Each rule below is the **contract statement** carrying its `[CR-*]` anchor (cross-repo
+links resolve here). For the corpus-data rules, the full mechanics, recovery procedures
+and rationale live in [`PIPELINE.md`](PIPELINE.md) under the same `[CR-*]` heading — keep
+the two in sync.
+
+- **[CR-CORPUS-OWNER] One serializer.** `loc_corpus.py` owns corpus read/write. Never
+  hand-edit `strings.ndjson` formatting or re-serialize it another way — go through
+  `loc_corpus.write_records` (or an apply script). A round-trip read→write must be
+  byte-identical (deterministic diff). → mechanics & field-order contract:
+  `PIPELINE.md § [CR-CORPUS-OWNER]`.
+- **[CR-CORPUS-CONCURRENCY] Corpus writes are whole-file and unsynchronized — fan out
+  generation, serialize applies.** Reads are safe for any number of readers, but two
+  apply processes racing on the same corpus lose-update silently (the slower write
+  clobbers the faster — no error, clean diff, translations just gone). Translation
+  *reasoning* fans out across agents freely; the **apply** step (`loc_apply_lang` /
+  `loc_audit_apply`) runs **one at a time**. → mechanics:
+  `PIPELINE.md § [CR-CORPUS-CONCURRENCY]`.
+- **[CR-CORPUS-WORKTREE] The working tree is shared state — never destroy uncommitted
+  corpus edits.** Uncommitted `strings.ndjson` may be another agent's in-flight fan-in;
+  destructive git ops (`git checkout` / `git restore` / `git reset --hard` /
+  `git stash` + drop / `git clean`) wipe it silently and **unrecoverably** (reflog / fsck
+  don't track working-tree edits). Run `git diff --stat strings.ndjson` first; test
+  applies against a `--corpus` copy, never the live corpus + revert. → recovery & recipes:
+  `PIPELINE.md § [CR-CORPUS-WORKTREE]`.
 - **[CR-CORPUS-UNVERIFIED] Edited ⇒ unverified; untranslated ⇒ empty + unverified.**
-  `set_translation` flags an edited target language `unverified`. This field is the
-  **canonical, cross-platform owner** of the localization review state; the consuming
-  repos thin-link here instead of re-explaining it. It carries two related signals:
-    - **"AI/edited, not yet human-verified"** — a target holds a value but `unverified`
-      is set. Corpus: the `unverified` field (this repo); Lokalise: the translation's
-      *unverified* review state, which iOS / Android / server read back from there.
-    - **"needs (re)translation"** — a target is **empty (`""`) and `unverified`**. An
-      empty-but-present target is the cross-platform "untranslated" marker, and the
-      release gate blocks on it.
-  Both clear the same way: do **not** clear `unverified` for an AI-produced translation —
-  that is a separate operator-/Lokalise-gated action (a human verifies it in Lokalise).
-  Filling, correcting, or re-translating keeps `unverified` set. The **source** language
-  (`en`) is the exception: it is never `unverified`, and never empty for a live key — it
-  is the dev source of truth, not a review target, and is always pushed **verified**.
-  - **Retired — the `|R|` source marker.** The old `|R|` prefix (iOS `en.lproj` value,
-    server `notes` tag) is no longer the marker: it tagged the *source*, which is always
-    verified anyway — a mismatch. The signal now lives only on the **targets** (empty +
-    `unverified`), never on `en`. The `|R|` validation lints (iOS `localization_lint.py`,
-    server doc-sync Check 39) and the dead iOS runtime strip have been removed.
-- **[CR-CORPUS-DIRTY] Push iff locally edited — `dirty`, not `unverified`.**
-  `unverified` is *review state* and does **not** drive the push: pushing is not
-  verifying, so a pushed translation stays `unverified` until a human
-  reviews it in Lokalise. The push signal is a separate `dirty` set — on a value
-  change `set_translation` adds the language (source **or** target) to `dirty`,
-  and `loc_corpus_import`'s default scope pushes exactly the `dirty` languages
-  (source as **verified**, targets as **unverified**). A successful `--apply`
-  clears the pushed languages from `dirty` (the importer writes the corpus back
-  through `loc_corpus.write_records`), so re-running is a no-op rather than a
-  re-push, and a verified Lokalise translation is never clobbered by a stale
-  snapshot of a language nobody edited. A regenerate rebuilds from Lokalise and
-  never emits `dirty`, so it self-clears. Net: a local edit (fixing the `en`
-  wording, or a target translation) propagates on the next plain
-  `loc_corpus_import --apply`, then drains — not silently dropped, not endlessly
-  re-sent.
-- **[CR-CORPUS-META] Key metadata is corpus-owned too — `dirty_meta`.** The corpus
-  is the source of truth not only for translation values but for three key-level
-  fields: `platforms`, the translator description (corpus field `context`), and
-  per-platform export-file routing (`filenames`). Edit them through
-  `loc_apply_meta.py` (token-free) or `loc_corpus.set_platforms` / `set_context` /
-  `set_filename` — never hand-edit ([CR-CORPUS-OWNER]). A change adds the field to a
-  key-level `dirty_meta` set (the metadata analog of `dirty`), and
-  `loc_corpus_import` pushes those fields via the **keys endpoint** (`update_key`),
-  separate from the per-translation endpoint: `platforms` as a full-array replace
-  (so add/remove a platform = the resulting set), corpus `context` → the Lokalise
-  **`description`** field (this project's translator-notes field), and `filenames` →
-  the Lokalise **`filenames`** object as a full per-platform replace (the iOS slot
-  decides `InfoPlist.strings` vs the default `Localizable.strings`; an unset slot
-  exports to the default bundle — so the corpus map is authoritative). A successful
-  `--apply` clears the pushed fields from `dirty_meta` (re-run is a no-op); a
-  regenerate never emits it (self-clears) and reads `description` + `filenames` back
-  first so a pushed value round-trips. Metadata has **no** review state — unlike a
-  translation it is never `unverified`. Naming a key (`--key`) re-pushes its
-  platforms + any existing description + any existing filenames regardless of
-  `dirty_meta`; to *clear* a description / routing use `loc_apply_meta
-  --clear-description` / `--clear-filename` (the dirty path pushes an empty value).
-  Because the push is a full replace, run `loc_corpus_import` against a freshly
-  regenerated corpus the first time, so any pre-existing Lokalise `filenames` slot
-  is captured before it could be overwritten with an empty.
-- **[CR-CORPUS-SOURCE-CHANGE] An `en` source edit obsoletes that key's translations; re-author `ru` in the same edit.**
-  When you change a key's `en` value in a way that changes meaning, every existing
-  target translation now renders the *old* English and is stale. Do not leave stale
-  targets silently. In the same edit:
-    - **Re-author `ru` immediately.** `ru` is the co-source kept in parity with `en`
-      (the team is ru-native; `ru` is the audit anchor), not an ordinary target. Write a
-      real translation of the new wording via `set_translation` / `loc_apply_lang`; it
-      stays `unverified` until human review (it is a target, not the source). This
-      `ru`-now step is the one carve-out to § Self-translation discipline.
-    - **Blank every other target** you are not re-authoring right now by setting it to
-      `""` (empty is a valid Lokalise value — present-but-blank). An emptied target is
-      `dirty` (the importer pushes it, so Lokalise shows the string as untranslated) and
-      `unverified`; that empty-+-`unverified` **target** state is the canonical
-      cross-platform "needs (re)translation" marker ([CR-CORPUS-UNVERIFIED]) — carried by
-      the target, never by the source — and the release gate blocks on it. Re-author one
-      of these other languages only when the operator explicitly asks (§ Self-translation
-      discipline).
-  The `en` source itself stays verified: **never** mark `en` `unverified` or blank it;
-  its `dirty:[en]` flag already means "source changed, push pending". Net: an `en` change
-  can never ship old wording under new English — `ru` is always freshly re-authored, and
-  every other target is either re-authored (`unverified`) or blanked (untranslated). A
-  meaning-preserving `en` fix (typo, casing, punctuation) does not obsolete the
-  translations and does not require blanking or re-authoring `ru`.
-- **[CR-PLACEHOLDER] Universal placeholders.** Corpus values store **Lokalise
-  universal placeholders** (`[%s]` / `[%i]` / `[%.1f]` / `[%1$s]`), never bare
-  `%@` / `%d` / `%s`. Lokalise converts universal → platform on export; the
-  reverse (platform → universal) happens ONLY on file upload, so the keys-API
-  import (`loc_corpus_import`) stores a bare placeholder literally and it
-  mis-exports. Literal percent is the universal `[%]`; Lokalise escapes it per
-  platform on export (`→ %%` for printf/iOS, `→ %` standalone), and the iOS bundle
-  pins "Convert all [%]→%%" on so even a standalone `[%]` is safe under R.swift
-  `String(format:)`. Do **not** store a bare `%%` (an iOS-only printf escape the
-  keys-API stores literally → leaks `%%` to Android/server consumers that don't
-  format) or a lone `%` in a runtime value. iOS `.stringsdict` `%#@var@` has no
-  universal form → such a key
-  must be a Lokalise plural. Canonical: `TRANSLATION_STYLE.md § Placeholders`;
-  `loc_placeholder_lint.py` enforces it (also a pre-flight in `loc_corpus_import`).
-- **[CR-KEY-NAME] Keys are valid-everywhere identifiers.** A key name must match the
-  Android-strict grammar `[A-Za-z][A-Za-z0-9_]*` — lead with an ASCII letter; letters,
-  digits, underscore only; no space / `.` / `%` / `-` / leading digit. Android resource
-  names are the strict floor (they become `R.string` fields); iOS `.strings` / R.swift and
-  server JSON are laxer. A violating name is **silently sanitized per platform** — by
-  Lokalise on Android export (space → `_`, leading `[0-9%]` stripped, `.` kept) and by
-  R.swift on iOS *independently* — so one `key_id` ends up with a different effective name
-  per platform (drift) and the corpus `key` stops matching the shipped resource name.
-  Namespace with `_`, not `.` (`apphud_offer_trial_extend`, not `apphud.offer.trial_extend`):
-  a dotted name can never be an `R.string` field (only `getIdentifier(name)` by string) and
-  survives Android export only by luck. Renaming an existing key to the canonical form is
-  Lokalise-side — `lokalise_helper.py rename-keys --map-file <{key_id,new_name}[]>` (sets one
-  global `key_name`, `key_id` preserved), then regenerate; the corpus has no rename op and
-  apply scripts are replace-only ([CR-CORPUS-OWNER]).
+  Canonical cross-platform owner of review state. A target with a value but `unverified`
+  = AI/edited-not-yet-human-verified; empty (`""`) + `unverified` = needs (re)translation
+  (release gate blocks). Do **not** clear `unverified` for an AI-produced translation —
+  that is operator-/Lokalise-gated. The `en` source is never `unverified` and never empty.
+  → mechanics + retired `|R|` marker: `PIPELINE.md § [CR-CORPUS-UNVERIFIED]`.
+- **[CR-CORPUS-DIRTY] Push iff locally edited — `dirty`, not `unverified`.** A value
+  change adds the language (source or target) to `dirty`; `loc_corpus_import` pushes
+  exactly the `dirty` set (source verified, targets unverified) and a successful `--apply`
+  drains it (re-run is a no-op). Pushing is not verifying — pushed targets stay
+  `unverified`. → mechanics: `PIPELINE.md § [CR-CORPUS-DIRTY]`.
+- **[CR-CORPUS-META] Key metadata is corpus-owned too — `dirty_meta`.** `platforms`, the
+  translator description (corpus `context` → Lokalise `description`), and export routing
+  (`filenames`) are edited via `loc_apply_meta.py` (never hand-edit), tracked in
+  `dirty_meta`, and pushed via the keys endpoint as full replaces. Metadata has **no**
+  review state. → mechanics: `PIPELINE.md § [CR-CORPUS-META]`.
+- **[CR-CORPUS-SOURCE-CHANGE] An `en` meaning change obsoletes that key's translations;
+  re-author `ru` in the same edit.** Re-author `ru` immediately (co-source kept in parity
+  with `en`), and blank every other target to `""` (→ `dirty` + `unverified` =
+  untranslated). `en` stays verified — never blank or `unverified` it. A meaning-preserving
+  fix (typo / casing / punctuation) does not obsolete and needs no blanking. → mechanics:
+  `PIPELINE.md § [CR-CORPUS-SOURCE-CHANGE]`.
+- **[CR-PLACEHOLDER] Universal placeholders.** Corpus values store **Lokalise universal
+  placeholders** (`[%s]` / `[%i]` / `[%.1f]` / `[%1$s]`), never bare `%@` / `%d` / `%s` —
+  Lokalise converts universal → platform on export, but the keys-API import
+  (`loc_corpus_import`) stores a bare placeholder literally and it mis-exports. Literal
+  percent is the universal `[%]`; do **not** store a bare `%%` or a lone `%` in a runtime
+  value. iOS `.stringsdict` `%#@var@` has no universal form → such a key must be a Lokalise
+  plural. → canonical detail: `TRANSLATION_STYLE.md § Placeholders`; enforced by
+  `loc_placeholder_lint.py` (also a pre-flight in `loc_corpus_import`).
+- **[CR-KEY-NAME] Keys are valid-everywhere identifiers.** Match `[A-Za-z][A-Za-z0-9_]*` —
+  ASCII letter lead; letters, digits, underscore only; no space / `.` / `%` / `-` /
+  leading digit. Namespace with `_`, not `.`. A violating name is silently sanitized per
+  platform → per-platform drift. Renaming is Lokalise-side
+  (`lokalise_helper.py rename-keys`), then regenerate. → mechanics:
+  `PIPELINE.md § [CR-KEY-NAME]`.
 - **[CR-SECRETS] Token discipline.** `LOKALISE_API_TOKEN` only via env, never as
   a CLI arg, and never printed to chat / logs / docs. Mutating commands
   (`loc_corpus_import`, `lokalise_helper`, unused tagging) are **dry-run by
@@ -226,7 +165,7 @@ strings.ndjson + Lokalise ─(loc_export.py --apply)→ iOS .strings / Android .
     [CR-ACCESS] — you produce the plan, the operator runs `make push`.
   - **For your own token-free runs, prefer the `make` target where one exists** —
     `make lint` (placeholder + qa in one), `make diff`, `make apply LANGS="<lang>"`
-    (the serialized single-writer fan-in, § Parallel translation passes).
+    (the serialized single-writer fan-in, `PIPELINE.md § Parallel translation passes`).
   - **No target ⇒ run the script directly** — extract / audit / metadata / merge
     (`loc_r_marked_translations.py` extract, `loc_audit_*`, `loc_apply_meta.py`,
     `loc_merge_languages.py`, `lokalise_helper.py`) have no wrapper; use them as
@@ -306,7 +245,7 @@ export ([CR-PLACEHOLDER]).
    the key in Lokalise (records without `key_id` → create) and stamps the new
    `key_id` back into the corpus — **commit the corpus** so a re-run updates instead
    of re-creating. Then translate / verify (audit sub-agent), and the operator runs
-   the per-platform export (`loc_export.py --apply`, README § Export from Lokalise)
+   the per-platform export (`loc_export.py --apply`, EXPORT.md)
    and commits the platform
    bundle, which replaces the scaffold and fans out every language. A new key (a new
    typed accessor) needs the platform's own release to appear; the export only
@@ -337,47 +276,8 @@ of unrelated work ([CR-CORPUS-SOURCE-CHANGE], § Adding a new key). The discipli
 governs the other 19 targets — they stay empty (`""` + `unverified`) until an explicit
 translation pass.
 
-## Parallel translation passes (fan-out / fan-in)
-
-A multi-language translation pass parallelizes safely as fan-out / fan-in — never as
-concurrent corpus writes ([CR-CORPUS-CONCURRENCY]):
-
-1. **Fan-out — parallel, read-only.** One agent per language. Each reads the corpus
-   (directly, or via `loc_merge_languages.py <lang>`, which writes a read-only
-   side-by-side `/tmp/loc_merge_*.txt` whose path is keyed by the language set, so
-   parallel runs never collide) and emits **its own** artifact: a `{key: value}` JSON
-   for that language — the input `loc_apply_lang` expects — e.g. `/tmp/loc_<lang>.json`.
-   No agent touches `strings.ndjson`. Translate per-key with per-key reasoning and the
-   linguistic discipline (§ Self-translation discipline); fan-out parallelizes the
-   *languages*, it does not license batch fan-out without per-key reasoning.
-2. **Fan-in — sequential, single writer.** Apply the artifacts one at a time —
-   `loc_apply_lang.py <lang> /tmp/loc_<lang>.json` per language (or `make apply
-   LANGS="…"`, which loops them in one process), **never two at once**. Each run is
-   sub-second, touches only its `t[lang]`, and flags that language `unverified`
-   ([CR-CORPUS-UNVERIFIED]); disjoint languages + a deterministic writer make the order
-   free and the cumulative `git diff` clean.
-   - **"Single writer" is a serialization guarantee, not a per-agent diff check.** The
-     only safe enforcement is that **one** process runs every apply in sequence — so the
-     parallel fan-out agents (step 1) should **emit their `/tmp/loc_<lang>.json` and
-     stop**, and let the operator drain them with a single `make apply LANGS="…"` run. A
-     fan-out agent applying its own language autonomously is safe **only if it is
-     demonstrably the sole writer at that instant**, which a clean `git diff --stat
-     strings.ndjson` does **not** establish: that check guards [CR-CORPUS-WORKTREE]
-     (don't bury someone's already-unsaved edits) but is **not a lock** — it cannot stop
-     another agent's `read→mutate→write` from interleaving with yours *during* the apply,
-     and two agents that both observe a clean diff and both apply will still lose-update
-     ([CR-CORPUS-CONCURRENCY]). When unsure: emit and defer.
-3. **Review & push.** `make diff`, then the token-holding operator runs `make push`
-   ([CR-ACCESS], [CR-MAKE]).
-
-Never: let an agent write the corpus directly (race + [CR-CORPUS-OWNER]); run two
-applies concurrently; regenerate (`loc_corpus_ndjson.py`) mid-pass — it overwrites
-the corpus from Lokalise and discards every un-imported edit; or run a destructive
-git operation on `strings.ndjson` (`git checkout` / `git restore` / `git reset --hard` /
-`git stash` + drop / `git clean`) — uncommitted edits in the working tree are
-someone else's in-flight fan-in and a revert wipes them silently and unrecoverably
-([CR-CORPUS-WORKTREE]). For dev / debugging always run apply scripts against a
-copy via `--corpus /tmp/test_corpus.ndjson`, not against the live corpus.
+Safe parallelization of an explicit multi-language pass (fan-out / fan-in, single
+writer) — `PIPELINE.md § Parallel translation passes`.
 
 ## Canonical linguistic rules live here
 
