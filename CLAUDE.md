@@ -50,6 +50,7 @@ a non-empty diff is someone else's in-flight work and must be preserved ([CR-COR
 | Translate a language / fill the backlog | `TRANSLATION_STYLE.md` + § Self-translation discipline + `PIPELINE.md § Parallel translation passes` | `loc_r_marked_translations.py`, `loc_apply_lang.py`, `make apply` |
 | Audit existing translations | `loc_audit_prompt.md` (+ `loc_audit_lang_calibration/<lang>.md` for ar/hi/vi/id/ms) | `loc_audit_extract.py`, `loc_audit_apply.py` |
 | Add a new key | § Adding a new key (every platform) — reuse-search first | `loc_corpus_import.py` (operator `--apply`) |
+| Convert a flat key to plural | § Changing a flat key into a plural — replacement flow, never in-place | `make push` + `make delete-keys` + `make export` (operator-run) |
 | Edit key metadata (platforms / description / filenames) | [CR-CORPUS-META] → [`PIPELINE.md`](PIPELINE.md) | `loc_apply_meta.py` |
 | Change an `en` source value | [CR-CORPUS-SOURCE-CHANGE] → [`PIPELINE.md`](PIPELINE.md) | `loc_apply_lang.py` |
 | Write / apply the corpus, parallel passes, recovery | § Critical rules + [`PIPELINE.md`](PIPELINE.md) | apply scripts, `make apply` / `make diff` |
@@ -164,8 +165,9 @@ the two in sync.
   routing through it keeps everyone on the guarded path. Therefore:
   - **Hand the operator a `make` target, never the raw script.** For the token-gated
     steps you cannot run yourself: `make push` (not `loc_corpus_import.py --apply`),
-    `make push-dry`, `make pull`, `make export` / `make export-dry`. Pairs with
-    [CR-ACCESS] — you produce the plan, the operator runs `make push`.
+    `make push-dry`, `make delete-keys` / `make delete-keys-dry`, `make pull`,
+    `make export` / `make export-dry`. Pairs with [CR-ACCESS] — you produce the
+    plan, the operator runs `make push`.
   - **For your own token-free runs, prefer the `make` target where one exists** —
     `make lint` (placeholder + qa in one), `make diff`, `make apply LANGS="<lang>"`
     (the serialized single-writer fan-in, `PIPELINE.md § Parallel translation passes`).
@@ -263,6 +265,33 @@ export ([CR-PLACEHOLDER]).
 
 Do not add new keys via the audit-findings path — `loc_audit_apply` /
 `loc_apply_lang` are replace-only (an unknown key is reported, not appended).
+
+## Changing a flat key into a plural
+
+Key type is not mutable through the corpus value-update path: `loc_corpus_import`
+sets Lokalise `is_plural` only when it **creates** a record without `key_id`; updates
+to an existing key only replace translations / metadata. Therefore a flat string that
+turns out to be count-governed is a replacement migration, not an in-place edit:
+
+1. **Create a new plural key** following `§ Adding a new key (every platform)`.
+   Give it a valid new identifier (for example `<oldName>Plural`), make `t.en` a CLDR
+   forms map, keep universal placeholders, and route platforms / filenames normally.
+2. **Switch platform call-sites to the new key** and add only the source-language
+   compile scaffold required by that platform (`.stringsdict` for iOS, `<plurals>` for
+   Android). Do not hand-fill other platform-language files; export owns them.
+3. **Do not treat a line deletion from `strings.ndjson` as a Lokalise delete.**
+   The corpus is a snapshot of Lokalise; removing a record locally only makes the
+   snapshot false until the next `make pull` brings it back. Keep the old flat record
+   in the corpus until the token-holding operator deletes it in Lokalise and a pull /
+   regenerate proves it disappeared.
+4. **Operator round-trip:** first create / push the new plural key with `make push`;
+   then delete the old Lokalise key explicitly with
+   `make delete-keys-dry DELETE_KEY_IDS="<oldKeyId>"` and
+   `make delete-keys DELETE_KEY_IDS="<oldKeyId>"`; then run `make export` so platform
+   bundles no longer contain the old key, and `make pull` so the corpus drops the old
+   record from the remote source of truth. Prefer key ids over names in deletion
+   commands. A mutating delete is operator-run and token-gated ([CR-ACCESS],
+   [CR-SECRETS]).
 
 ## Self-translation discipline
 

@@ -168,6 +168,20 @@ every other target is either re-authored (`unverified`) or blanked (untranslated
 meaning-preserving `en` fix (typo, casing, punctuation) does not obsolete the
 translations and does not require blanking or re-authoring `ru`.
 
+### Flat → plural is a replacement migration
+
+Changing a key's structural type (flat string ↔ plural key) is not a value edit.
+`loc_corpus_import` sets Lokalise `is_plural` only in the create payload for records
+without `key_id`; an update to an existing key pushes translations / metadata but
+does not mutate the key type. So when a shipped flat key becomes count-governed, use
+`CLAUDE.md § Changing a flat key into a plural`: create a new plural key, switch the
+platform call-sites, keep the old flat record in the corpus until the remote delete
+has actually landed, and have the token-holding operator delete the old Lokalise key
+via `make delete-keys DELETE_KEY_IDS="<oldKeyId>"`. Only after that delete should the
+operator run export (so platform bundles drop the old key) and pull/regenerate the
+corpus (so the old record disappears from the snapshot). A local-only line deletion
+from `strings.ndjson` is not a delete operation; a later pull will bring it back.
+
 ## [CR-KEY-NAME] Keys are valid-everywhere identifiers
 
 A key name must match the Android-strict grammar `[A-Za-z][A-Za-z0-9_]*` — lead with an

@@ -20,9 +20,16 @@ CORPUS ?= strings.ndjson
 
 # Passthrough to push / export, e.g.  make push ARGS="--lang de"  /  make export ARGS="ios"
 ARGS ?=
+# Explicit Lokalise key deletion inputs. Prefer DELETE_KEY_IDS for migrations: ids
+# survive key-name drift and avoid deleting a newly-created replacement with a
+# similar name. DELETE_KEYS_FILE is line-delimited; kind is "name" or "id".
+DELETE_KEY_IDS ?=
+DELETE_KEY_NAMES ?=
+DELETE_KEYS_FILE ?=
+DELETE_KEYS_FILE_KIND ?= name
 
 .DEFAULT_GOAL := help
-.PHONY: help pull push push-dry export export-dry lint diff apply
+.PHONY: help pull push push-dry delete-keys delete-keys-dry export export-dry lint diff apply
 
 help:
 	@printf '%s\n' \
@@ -34,6 +41,9 @@ help:
 	"                    OVERWRITES the local corpus (asks for confirmation). FORCE=1 skips the prompt." \
 	"  make push-dry     Выгрузка (план) — dry-run of corpus -> Lokalise import. ARGS=\"--lang de\"." \
 	"  make push         Выгрузка — push dirty corpus edits -> Lokalise (--apply). ARGS=\"--key foo\"." \
+	"  make delete-keys-dry  Удаление ключей (план) — dry-run Lokalise delete-keys." \
+	"  make delete-keys      Удаление ключей — PERMANENT delete in Lokalise (--apply)." \
+	"                    DELETE_KEY_IDS=\"123 456\" or DELETE_KEY_NAMES=\"oldKey\"." \
 	"  make export-dry   Экспорт (план) — dry-run Lokalise -> platform repos. ARGS=\"ios\"." \
 	"  make export       Экспорт — download Lokalise -> iOS/Android/server repos (--apply)." \
 	"" \
@@ -82,6 +92,34 @@ push-dry:
 
 push:
 	$(PY) loc_corpus_import.py $(ARGS) --apply
+
+delete-keys-dry:
+	@set -e; \
+	args=""; \
+	for id in $(DELETE_KEY_IDS); do args="$$args --key-id $$id"; done; \
+	for name in $(DELETE_KEY_NAMES); do args="$$args --key-name $$name"; done; \
+	if [ -n "$(DELETE_KEYS_FILE)" ]; then args="$$args --keys-file $(DELETE_KEYS_FILE) --keys-file-kind $(DELETE_KEYS_FILE_KIND)"; fi; \
+	if [ -z "$$args" ]; then \
+	  echo 'usage: make delete-keys-dry DELETE_KEY_IDS="123 456"'; \
+	  echo '   or: make delete-keys-dry DELETE_KEY_NAMES="oldKey anotherOldKey"'; \
+	  echo '   or: make delete-keys-dry DELETE_KEYS_FILE=/tmp/keys.txt DELETE_KEYS_FILE_KIND=id'; \
+	  exit 2; \
+	fi; \
+	$(PY) lokalise_helper.py delete-keys $$args
+
+delete-keys:
+	@set -e; \
+	args=""; \
+	for id in $(DELETE_KEY_IDS); do args="$$args --key-id $$id"; done; \
+	for name in $(DELETE_KEY_NAMES); do args="$$args --key-name $$name"; done; \
+	if [ -n "$(DELETE_KEYS_FILE)" ]; then args="$$args --keys-file $(DELETE_KEYS_FILE) --keys-file-kind $(DELETE_KEYS_FILE_KIND)"; fi; \
+	if [ -z "$$args" ]; then \
+	  echo 'usage: make delete-keys DELETE_KEY_IDS="123 456"'; \
+	  echo '   or: make delete-keys DELETE_KEY_NAMES="oldKey anotherOldKey"'; \
+	  echo '   or: make delete-keys DELETE_KEYS_FILE=/tmp/keys.txt DELETE_KEYS_FILE_KIND=id'; \
+	  exit 2; \
+	fi; \
+	$(PY) lokalise_helper.py delete-keys $$args --apply
 
 # Lokalise -> platform repos. Dry-run prints the resolved plan token-free; --apply downloads.
 export-dry:
