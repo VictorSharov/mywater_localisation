@@ -24,7 +24,7 @@ each platform's bundle must end up as:
 |---|---|---|---|---|
 | iOS | `.strings` + `.stringsdict` | iOS (`[%s]`→`%@`, `[%i]`→`%li`) | `.stringsdict` | `<lang>.lproj/Localizable.strings` |
 | Android | XML | printf (`[%s]`→`%s`, `[%i]`→`%d`) | `<plurals>` | `values-<lang>/strings.xml` |
-| server (`web`) | JSON `{translation, notes}` | none today (printf if ever, not i18next) | none today | `resources/locale/<lang>.json` |
+| server (`web`) | JSON flat `{key: value}` | none today (printf if ever, not i18next) | none today | `resources/locale/<lang>.json` |
 
 - **Placeholder conversion is automatic on export** from the universal form
   ([CR-PLACEHOLDER] / `TRANSLATION_STYLE.md § Placeholders`) — the export just
