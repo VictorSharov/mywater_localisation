@@ -31,7 +31,7 @@ de
 es
 fr
 hi
-idы
+id
 it
 ja
 ko
