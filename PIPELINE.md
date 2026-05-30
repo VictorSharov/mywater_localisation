@@ -175,9 +175,13 @@ Changing a key's structural type (flat string ↔ plural key) is not a value edi
 without `key_id`; an update to an existing key pushes translations / metadata but
 does not mutate the key type. So when a shipped flat key becomes count-governed, use
 `CLAUDE.md § Changing a flat key into a plural`: create a new plural key, switch the
-platform call-sites, keep the old flat record in the corpus until the remote delete
-has actually landed, and have the token-holding operator delete the old Lokalise key
-via `make delete-keys DELETE_KEY_IDS="<oldKeyId>"`. Only after that delete should the
+platform call-sites, and let Lokalise export create the platform plural resources.
+Do **not** hand-author `.stringsdict` / Android `<plurals>` / server locale-pack
+entries to make the migration compile; if the generated client accessor/resource is
+not available yet, the next step is operator `make push` + `make export`, not a local
+resource patch. Keep the old flat record in the corpus until the remote delete has
+actually landed, and have the token-holding operator delete the old Lokalise key via
+`make delete-keys DELETE_KEY_IDS="<oldKeyId>"`. Only after that delete should the
 operator run export (so platform bundles drop the old key) and pull/regenerate the
 corpus (so the old record disappears from the snapshot). A local-only line deletion
 from `strings.ndjson` is not a delete operation; a later pull will bring it back.

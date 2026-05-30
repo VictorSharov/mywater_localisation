@@ -246,6 +246,10 @@ export ([CR-PLACEHOLDER]).
    Source-language-only by design: a platform's other-language files must not be
    hand-filled — `ru` and the rest live in the corpus (`ru` translated, the others
    empty + `unverified`), and the export produces every language correctly.
+   This scaffold carve-out is for brand-new-key compile unblock only. **Do not use
+   it as the default flat→plural migration path**: shipped flat→plural replacements
+   must get their platform plural resources from Lokalise export, not from an
+   agent-authored `.stringsdict` / `<plurals>` patch.
 4. **Round-trip — operator (token holder).** `loc_corpus_import.py --apply` creates
    the key in Lokalise (records without `key_id` → create) and stamps the new
    `key_id` back into the corpus — **commit the corpus** so a re-run updates instead
@@ -276,9 +280,14 @@ turns out to be count-governed is a replacement migration, not an in-place edit:
 1. **Create a new plural key** following `§ Adding a new key (every platform)`.
    Give it a valid new identifier (for example `<oldName>Plural`), make `t.en` a CLDR
    forms map, keep universal placeholders, and route platforms / filenames normally.
-2. **Switch platform call-sites to the new key** and add only the source-language
-   compile scaffold required by that platform (`.stringsdict` for iOS, `<plurals>` for
-   Android). Do not hand-fill other platform-language files; export owns them.
+2. **Switch platform call-sites to the new key; do not hand-author platform plural
+   resources.** For this migration, `.stringsdict` / Android `<plurals>` / server
+   locale-pack entries are export artifacts. If the client cannot compile until the
+   new key has been pushed to Lokalise, exported, and regenerated into the platform
+   repo, stop and report that operator export is the next step — do not "unblock"
+   the build by patching platform localization files locally. The only local client
+   edit before export is the call-site migration when the generated accessor/resource
+   already exists.
 3. **Do not treat a line deletion from `strings.ndjson` as a Lokalise delete.**
    The corpus is a snapshot of Lokalise; removing a record locally only makes the
    snapshot false until the next `make pull` brings it back. Keep the old flat record
