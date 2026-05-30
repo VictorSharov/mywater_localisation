@@ -71,6 +71,7 @@ tagging touch Lokalise.
 | `loc_unused_keys.py` | report-only unused-key scan over **iOS + Android** repos; feeds Lokalise tags | yes (tag `--apply`) |
 | `lokalise_helper.py` | Lokalise API v2 CLI (list/get/tags/update/create; mutations dry-run by default) | yes (`--apply`) |
 | `loc_audit_prompt.md` + `loc_audit_lang_calibration/` | sub-agent audit prompt + per-language calibration | — |
+| `loc_glossary.py` | glossary read/write/lookup lib + single owner of `glossary.ndjson` serialization (not a CLI); renders the Lokalise glossary CSV/API export — see [`GLOSSARY.md`](GLOSSARY.md) | — |
 
 Exact flags live in each script's `--help` / docstring (the canonical owner).
 
@@ -130,6 +131,16 @@ The Lokalise → platform export — the validated per-platform download setting
 `.strings`/`.stringsdict`, Android XML, server JSON) — lives in **[`EXPORT.md`](EXPORT.md)**:
 the spec `loc_export.py` implements, doubling as the manual-UI fallback. Operator-run via
 `make export` / `make export-dry` ([CR-MAKE] / [CR-ACCESS]); dry-run prints the plan token-free.
+
+## Glossary
+
+`glossary.ndjson` is a git-tracked **terminology** glossary (brand / product
+names, recurring UI labels, domain nouns, beverage names, units, banned jargon),
+one agreed rendering per language — the terminology analog of `strings.ndjson`,
+pushed into the Lokalise glossary (a separate surface from translation keys). Its
+serializer **`loc_glossary.py`** owns the format; the record schema, the Lokalise
+CSV/API mapping, the category taxonomy and the two-pass fill workflow are in
+**[`GLOSSARY.md`](GLOSSARY.md)**. The file starts empty — filling is a separate step.
 
 ## Conventions
 

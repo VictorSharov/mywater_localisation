@@ -54,6 +54,7 @@ a non-empty diff is someone else's in-flight work and must be preserved ([CR-COR
 | Change an `en` source value | [CR-CORPUS-SOURCE-CHANGE] → [`PIPELINE.md`](PIPELINE.md) | `loc_apply_lang.py` |
 | Write / apply the corpus, parallel passes, recovery | § Critical rules + [`PIPELINE.md`](PIPELINE.md) | apply scripts, `make apply` / `make diff` |
 | Linguistic style / brand voice / register / placeholders | `TRANSLATION_STYLE.md` | `make lint` |
+| Build / fill the terminology glossary | [`GLOSSARY.md`](GLOSSARY.md) + `TRANSLATION_STYLE.md § Lexicon` | `loc_glossary.py` (lib) |
 | Push edits to Lokalise | [CR-MAKE] / [CR-ACCESS] — operator-run | `make push` / `make push-dry` |
 | Export Lokalise → platforms | `EXPORT.md` — operator-run | `make export` / `make export-dry` |
 | Lint / verify an edit | § Verification | `make lint` |
@@ -63,7 +64,9 @@ a non-empty diff is someone else's in-flight work and must be preserved ([CR-COR
 | Changed | Update / re-verify |
 |---|---|
 | `loc_corpus.py` (the serializer) | Round-trip byte-identical test against a copy ([CR-CORPUS-OWNER], § Verification) |
+| `loc_glossary.py` (the glossary serializer) | Round-trip byte-identical test against a copy ([CR-CORPUS-OWNER] analog, [`GLOSSARY.md`](GLOSSARY.md) § Verification) |
 | A rule in `TRANSLATION_STYLE.md § Brand voice` / discipline | Mirror its **operational** form into `loc_audit_prompt.md` — the sub-agent reads it verbatim with no doc access, so this duplication is intentional — and add a dated `§ Calibration changelog` entry |
+| A brand / lexicon / unit term in `TRANSLATION_STYLE.md § Lexicon` (preferred word, brand name, premium tier, banned jargon) | Add / adjust the matching term in `glossary.ndjson` ([`GLOSSARY.md`](GLOSSARY.md)) |
 | An export setting (Lokalise download) | `EXPORT.md` table + the matching profile in `loc_export.py` (keep in sync) |
 | A `[CR-*]` rule's mechanics in `PIPELINE.md` | Keep the terse statement in § Critical rules in sync (same `[CR-*]` anchor) |
 
