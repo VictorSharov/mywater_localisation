@@ -140,17 +140,46 @@ off-vocab tag (it does not block).
   doc pins the **quoting**.
 - **Forbidden — `forbidden:true`.** The "avoid" lexicon
   (`TRANSLATION_STYLE.md § Lexicon`: `hydration metrics`, `consumption logs`,
-  `metabolic profile`, IT/medical jargon) modeled as banned terms so Lokalise QA
+  `metabolic profile`, medical jargon) modeled as banned terms so Lokalise QA
   flags them. A forbidden term is usually `translatable:true` (the ban is on the
   term appearing); never combine with `translatable:false`.
+  - **Lokalise `forbidden` QA fires on the *translation*, per target language**
+    (verified — Lokalise docs: "this term cannot be used in **the translation** …
+    checks if **the translation** contains any terms marked as forbidden"). A
+    forbidden term carries its banned form **per language** in `t`, so the check
+    fires in each language whose `t[<iso>]` is set. This drives three patterns:
+    - **Bilingual ban** — banned in both en and ru: set `t[ru]` to the ru calque
+      (e.g. `hydration metrics` → `показатели гидратации`). QA flags both sides.
+    - **EN-source-only ban** — bad in en but whose ru rendering is *correct*: leave
+      `t` **empty** (e.g. `application` — ru «приложение» is fine, so a `t[ru]`
+      would wrongly flag every legitimate string). The entry gates the en source
+      only; the audit's en-lane is the backstop.
+    - **RU-only calque ban (carve-out from the en-headword rule)** — bad only in ru,
+      where the en concept is *allowed* (so its en word can't be marked forbidden):
+      key the entry by the **Russian token itself** (`term` = `гидратация`,
+      `t.ru` = `гидратация`, `forbidden:true`). The en concept (`hydration`) stays a
+      separate allowed entry. Surface-**conditional** bans (familiarity diminutives
+      `водичка`/`стаканчик`; ambiguous `насыщенность` = saturation) stay in the
+      audit, not here — a flat lexical flag would false-positive on the casual
+      surfaces where they are acceptable.
 - **`case_sensitive:true`** — acronyms and cased brand forms where only the exact
   casing should match (Lokalise matching is case-sensitive per entry; a separate
   lowercase variant needs its own entry).
+- **Third-party / Apple feature names — use the vendor's OFFICIAL localization,
+  never an invented one.** Some names Apple keeps verbatim in RU (`Siri`,
+  `Apple Watch`, `App Store`, `Apple ID`, `iPhone`) → `translatable:false`. Others
+  Apple *does* localize and we adopt that exact form: `Shortcuts` → «Быстрые
+  команды»; `Live Activities` → «Эфир активности» (both from Apple's RU iPhone User
+  Guide, support.apple.com/ru-ru) — the corpus's «Live-активности» is drift to
+  reconcile. Apple's Health **app** is «Здоровье»; the corpus keeps `Apple Health`
+  as the integration/brand name (verify app-vs-platform usage in pass-2). Never
+  coin a hybrid.
 - **Register / T-V is NOT a glossary field.** Glossary entries are lexical
   headwords (nouns / short labels), which carry no T-/V-form. The T-form-default /
   `formal`-in-legal register lives in `TRANSLATION_STYLE.md § Brand voice`. When a
   term's *rendering* depends on a per-language decision worth recording, put it in
-  `t_notes[<iso>]` (e.g. "ru: закрепляем «норма»").
+  `t_notes[<iso>]` (e.g. the `water balance` casual-surface carve-out, or the
+  `Apple Health` → «Здоровье» note).
 - **Plurals / placeholders do NOT apply.** Terms are not runtime strings — there
   is no CLDR-forms map and no `[%s]` contract here (those are string-corpus
   concerns, `TRANSLATION_STYLE.md § Placeholders`).
