@@ -59,6 +59,8 @@ tagging touch Lokalise.
 | `loc_corpus_ndjson.py` | regenerate `strings.ndjson` (+ `strings.meta.json`) from Lokalise | yes |
 | `loc_corpus_import.py` | push corpus edits into Lokalise (dry-run default, `--apply`) | yes (`--apply`) |
 | `loc_export.py` | download Lokalise exports into each platform repo (iOS/Android/server) with the validated per-platform settings baked in; dry-run default, `--apply`, post-download sanity checks | yes (`--apply`) |
+| `loc_glossary_ndjson.py` | regenerate `glossary.ndjson` from the Lokalise glossary API | yes |
+| `loc_glossary_import.py` | upsert `glossary.ndjson` into the Lokalise glossary API (dry-run default, `--apply`) | yes (`--apply`) |
 | `loc_qa_issues_fetch.py` | fetch Lokalise QA-flagged translations (`spelling_and_grammar` default; `--issue` for others) to `qa_issues.ndjson` for AI validation | yes |
 | `loc_audit_extract.py` | extract en+ru+`<lang>` audit batches from the corpus (opt. `--platform`) | — |
 | `loc_audit_apply.py` | apply validated audit findings into the corpus | — |
@@ -71,7 +73,7 @@ tagging touch Lokalise.
 | `loc_unused_keys.py` | report-only unused-key scan over **iOS + Android** repos; feeds Lokalise tags | yes (tag `--apply`) |
 | `lokalise_helper.py` | Lokalise API v2 CLI (list/get/tags/update/create; mutations dry-run by default) | yes (`--apply`) |
 | `loc_audit_prompt.md` + `loc_audit_lang_calibration/` | sub-agent audit prompt + per-language calibration | — |
-| `loc_glossary.py` | glossary read/write/lookup lib + single owner of `glossary.ndjson` serialization (not a CLI); renders the Lokalise glossary CSV/API export — see [`GLOSSARY.md`](GLOSSARY.md) | — |
+| `loc_glossary.py` | glossary read/write/lookup lib + single owner of `glossary.ndjson` serialization (not a CLI); renders the Lokalise glossary CSV/API payloads — see [`GLOSSARY.md`](GLOSSARY.md) | — |
 
 Exact flags live in each script's `--help` / docstring (the canonical owner).
 
@@ -114,6 +116,11 @@ python3 loc_export.py                                  # dry-run plan, all platf
 .venv-lokalise/bin/python loc_export.py --apply        # download iOS + Android + server into their repos
 .venv-lokalise/bin/python loc_export.py ios --apply    # one platform
 .venv-lokalise/bin/python loc_export.py --to /tmp/exp --apply   # write to /tmp instead of the repos (test)
+
+# Glossary round-trip (operator with Lokalise token):
+make glossary-push-dry              # validate + show local glossary API upsert plan
+make glossary-push                  # push local glossary -> Lokalise glossary API
+make glossary-pull                  # download Lokalise glossary -> glossary.ndjson (asks for confirmation)
 ```
 
 ## Consuming the corpus from another repo
@@ -140,7 +147,7 @@ one agreed rendering per language — the terminology analog of `strings.ndjson`
 pushed into the Lokalise glossary (a separate surface from translation keys). Its
 serializer **`loc_glossary.py`** owns the format; the record schema, the Lokalise
 CSV/API mapping, the category taxonomy and the two-pass fill workflow are in
-**[`GLOSSARY.md`](GLOSSARY.md)**. The file starts empty — filling is a separate step.
+**[`GLOSSARY.md`](GLOSSARY.md)**.
 
 ## Conventions
 

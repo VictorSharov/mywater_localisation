@@ -323,6 +323,81 @@ class LokaliseClient:
             else:
                 return out
 
+    def list_project_languages(self, *, limit: int = MAX_KEYS_LIMIT) -> list[dict[str, Any]]:
+        """List project languages as plain dicts. Glossary-term API payloads key
+        translations by numeric langId, while the local glossary stores Lokalise ISO
+        codes, so glossary tooling uses this once to build both maps."""
+        params: dict[str, Any] = {"limit": min(max(limit, 1), MAX_KEYS_LIMIT)}
+        out: list[dict[str, Any]] = []
+        page = 1
+        cursor: str | None = None
+        while True:
+            page_params = dict(params)
+            if cursor:
+                page_params["cursor"] = cursor
+            elif page > 1:
+                page_params["page"] = page
+            collection = self._call(self._sdk.project_languages, self.project_path, page_params)
+            for model in collection.items:
+                out.append(_language_to_dict(model))
+            if collection.has_next_cursor():
+                cursor = collection.next_cursor
+            elif collection.has_next_page():
+                page += 1
+            else:
+                return out
+
+    def list_glossary_terms(self, *, limit: int = MAX_KEYS_LIMIT) -> list[dict[str, Any]]:
+        """List Lokalise glossary terms as plain dicts. The SDK supports the
+        glossary endpoint but exposes camelCase fields; callers convert them into
+        repo-local glossary records."""
+        params: dict[str, Any] = {
+            "limit": min(max(limit, 1), MAX_KEYS_LIMIT),
+        }
+        out: list[dict[str, Any]] = []
+        page = 1
+        cursor: str | None = None
+        while True:
+            page_params = dict(params)
+            if cursor:
+                page_params["cursor"] = cursor
+            elif page > 1:
+                page_params["page"] = page
+            collection = self._call(self._sdk.glossary_terms, self.project_path, page_params)
+            for model in collection.items:
+                out.append(_glossary_term_to_dict(model))
+            if collection.has_next_cursor():
+                cursor = collection.next_cursor
+            elif collection.has_next_page():
+                page += 1
+            else:
+                return out
+
+    def create_glossary_terms(self, terms: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Create glossary terms, chunked to the same conservative batch size used
+        for key writes. The SDK wraps the bare list as {"terms": [...]}."""
+        out: list[dict[str, Any]] = []
+        for start in range(0, len(terms), MAX_KEYS_LIMIT):
+            chunk = terms[start : start + MAX_KEYS_LIMIT]
+            collection = self._call(self._sdk.create_glossary_terms, self.project_path, chunk)
+            if collection.errors:
+                raise LokaliseError(f"Lokalise glossary create returned errors: {collection.errors!r}")
+            for model in collection.items:
+                out.append(_glossary_term_to_dict(model))
+        return out
+
+    def update_glossary_terms(self, terms: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Update glossary terms. Each payload must carry the Lokalise term `id`."""
+        out: list[dict[str, Any]] = []
+        for start in range(0, len(terms), MAX_KEYS_LIMIT):
+            chunk = terms[start : start + MAX_KEYS_LIMIT]
+            collection = self._call(self._sdk.update_glossary_terms, self.project_path, chunk)
+            if collection.errors:
+                raise LokaliseError(f"Lokalise glossary update returned errors: {collection.errors!r}")
+            for model in collection.items:
+                out.append(_glossary_term_to_dict(model))
+        return out
+
     def prime_name_index(self) -> None:
         if self._name_index is not None:
             return
@@ -1437,6 +1512,54 @@ def _translation_to_dict(model: Any) -> dict[str, Any]:
         "is_reviewed": getattr(model, "is_reviewed", None),
         # The SDK model omits qa_issues; read it from the raw response when present.
         "qa_issues": raw.get("qa_issues"),
+    }
+
+
+def _language_to_dict(model: Any) -> dict[str, Any]:
+    return {
+        "lang_id": getattr(model, "lang_id", None),
+        "lang_iso": getattr(model, "lang_iso", None),
+        "lang_name": getattr(model, "lang_name", None),
+        "is_rtl": getattr(model, "is_rtl", None),
+        "plural_forms": getattr(model, "plural_forms", None),
+        "project_language_uuid": getattr(model, "project_language_uuid", None),
+    }
+
+
+def _glossary_term_to_dict(model: Any) -> dict[str, Any]:
+    raw = getattr(model, "raw_data", None)
+    raw = raw if isinstance(raw, dict) else {}
+    data = raw.get("data")
+    if not isinstance(data, dict):
+        data = raw
+    return {
+        "id": getattr(model, "id", None) if getattr(model, "id", None) is not None else data.get("id"),
+        "projectId": getattr(model, "projectId", None) if getattr(model, "projectId", None) is not None else data.get("projectId"),
+        "term": getattr(model, "term", None) if getattr(model, "term", None) is not None else data.get("term"),
+        "description": getattr(model, "description", None) if getattr(model, "description", None) is not None else data.get("description"),
+        "caseSensitive": (
+            getattr(model, "caseSensitive", None)
+            if getattr(model, "caseSensitive", None) is not None
+            else data.get("caseSensitive")
+        ),
+        "translatable": (
+            getattr(model, "translatable", None)
+            if getattr(model, "translatable", None) is not None
+            else data.get("translatable")
+        ),
+        "forbidden": (
+            getattr(model, "forbidden", None)
+            if getattr(model, "forbidden", None) is not None
+            else data.get("forbidden")
+        ),
+        "translations": (
+            getattr(model, "translations", None)
+            if getattr(model, "translations", None) is not None
+            else data.get("translations")
+        ),
+        "tags": getattr(model, "tags", None) if getattr(model, "tags", None) is not None else data.get("tags"),
+        "createdAt": getattr(model, "createdAt", None) if getattr(model, "createdAt", None) is not None else data.get("createdAt"),
+        "updatedAt": getattr(model, "updatedAt", None) if getattr(model, "updatedAt", None) is not None else data.get("updatedAt"),
     }
 
 

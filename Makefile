@@ -17,6 +17,7 @@ SHELL := /bin/bash
 PY     ?= .venv-lokalise/bin/python
 PY3    ?= python3
 CORPUS ?= strings.ndjson
+GLOSSARY ?= glossary.ndjson
 
 # Passthrough to push / export, e.g.  make push ARGS="--lang de"  /  make export ARGS="ios"
 ARGS ?=
@@ -29,7 +30,7 @@ DELETE_KEYS_FILE ?=
 DELETE_KEYS_FILE_KIND ?= name
 
 .DEFAULT_GOAL := help
-.PHONY: help pull push push-dry delete-keys delete-keys-dry export export-dry lint diff apply
+.PHONY: help pull push push-dry delete-keys delete-keys-dry export export-dry glossary-pull glossary-push glossary-push-dry lint diff apply
 
 help:
 	@printf '%s\n' \
@@ -47,6 +48,12 @@ help:
 	"  make export-dry   Экспорт (план) — dry-run Lokalise -> platform repos. ARGS=\"ios\"." \
 	"  make export       Экспорт — download Lokalise -> iOS/Android/server repos (--apply)." \
 	"" \
+	"  Glossary API: Lokalise glossary  --glossary-pull-->  $(GLOSSARY)  --glossary-push-->  Lokalise glossary" \
+	"  make glossary-pull      Download Lokalise glossary -> $(GLOSSARY)." \
+	"                          OVERWRITES the local glossary (asks for confirmation). FORCE=1 skips the prompt." \
+	"  make glossary-push-dry  Dry-run local glossary -> Lokalise glossary API upsert." \
+	"  make glossary-push      Push local glossary -> Lokalise glossary API (--apply)." \
+	"" \
 	"  make apply        Fan-in — применить /tmp/loc_<lang>.json в корпус, по одному (token-free)." \
 	"                    Единый сериализованный писатель (без гонки applies). LANGS=\"vi nb de\"." \
 	"  make lint         Token-free QA: placeholder lint + value hygiene (run before push)." \
@@ -54,7 +61,7 @@ help:
 	"" \
 	"  Workflow:  (agents emit /tmp/loc_<lang>.json)  ->  make apply LANGS=\"…\"  ->  make diff  ->  make push" \
 	"" \
-	"  Vars: ARGS=… passthrough to push/export; FORCE=1 skips the pull confirmation;" \
+	"  Vars: ARGS=… passthrough to push/export/glossary; FORCE=1 skips pull confirmations;" \
 	"        LANGS=… space-separated languages for make apply; PY=… overrides the venv python ($(PY))."
 
 # Lokalise -> corpus. DESTRUCTIVE to local edits: it rewrites $(CORPUS) wholesale,
@@ -127,6 +134,42 @@ export-dry:
 
 export:
 	$(PY) loc_export.py $(ARGS) --apply
+
+# Lokalise glossary -> local terminology source of truth. Destructive for local
+# unpushed glossary edits, so confirmation-gated like `make pull`.
+glossary-pull:
+	@printf '%s\n' \
+	"------------------------------------------------------------------" \
+	"  make glossary-pull — regenerate $(GLOSSARY) FROM Lokalise glossary." \
+	"  This OVERWRITES the local terminology glossary. Any unpushed local" \
+	"  glossary edits will be LOST." \
+	"  Correct order:  edit -> git diff -- $(GLOSSARY) -> make glossary-push -> then make glossary-pull." \
+	"------------------------------------------------------------------"
+	@if ! git diff --quiet HEAD -- $(GLOSSARY) 2>/dev/null; then \
+	  echo "!! WARNING: $(GLOSSARY) has UNCOMMITTED changes — exactly the unpushed"; \
+	  echo "!! edits that regenerate will discard. Run 'make glossary-push' (and commit) first."; \
+	  echo ""; \
+	fi
+	@if [ "$(FORCE)" = "1" ]; then \
+	  echo "FORCE=1 — skipping confirmation."; \
+	  $(PY) loc_glossary_ndjson.py --out $(GLOSSARY) $(ARGS); \
+	else \
+	  printf 'Type "yes" to OVERWRITE the local glossary from Lokalise: '; \
+	  read -r ans; \
+	  if [ "$$ans" = "yes" ]; then \
+	    $(PY) loc_glossary_ndjson.py --out $(GLOSSARY) $(ARGS); \
+	  else \
+	    echo "Aborted — glossary unchanged."; \
+	  fi; \
+	fi
+
+# local terminology source of truth -> Lokalise glossary. Dry-run is token-free
+# validation/plan; --apply resolves project language ids and upserts through API.
+glossary-push-dry:
+	$(PY3) loc_glossary_import.py --glossary $(GLOSSARY) $(ARGS)
+
+glossary-push:
+	$(PY) loc_glossary_import.py --glossary $(GLOSSARY) $(ARGS) --apply
 
 # Token-free review gates (same lints loc_corpus_import pre-flights).
 lint:

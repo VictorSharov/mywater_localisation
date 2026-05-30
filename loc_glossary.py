@@ -47,8 +47,8 @@ Record shape (full schema + rationale: GLOSSARY.md):
                   (-> Lokalise `<iso>_description`). Rare; omitted when empty.
 
 Unlike the string corpus there is NO `unverified` / `dirty` review or push state:
-the glossary is small reference data pushed wholesale (a full CSV re-upload), not
-gated by a release. See GLOSSARY.md § Why no review state.
+the glossary is small reference data pushed as a whole-glossary upsert / CSV
+upload, not gated by a release. See GLOSSARY.md § Why no review state.
 
 Plurals / placeholders do NOT apply — glossary entries are lexical headwords, not
 runtime strings, so there is no CLDR map and no [%s] contract here.

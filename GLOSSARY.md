@@ -17,18 +17,17 @@ is translated the **same** way in every string, on every platform (iOS / Android
 surface from translation keys), where it surfaces to translators inline and
 drives Lokalise's glossary QA.
 
-> This file documents the **structure**. The glossary starts **empty**
-> (`glossary.ndjson` has zero terms); filling it is a separate, later effort —
-> see § Fill workflow.
+> This file documents the **structure** and API round-trip. Filling / expanding
+> `glossary.ndjson` follows the staged workflow in § Fill workflow.
 
 ## Pipeline placement
 
 ```
                  strings.ndjson  ── translators / audit read both for term consistency ──▶
                        ▲ (terms recur as values)
-glossary.ndjson ──(loc_glossary.to_lokalise_csv / to_api_terms)──▶ Lokalise glossary
+glossary.ndjson ──(loc_glossary_import.py / to_lokalise_csv)──▶ Lokalise glossary
    ▲    │  the single serializer (loc_glossary.py) owns read/write
-   └────┘  edits land here, reviewed as a git diff, then pushed (CSV upload / API)
+   └────┘  edits land here, reviewed as a git diff, then pushed (API upsert / CSV upload)
 ```
 
 - `glossary.ndjson` is the source of truth (like `strings.ndjson` for strings).
@@ -59,7 +58,7 @@ One JSON object per line (NDJSON), serialized **only** by `loc_glossary.py`
 drops a flag at its default value, drops empty `tags` / `t_notes`, sorts `t` by
 language, and sorts records by headword — so an ordinary term is a short line and
 the diff is deterministic (`read → write` is byte-identical, the same contract as
-the string corpus). Annotated examples (illustrative — the live file is empty):
+the string corpus). Annotated examples:
 
 ```jsonc
 // Ordinary domain term: lean line, ru co-source + one target, a ru-specific note.
@@ -86,25 +85,29 @@ Two import paths into the Lokalise glossary; the serializer renders both.
 | `description` | General description | `description` | `description` |
 | `case_sensitive` | Case-sensitive | `casesensitive` (`yes`/`no`) | `caseSensitive` (bool) |
 | `translatable` | Translatable | `translatable` (`yes`/`no`) | `translatable` (bool) |
-| `forbidden` | Forbidden | `Forbidden` (`yes`/`no`) | `forbidden` (bool) |
+| `forbidden` | Forbidden | `forbidden` (`yes`/`no`) | `forbidden` (bool) |
 | `tags` | Tags (≤3) | `tags` (comma-separated) | `tags` (array) |
 | `t[<iso>]` | Translation (per language) | `<iso>` (bare ISO code) | `translations[].translation` + `langId` |
 | `t_notes[<iso>]` | Translation description | `<iso>_description` | `translations[].description` |
 
 - **CSV** — `loc_glossary.to_lokalise_csv(records)`. Semicolon-separated, UTF-8,
   header row. Keyed by **ISO code** — our `t` keys are already Lokalise ISO codes
-  (`pt_BR`, `zh_CN`), so they map 1:1. This is the **simplest** path (Glossary >
-  More > Upload CSV); no language-id lookup. **Default path.**
-- **API** — `loc_glossary.to_api_terms(records, iso_to_lang_id)`. Keyed by numeric
-  **`langId`**, so it needs an ISO → lang_id map resolved from the project
-  languages endpoint (`lokalise_helper.py`). Use only if a scripted, incremental
-  push is wanted later.
-- ⚠️ **Verify the CSV headers before the first import.** The exact header strings
-  and casing (Lokalise mixes `casesensitive` lowercase with `Forbidden`
-  capitalized) come from the Lokalise docs, not a live template — this repo has no
-  Lokalise token ([CR-ACCESS]). Before the first upload, **download a CSV from
-  Lokalise** (Glossary > More > Download CSV) and align `loc_glossary.CSV_FIXED_HEADERS`
-  to it. They are isolated in one constant precisely so this is a one-line fix.
+  (`pt_BR`, `zh_CN`), so they map 1:1. This remains the manual UI fallback
+  (Glossary > More > Upload CSV); no language-id lookup.
+- **API** — `loc_glossary_import.py` uses
+  `loc_glossary.to_api_terms(records, iso_to_lang_id)`. Keyed by numeric
+  **`langId`**, so it resolves ISO → lang_id from the project languages endpoint
+  (`lokalise_helper.py`). The API path is the normal scripted path:
+  `make glossary-push-dry` then `make glossary-push`.
+  It upserts every local term and stamps returned `term_id`s into the local file;
+  remote-only terms and languages absent from local `t` are preserved rather than
+  silently deleted.
+- **Pull / device download** — `make glossary-pull` runs `loc_glossary_ndjson.py`
+  and downloads the Lokalise glossary into local `glossary.ndjson`. It overwrites
+  the local file and is confirmation-gated (`FORCE=1` skips the prompt), mirroring
+  `make pull` for `strings.ndjson`.
+- **CSV headers are verified** against a real Lokalise export (2026-05):
+  `term;description;casesensitive;translatable;forbidden;tags;<iso>;...`.
 - ⚠️ **An empty translation cell REMOVES the existing translation** on upload
   (omitting the whole column preserves it). `to_lokalise_csv` therefore defaults
   its columns to the languages **actually present** across records — never the full
@@ -186,10 +189,9 @@ off-vocab tag (it does not block).
 - **Why no review state.** The string corpus carries `unverified` (review) and
   `dirty` (push-pending) because translations are release-gated and pushed
   incrementally ([CR-CORPUS-UNVERIFIED] / [CR-CORPUS-DIRTY]). The glossary is small
-  reference data with no release gate, pushed **wholesale** (a full CSV
-  re-upload), so it needs neither: a language simply present in `t` is filled,
-  absent is not. (If a scripted incremental API push is built later, a `dirty`
-  marker can be added then — not now.)
+  reference data with no release gate, pushed as a whole-glossary upsert / CSV
+  upload, so it needs neither: a language simply present in `t` is filled,
+  absent is not.
 
 ## What belongs in the glossary
 
@@ -226,7 +228,8 @@ Filling is deliberately staged, mirroring the corpus en/ru co-source discipline
    the writes through the single owner (never two writers at once,
    [CR-CORPUS-CONCURRENCY]).
 3. **Review & push.** `git diff -- glossary.ndjson`, run validation, then the
-   token-holding operator pushes to Lokalise (§ Planned tooling, [CR-ACCESS]).
+   token-holding operator pushes to Lokalise with `make glossary-push-dry` /
+   `make glossary-push` ([CR-ACCESS]).
 
 ## Verification
 
@@ -239,9 +242,14 @@ Filling is deliberately staged, mirroring the corpus en/ru co-source discipline
   language, `t["en"]` present. Warnings (review-worthy): off-vocab tag, missing
   `description`, `t_notes` for an untranslated language, case-only-duplicate terms.
 - After a fill: `git diff -- glossary.ndjson` touches only the edited terms.
-- Before the first import: confirm `CSV_FIXED_HEADERS` against a Lokalise CSV
-  template (§ Lokalise mapping). Report what ran and what was deferred to the
-  operator — never claim a push you did not observe ([CR-ACCESS]).
+- Before a Lokalise upload: `make glossary-push-dry` validates the local glossary
+  and prints the upsert plan. `make glossary-push` is operator-run and token-gated;
+  after success it stamps Lokalise `term_id`s back into `glossary.ndjson` and
+  verifies the stored values by re-reading the glossary API.
+- Before a Lokalise download: `make glossary-pull` warns on local `glossary.ndjson`
+  diff and requires typed confirmation because it overwrites the local file.
+  Report what ran and what was deferred to the operator — never claim a push/pull
+  you did not observe ([CR-ACCESS]).
 
 ## Serializer-owned
 
@@ -253,18 +261,20 @@ may be someone's in-flight fill — preserve it, test applies against a `--gloss
 copy in `/tmp`, and never `git checkout` / `reset` away uncommitted edits
 ([CR-CORPUS-WORKTREE]).
 
-## Planned tooling (built with the fill steps, not yet present)
-
-Documented here so the next steps have a fixed target; `loc_glossary.py` (the
-library) is the only glossary code that exists today.
+## Tooling
 
 - **`loc_glossary_apply.py`** (token-free) — apply a `{term: {...}}` or
   `{term: {lang: translation}}` edit map into `glossary.ndjson` through
-  `write_records`; replace-only, like `loc_apply_lang.py`. Used by both fill passes.
+  `write_records`; replace-only, like `loc_apply_lang.py`. Planned for larger fill
+  passes; today small glossary edits can be authored through a thin one-off
+  constructor that calls `write_records`.
 - **`loc_glossary_import.py`** + a `make glossary-push` / `make glossary-push-dry`
-  target (operator-run, token-gated) — render `to_lokalise_csv` / `to_api_terms`
-  and upload to the Lokalise glossary; dry-run prints the plan token-free
-  ([CR-MAKE] / [CR-ACCESS]). Wholesale push (§ Why no review state).
+  target (operator-run, token-gated) — render `to_api_terms` and upsert into the
+  Lokalise glossary API; dry-run validates locally and prints a token-free plan
+  ([CR-MAKE] / [CR-ACCESS]).
+- **`loc_glossary_ndjson.py`** + `make glossary-pull` (operator-run, token-gated)
+  — download Lokalise glossary terms into `glossary.ndjson`; confirmation-gated
+  because it overwrites local edits.
 
 ## Related
 

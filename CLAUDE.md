@@ -55,7 +55,7 @@ a non-empty diff is someone else's in-flight work and must be preserved ([CR-COR
 | Change an `en` source value | [CR-CORPUS-SOURCE-CHANGE] → [`PIPELINE.md`](PIPELINE.md) | `loc_apply_lang.py` |
 | Write / apply the corpus, parallel passes, recovery | § Critical rules + [`PIPELINE.md`](PIPELINE.md) | apply scripts, `make apply` / `make diff` |
 | Linguistic style / brand voice / register / placeholders | `TRANSLATION_STYLE.md` | `make lint` |
-| Build / fill the terminology glossary | [`GLOSSARY.md`](GLOSSARY.md) + `TRANSLATION_STYLE.md § Lexicon` | `loc_glossary.py` (lib) |
+| Build / fill / sync the terminology glossary | [`GLOSSARY.md`](GLOSSARY.md) + `TRANSLATION_STYLE.md § Lexicon` | `loc_glossary.py` (lib), `make glossary-push-dry` / `make glossary-push`, `make glossary-pull` |
 | Push edits to Lokalise | [CR-MAKE] / [CR-ACCESS] — operator-run | `make push` / `make push-dry` |
 | Export Lokalise → platforms | `EXPORT.md` — operator-run | `make export` / `make export-dry` |
 | Lint / verify an edit | § Verification | `make lint` |
@@ -166,8 +166,9 @@ the two in sync.
   - **Hand the operator a `make` target, never the raw script.** For the token-gated
     steps you cannot run yourself: `make push` (not `loc_corpus_import.py --apply`),
     `make push-dry`, `make delete-keys` / `make delete-keys-dry`, `make pull`,
-    `make export` / `make export-dry`. Pairs with [CR-ACCESS] — you produce the
-    plan, the operator runs `make push`.
+    `make export` / `make export-dry`, `make glossary-push` /
+    `make glossary-push-dry`, `make glossary-pull`. Pairs with [CR-ACCESS] — you produce the
+    plan, the operator runs the mutating `make` target.
   - **For your own token-free runs, prefer the `make` target where one exists** —
     `make lint` (placeholder + qa in one), `make diff`, `make apply LANGS="<lang>"`
     (the serialized single-writer fan-in, `PIPELINE.md § Parallel translation passes`).
