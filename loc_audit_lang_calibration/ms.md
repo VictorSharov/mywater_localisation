@@ -20,7 +20,7 @@ Malay second-person system:
 - Example formal (WRONG voice for this app): `Adakah anda telah meminum air hari ini?`
 
 **Audit flags:**
-- `anda` is off-brand on **every** surface now — friendly `awak` (or dropped pronoun) is universal: the `ты`/`вы` split is deprecated (`TRANSLATION_STYLE.md § Brand voice § Pronouns`, 2026-05-30), there is no longer a formal-surface carve-out that keeps `anda`. In casual notifications/CTAs/motivational push → V-form leak (flag). On former-formal surfaces (paywall / legal / permission / error) legacy `anda` is grandfathered — do not mass-flag; flag only new / source-changed strings, severity `warn`.
+- `anda` is off-brand on every **brand-voice** surface — friendly `awak` (or dropped pronoun) is the default, including paywall, permission prompts and errors (reserved tone, not `anda`): the surface-based `ты`/`вы` split is retired (refined to the hybrid, `TRANSLATION_STYLE.md § Brand voice § Pronouns`, 2026-05-30). In casual notifications/CTAs/motivational push → V-form leak (flag). The **one** carve-out is genuinely **legally-binding text** (Terms / Privacy / subscription **legal** terms / legally-weighted consent): impersonal-first (`Pengguna…`), `anda` only as a direct-address fallback (`Register: formal`). On former-formal **non-legal** surfaces legacy `anda` is grandfathered — do not mass-flag; flag only new / source-changed strings, severity `warn`.
 - `kau` / `engkau` / `aku` anywhere → register error.
 - Indonesian `kamu` is fine in id but in ms feels childish/dated for app UI — prefer `awak` or drop.
 - Mixing `awak` and `anda` within same screen → inconsistency.
@@ -150,7 +150,7 @@ Beyond base prompt rules, for Malay specifically:
 
 5. **Dropped pronouns are idiomatic** — Malay frequently omits 2nd person in imperatives and questions. `Dah minum air?` (had water?) is more natural than `Awak dah minum air?` for casual notifications. Do not flag missing pronoun as incomplete translation.
 
-6. **`dah` vs `sudah`** — `dah` (contracted) is casual/spoken/SMS register; `sudah` is neutral-to-formal. For this app's voice, `dah` fits casual notifications/widgets; `sudah` fine for paywall/legal text. Flag only when register clearly clashes (e.g. `dah` in Terms of Service).
+6. **`dah` vs `sudah`** — `dah` (contracted) is casual/spoken/SMS register; `sudah` is neutral. `dah` fits the whole app voice including notifications, widgets, **paywall and errors** (informal-universal). `sudah` / neutral phrasing fits **legally-binding text** (Terms / Privacy / subscription legal terms). Flag only a genuine register clash — e.g. `dah` inside Terms of Service (legal reserved register) — **not** `dah` on a paywall or error string.
 
 7. **Time-of-day greetings** — Malay distinguishes:
    - `Selamat pagi` (morning, ~5am–12pm)
