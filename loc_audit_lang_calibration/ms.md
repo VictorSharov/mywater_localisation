@@ -158,7 +158,7 @@ Beyond base prompt rules, for Malay specifically:
    - Beer → `Bir` (loanword, standard)
    - Milk → `Susu`
    - Juice → `Jus`
-   - Soda / Soft drink → `Minuman ringan` or `Soda`
+   - Soda / Soft drink → `Minuman ringan` (standard term for a sweet carbonated soft drink — the app catalogue `Soda` is sugary). Do **not** render the sweet-soda catalogue item as bare `Soda`: in Malay `soda` / `air soda` is unsweetened soda **water** (cf. Sparkling water below), a different drink. (Corrected 2026-05-31 — the prior "or `Soda`" legitimized an ambiguous term; see `loc_audit_changelog.md § Beverage catalogue naming`.)
    - Energy drink → `Minuman tenaga`
    - Wine → `Wain`
    - Sparkling water → `Air berkarbonat` or `Air soda`

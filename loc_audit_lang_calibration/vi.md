@@ -123,7 +123,7 @@ Rules that supplement (not replace) the base prompt:
    - `Beer` → `Bia`
    - `Milk` → `Sữa`
    - `Juice` → `Nước ép` (literally "pressed water") or `Nước trái cây` (fruit water) for fruit juices
-   - `Soda` / `Soft drink` → `Nước ngọt` (literally "sweet water"); `Soda` is also seen, both fine
+   - `Soda` / `Soft drink` → `Nước ngọt` (literally "sweet water") — the unambiguous default; the app catalogue `Soda` is sugary. Bare `Soda` is colloquially understood as a sweet fizzy drink but is **ambiguous** with soda water (`nước có ga`), so prefer `Nước ngọt`. (Refined 2026-05-31; the prior "both fine" understated the ambiguity — see `loc_audit_changelog.md § Beverage catalogue naming`.)
    - Sports drinks, energy drinks — `Nước thể thao` / `Nước tăng lực` (natural), or keep brand name
    - Flag a beverage name that loses its diacritic (`Ca phe` instead of `Cà phê`) — looks like a typo, IS a typo.
 

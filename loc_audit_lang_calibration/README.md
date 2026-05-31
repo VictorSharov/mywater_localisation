@@ -53,3 +53,23 @@ Each `<lang>.md` follows the same structure:
 Do NOT update these profiles inline during a Phase 3 audit run — the prompt is
 copied verbatim into the sub-agent, so mid-sweep edits cause inconsistency
 between batches. Update between groups only.
+
+## Provenance & validation — these profiles are AI-generated
+
+These profiles were produced by an AI sub-agent (see the dates above) — the same
+class of agent that produces the translations they are used to audit. Their
+factual claims (beverage meanings, term mappings, register calls) are
+**hypotheses, not ground truth**.
+
+- **Do not self-validate.** Confirming a translation against these profiles, or
+  confirming a profile against the corpus translations, is circular — both are AI
+  artifacts, and cross-checking them launders an error into "verified."
+- **Validate against a non-circular anchor:** (1) app code / data — e.g.
+  `mywater_ios …/DefaultBeverageCatalog.swift` (sugar / alcohol% / icon define
+  what a drink *is*); (2) external human authority — dictionaries, language
+  councils, real product usage.
+- **Worked example (2026-05-31).** The `Soda` lines in `ms.md` / `vi.md`
+  originally sanctioned bare "Soda" for a *sweet* soft drink. External
+  dictionaries show Malay / Vietnamese "soda" leans to soda **water**, and the app
+  catalogue marks `Soda` sugary — so the profiles were legitimizing an ambiguous
+  term. Corrected; rationale in `loc_audit_changelog.md § Beverage catalogue naming`.
