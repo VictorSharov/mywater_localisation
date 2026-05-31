@@ -105,7 +105,17 @@ SDK_ALLOW = {
     "Text", "View", "Image", "Color", "Font", "Button", "VStack", "HStack",
     "Info", "InfoPlist", "Localizable", "AppDelegate", "SceneDelegate",
     "HealthKit", "HKQuantity", "WidgetKit", "AppIntent", "Siri", "SiriKit",
+    # Added 2026-05-31 (Tier A adjudication, loc_audit_changelog.md § Context-audit):
+    # mechanism / namespace tokens that are ALWAYS cited as a code reference, never
+    # as the localized-string surface — so a context naming them is not a mismatch.
+    "UIApplication", "UIAccessibility", "HKQuantityTypeIdentifier", "StoreKit",
+    "A11y",  # app accessibility-identifier namespace (A11y.Settings.… — an id, not a surface)
 }
+
+# *.swift "filenames" the context legitimately cites that are NOT real files —
+# the R.swift code-gen LIBRARY (contexts say "R.swift exposes it as foo()"), which
+# SWIFT_FILE_RE would otherwise read as a dead file citation. (2026-05-31, as above.)
+SWIFT_FILE_ALLOW = {"R.swift"}
 
 # Words that look CamelCase-ish but are English prose / brand, not code symbols.
 PROSE_ALLOW = {
@@ -250,6 +260,8 @@ def extract_cited_symbols(context: str) -> "list[tuple[str, str]]":
     """(symbol, kind) pairs the context cites that look like code, deduped."""
     found: dict[str, str] = {}
     for m in SWIFT_FILE_RE.finditer(context):
+        if m.group(1) in SWIFT_FILE_ALLOW:
+            continue
         found.setdefault(m.group(1), "file")
     for m in DOTTED_TYPE_RE.finditer(context):
         tok = m.group(1)
