@@ -1,12 +1,16 @@
 # Per-language audit calibration profiles
 
-Generated 2026-05-15 for weak-AI-signal languages: `ar`, `hi`, `vi`, `id`, `ms`.
+Generated 2026-05-15 for weak-AI-signal languages: `ar`, `hi`, `vi`, `id`, `ms`. A
+sixth, **`pl`** (lean, trap-focused), was added 2026-05-31 — not weak-signal but
+trap-dense (4-form plural, gendered past, ru→pl Slavic calque); evidence-derived from a
+2-batch Opus 4.8 pilot (see `loc_audit_changelog.md`).
 
-For the other 14 languages of the 19-language sweep (`de`, `fr`, `es`, `it`,
-`nl`, `pt_BR`, `da`, `nb`, `sv`, `pl`, `tr`, `ja`, `ko`, `zh_CN`) Opus 4.7
+For the other 13 languages of the 19-language sweep (`de`, `fr`, `es`, `it`,
+`nl`, `pt_BR`, `da`, `nb`, `sv`, `tr`, `ja`, `ko`, `zh_CN`) Opus 4.8 Max
 has native-grade convention knowledge; the inline T-V / honorific map and
 gender table in `loc_audit_prompt.md` § Sub-agent prompt (calibrated)
-suffices.
+suffices. (`tr` / `ja` / `ko` are the next candidates if a sweep surfaces
+recurring false positives — see `loc_audit_changelog.md`.)
 
 Language codes here are the corpus / Lokalise ISO form (underscored: `pt_BR`,
 `zh_CN`) — the exact `<lang>` you pass to `loc_audit_extract.py` /

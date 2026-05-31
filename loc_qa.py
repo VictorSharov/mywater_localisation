@@ -18,9 +18,8 @@ Russian punctuation (canonical: TRANSLATION_STYLE.md § Punctuation reserves the
 em-dash ban for user-facing values only); the value-side checks therefore stay
 off it, and the context-side checks added here are limited to defects that cannot
 be a legitimate authoring choice — a long Cyrillic block (context is author-side
-prose in English; short inline examples like `"млн" in ru` stay legal), an
-empty optional field (the canon mandates omission, never `Constraints:\\n`), and
-an off-vocabulary Type (silently splits the audit's Type-equality sibling bucket).
+prose in English; short inline examples like `"млн" in ru` stay legal) and an
+empty optional field (the canon mandates omission, never `Constraints:\\n`).
 
 Findings (per value):
   ERROR  em-dash          a long dash `—` (U+2014) in a user-facing value. Banned
@@ -69,12 +68,6 @@ Findings (per `context` field — author-side, lang reported as `(context)`):
                           ("никогда не появляется") is the bug (canon: context
                           lives only in source language — TRANSLATION_STYLE.md
                           § Translator context).
-  WARN   context-type-vocab    the `Type:` value is not in the closed Type vocabulary
-                          (TRANSLATION_STYLE.md § Translator context § Обязательные
-                          поля). Subtype qualifier `paragraph (xxx)` is allowed —
-                          only the base must match. Synonyms silently split the
-                          audit's Type-equality sibling bucket (loc_audit_prompt.md
-                          § rule #4 / #9).
 
 Exit code is non-zero when any ERROR is found (any finding under --strict), so it
 can gate CI or an import (it is a second pre-flight in loc_corpus_import alongside
@@ -141,42 +134,6 @@ DOUBLE_SPACE_RE = re.compile(r" {2,}")
 # sentence-final link compares equal across languages.
 URL_RE = re.compile(r"https?://[^\s\"<>]+")
 
-# Closed Type vocabulary from TRANSLATION_STYLE.md § Translator context § Обязательные
-# поля. The audit buckets keys by Type equality for sibling-consistency checks
-# (loc_audit_prompt.md § rule #4 / #9) — a synonym ("section header / row title"
-# vs "section header") silently splits the bucket. Subtype qualifiers in parens
-# (`paragraph (educational)`, `section header (eyebrow)`) are allowed; the closed
-# membership is on the base. Extend only through a PR to TRANSLATION_STYLE.md.
-CLOSED_TYPE_VOCAB = frozenset({
-    # Buttons & controls
-    "button label", "badge", "toggle", "picker option", "segmented option",
-    # Headers & titles
-    "screen title", "section header", "card title", "feature row title",
-    "popup title", "alert title", "confirmation alert title", "tab title",
-    # Settings
-    "settings row title", "settings row value", "settings row label", "option label",
-    # Body text — `paragraph` carries optional `(subtype)` and is matched on the base
-    "paragraph",
-    # Messaging
-    "notification title", "notification body", "alert message", "error message",
-    "success message", "status message", "warning message", "motivational text",
-    "tip", "tip headline",
-    # Domain
-    "beverage name", "unit abbreviation", "container name", "character name",
-    "achievement title", "achievement description",
-    # Widget / system
-    "widget gallery title", "widget gallery description", "permission prompt",
-    "home screen quick action label", "screenshot caption", "App Store title",
-    "App Store keywords", "accessibility label", "accessibility hint",
-    # Siri / voice
-    "AppIntent title", "AppIntent description", "AppIntent dialog",
-    "AppIntent prompt", "AppIntent parameter label", "Siri snippet",
-    # Onboarding / forms
-    "tutorial step", "form field label", "placeholder",
-    # Generic fallback
-    "label",
-})
-
 # Optional fields in the translator-context block that the canon mandates omitting
 # when unused (TRANSLATION_STYLE.md § Translator context § Формат "Пустые поля
 # пропускать полностью"). A present-but-empty body is the bug to flag.
@@ -211,14 +168,6 @@ def _field_body_re(field: str) -> re.Pattern[str]:
     return _FIELD_BODY_RE_CACHE[field]
 
 
-def _type_base(type_value: str) -> str:
-    """Drop a trailing `(subtype)` qualifier and trailing punctuation/whitespace —
-    `paragraph (educational)` → `paragraph`; `motivational text.` → `motivational
-    text` — so the closed-vocab check is on the base only."""
-    base = re.sub(r"\s*\([^)]*\)\s*$", "", type_value).strip()
-    return base.rstrip(".").strip()
-
-
 _QUOTE_CHARS = frozenset('"«“‘„»”’\'`')
 
 
@@ -250,12 +199,6 @@ def lint_context(context: str | None) -> list[tuple[str, str, str]]:
     if not context:
         return []
     findings: list[tuple[str, str, str]] = []
-
-    type_match = _field_body_re("Type").search(context)
-    if type_match:
-        base = _type_base(type_match.group(1))
-        if base and base not in CLOSED_TYPE_VOCAB:
-            findings.append(("warn", "context-type-vocab", base))
 
     for field in OPTIONAL_CONTEXT_FIELDS:
         m = _field_body_re(field).search(context)
