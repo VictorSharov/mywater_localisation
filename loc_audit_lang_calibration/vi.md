@@ -27,19 +27,7 @@
 
 ## Gender system in grammar
 
-Vietnamese is an isolating language — verbs, adjectives, and nouns do NOT inflect for gender, number, or person. There is no grammatical gender on nouns. The same translation works for male and female users in nearly every case.
-
-**Practical consequence for `.gendered` keys:** A typical iOS gendered-key pattern like:
-- `welcome_message_male` → "Welcome back, ready for a refreshing drink?"
-- `welcome_message_female` → "Welcome back, ready for a refreshing drink?"
-
-Both Vietnamese values are typically **identical**. A pair of differing Vietnamese strings for an EN-gendered key is suspicious — flag as likely over-translation unless the EN itself differs by gender (e.g., "He / She drank...") and Vietnamese needs `anh ấy` vs `cô ấy`.
-
-**Example:**
-- EN male: `You've reached your goal today!`
-- EN female: `You've reached your goal today!`
-- VI both: `Bạn đã đạt mục tiêu hôm nay!` (identical — correct)
-- ❌ Suspicious split: VI male `Anh đã đạt...` / VI female `Chị đã đạt...` — flag as inappropriate pronoun choice (see formality section above; `anh/chị` shouldn't be used app-wide).
+No grammatical gender (isolating language) — base prompt rule #5 applies: identical M/F values are **correct**, do not flag. A *differing* M/F pair is the vi-specific red flag: likely over-translation, or an inappropriate `anh ấy` / `cô ấy` (or app-wide `anh` / `chị`) pronoun split — see § T-V. Exception: the EN itself differs by gender ("He / She drank…").
 
 ## Script & direction
 
@@ -62,7 +50,7 @@ Latin script with diacritics (chữ Quốc ngữ), LTR. Vietnamese uses 6 tone m
 - **Quotation marks:** Standard Latin `"..."` is widely accepted. Curly `"..."` also seen, particularly in editorial/print. Use whatever the en source uses, but be consistent. Guillemets `«...»` are NOT Vietnamese convention — flag if present.
 - **Spacing around punctuation:** No space before `.` `,` `!` `?` `:` `;` — same as English. (Vietnamese does NOT follow French spacing rules despite the colonial history.)
 - **Ellipsis:** Both `…` (single character) and `...` (three dots) are seen. Match the source.
-- **Em-dash policy from base prompt:** Vietnamese does not idiomatically use em-dash for parenthetical asides — prefers comma or parentheses. Em-dash usage in EN should typically become a comma, parentheses, or be split into two sentences. Apply base prompt's em-dash policy strictly.
+- **Em-dash** (base rule #15): vi prefers comma / parentheses / sentence split — never `—`.
 - **Decimal separator:** Comma `,` is the typical Vietnamese decimal separator (`1,5 lít`). However, modern app UIs frequently use period `.` matching the device locale formatter. Flag inconsistency within one app surface, not the choice itself. Thousand separator is period `.` (`1.500 ml`) in formal contexts; spaces also seen.
 - **Units:** `ml`, `oz`, `kg`, `lít` (the last is Vietnamese for "liter" — note the diacritic). `ly` = glass, `cốc` = cup/glass (northern dialect), `tách` = small cup (for tea/coffee).
 - **Brand name "My Water":** Keep as `My Water` in Latin script — DO NOT translate to `Nước Của Tôi` or similar. Vietnamese readers comfortably parse English brand names; translating brand = anti-pattern, flag if seen. The product is `My Water`, the generic concept is `nước` (water).

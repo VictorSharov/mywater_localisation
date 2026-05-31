@@ -33,21 +33,11 @@ Mixing `Silakan` with `kamu` (`"Silakan tambahkan minumanmu"`) is a register cla
 
 ## Gender system in grammar
 
-**Indonesian has NO grammatical gender.** Nouns, pronouns, verbs, adjectives, and articles do not inflect for gender. Third-person singular pronoun `dia` (or `ia`) covers he/she/it. Verbs do not conjugate for person, number, or gender.
-
-**Consequence for gendered .strings keys:** EN keys with `_male` / `_female` / `_m` / `_f` suffixes will typically have **identical Indonesian values** — this is **correct** and must **not** be flagged as a duplication / copy-paste error. Indonesian simply lacks the grammatical machinery to differentiate.
-
-Example:
-- `streak_celebration_male` = `"Kamu hebat! Sudah 7 hari berturut-turut."`
-- `streak_celebration_female` = `"Kamu hebat! Sudah 7 hari berturut-turut."`
-
-→ **Identical values are correct.** Do not flag.
-
-Rare exception: if a translation references a kinship / professional term that does have separate male/female forms (e.g., `pria`/`wanita`, `bapak`/`ibu`, `aktor`/`aktris`), then divergence is expected. For hydration-app copy this is essentially never relevant.
+No grammatical gender (`dia` = he/she/it; verbs don't conjugate) — base prompt rule #5 applies: identical M/F values are **correct**, never flag as copy-paste. Rare exception (essentially never in hydration copy): a gendered kinship / professional term (`pria`/`wanita`, `bapak`/`ibu`, `aktor`/`aktris`).
 
 ## Script & direction
 
-Latin script, LTR. No special bidi handling. Standard ASCII alphabet plus diacritics on rare loanwords (`café` → usually written `kafe`). No `é` / `è` use needed in app domain.
+Latin, LTR. Loanword diacritics usually dropped (`café` → `kafe`); no `é` / `è` in app domain.
 
 ## Punctuation conventions
 
@@ -55,7 +45,7 @@ Latin script, LTR. No special bidi handling. Standard ASCII alphabet plus diacri
 - **Decimal separator:** `,` (comma). E.g., `2,5 liter`, `1,5 gelas`. Thousands separator: `.` (period). E.g., `1.500 ml`, `10.000 ml`. **This is the opposite of EN convention** — common AI translator failure is leaving `2.5 liter` (English-style). Flag if source EN string contains a hardcoded number with `.` decimal and Indonesian translation copies it instead of converting (only relevant for hardcoded literal numbers in copy, not `%@` / `%d` placeholders which the app formats at runtime).
 - **Time:** `08.00` or `08:00` both seen; `08.00` more traditional Indonesian, `08:00` more common in apps. Either acceptable.
 - **Date:** day-month-year (`15 Mei 2026`). Month names: `Januari, Februari, Maret, April, Mei, Juni, Juli, Agustus, September, Oktober, November, Desember`.
-- **Spacing:** standard Western spacing. No space before `:` `;` `!` `?`. Space after punctuation. Em-dash `—` per base prompt policy; Indonesian uses en-dash `–` for ranges (`08.00–10.00`) — keep base policy on em-dash.
+- **Spacing:** standard Western; no space before `:` `;` `!` `?`. Em-dash (base rule #15): `id` uses en-dash `–` for ranges (`08.00–10.00`); `—` stays banned.
 - **Brand name "My Water":** keep as **"My Water"** (Latin, untranslated, two words, capitalized). Do **not** translate to `Air Saya` / `Air Kami`. App self-reference outside the brand name uses `kami` / `aplikasi kami` ("our app"). Acceptable phrasings: `"My Water"`, `"aplikasi My Water"`, `"di My Water"`. Flag literal translations of the brand name as errors.
 - **Units:** `ml`, `l` (lowercase, no period), `oz` (if used). `gelas` (glass), `cangkir` (cup), `botol` (bottle), `liter` (full word also fine). Space between number and unit: `250 ml`, `1,5 l`. Indonesian standard does **not** put a space before `%`: `75%`, not `75 %`. Match what the source `.strings` format dictates if it includes/omits the space; flag inconsistencies across the file.
 

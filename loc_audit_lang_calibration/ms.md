@@ -29,24 +29,15 @@ Malay second-person system:
 
 ## Gender system in grammar
 
-Malay has **NO grammatical gender**. Nouns, pronouns, verbs, adjectives do not inflect for gender. Third-person singular `dia` covers he/she/it. Verbs do not conjugate for person, number, or gender.
-
-**Consequence for iOS gendered keys:** Keys like `welcome_message_M` / `welcome_message_F` will produce **identical strings** in Malay. This is correct and expected. **DO NOT flag M/F values being identical for Malay.**
-
-Confirming example:
-- EN M: `You reached your goal!` → ms: `Awak dah capai matlamat!`
-- EN F: `You reached your goal!` → ms: `Awak dah capai matlamat!`
-- Identical = correct ✓ (no flag)
-
-If translator artificially differentiates M/F (e.g. adds `lelaki` / `perempuan`), flag as over-translation.
+No grammatical gender (`dia` = he/she/it; verbs don't conjugate) — base prompt rule #5 applies: identical M/F values are **correct**, do not flag. If a translator artificially differentiates M/F (adds `lelaki` / `perempuan`), flag as over-translation.
 
 ## Script & direction
 
-**Latin script (Rumi)**, **LTR**.
+**Latin (Rumi), LTR.**
 
-- Jawi (Arabic-script Malay) exists culturally but is NOT used in iOS apps, Play Store, or modern digital products in Malaysia. If Jawi characters appear in `ms.lproj` → flag as wrong script.
-- No diacritics required in standard Malay (no é/à/ç). If accented Latin chars appear they likely come from untranslated source.
-- Capitalization: sentence case standard; Title Case acceptable for buttons/headers but not over-applied like English.
+- Jawi (Arabic-script Malay) is not used in modern apps → flag Jawi characters as wrong script.
+- No diacritics in standard Malay; accented Latin chars usually signal untranslated source.
+- Sentence case standard; Title Case OK for buttons, not over-applied like English.
 
 ## Punctuation conventions
 
@@ -180,4 +171,4 @@ Beyond base prompt rules, for Malay specifically:
    - `hidrasi`, `terhidrat`, `dehidrasi`, `pengambilan cecair`, `keseimbangan elektrolit` — too clinical for casual hydration nudges. Prefer `minum air`, `air dalam badan`, `cukup air`.
    - Acceptable in onboarding/educational screens with intentional informational tone.
 
-12. **Em-dash policy reminder** — Malay rarely uses em-dash `—` in casual writing; comma, period, or parentheses are typical. If base prompt rules flag em-dashes, they fully apply to ms (replace with comma or split sentence).
+12. **Em-dash** (base rule #15): ms rarely uses `—`; replace with comma / period / parentheses.
