@@ -141,6 +141,25 @@ off-vocab tag (it does not block).
   and locale quotation marks (`«»` ru/fr, `„"` de, `「」` ja) are governed by
   `TRANSLATION_STYLE.md § Punctuation` — the glossary pins the **word**, the style
   doc pins the **quoting**.
+- **Brand localization — `My Water` is `translatable:true` and ANCHORED ON
+  `CFBundleName`.** The per-locale rendering of the brand **is** the app's
+  `CFBundleName` / `CFBundleDisplayName` value (the home-screen icon name) — that is
+  the source of truth we build from: da «Mit vand», de «Mein Wasser», es «Mi agua»,
+  fr «Mon eau», it «La mia acqua», ko «나의 물», ru «Моя вода», zh «我的水». **ar / id /
+  vi keep Latin `My Water`** (their `CFBundleDisplayName` is Latin — not drift).
+  - **Current state (2026-06) — partial sweep, intentionally `пока так`.** The brand
+    is localized where `ru` also localizes (and on the named drift keys
+    `shareInviteFriendsText` / `shareInviteMessage` / `spotlightOpenDrinkDescription`);
+    `da` was swept first. Many user-facing keys still carry Latin `My Water`
+    (≈ de 15 / es 27 / fr 23 / ko 32 / it 13). Aligning them is a **pending
+    per-language sweep, built from the `CFBundleName` anchor** and done with per-key
+    judgment (mirror what `ru` does on each key) — **not** a blind find-replace.
+  - **Intentional KEEP-Latin carve-outs** (do not localize without an explicit
+    operator decision): (a) ar / id / vi; (b) **social-share + App Store** surfaces
+    (`socialShareText*`, `achivmentTextShare*`, `appstore_app_*`) — Latin across *all*
+    locales, an ASO / brand-recognition choice; (c) keys where **`ru` itself keeps
+    Latin** (e.g. `weightPromo1`, in-app Settings navigation paths like
+    `appleHealthPartialFooter`).
 - **Forbidden — `forbidden:true`.** The "avoid" lexicon
   (`TRANSLATION_STYLE.md § Lexicon`: `hydration metrics`, `consumption logs`,
   `metabolic profile`, medical jargon) modeled as banned terms so Lokalise QA
