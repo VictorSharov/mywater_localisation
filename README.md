@@ -63,6 +63,7 @@ tagging touch Lokalise.
 | `loc_glossary_import.py` | upsert `glossary.ndjson` into the Lokalise glossary API (dry-run default, `--apply`) | yes (`--apply`) |
 | `loc_qa_issues_fetch.py` | fetch Lokalise QA-flagged translations (`spelling_and_grammar` default; `--issue` for others) to `qa_issues.ndjson` for AI validation | yes |
 | `loc_audit_extract.py` | extract en+ru+`<lang>` audit batches from the corpus (opt. `--platform`) | — |
+| `loc_audit_glossary.py` | emit the canonical per-language glossary terminology checklist for the audit sub-agent (inline w/ the prompt) | — |
 | `loc_audit_apply.py` | apply validated audit findings into the corpus | — |
 | `loc_apply_lang.py` | apply a `{key:value}` map into the corpus (replace-only) | — |
 | `loc_apply_meta.py` | edit key metadata in the corpus — platforms (add/remove/set) + description (replace-only); flags `dirty_meta` for the importer | — |
@@ -89,7 +90,8 @@ Exact flags live in each script's `--help` / docstring (the canonical owner).
 
 # Audit a language (reads the corpus; no token):
 python3 loc_audit_extract.py de 1 200 /tmp/loc_audit_de_001.txt
-#   → run the Opus 4.7 sub-agent with loc_audit_prompt.md → validated findings
+python3 loc_audit_glossary.py de /tmp/loc_gloss_de.txt   # canonical per-language glossary checklist (inline w/ the prompt)
+#   → run the audit sub-agent with loc_audit_prompt.md (+ glossary checklist) → validated findings
 python3 loc_audit_apply.py de /tmp/validated_de.md      # writes t[de] into the corpus
 
 # Translate the backlog (unverified / missing / empty) for a language:

@@ -48,7 +48,7 @@ a non-empty diff is someone else's in-flight work and must be preserved ([CR-COR
 | Task | Read first | Tools (token-free unless noted) |
 |---|---|---|
 | Translate a language / fill the backlog | `TRANSLATION_STYLE.md` + § Self-translation discipline + `PIPELINE.md § Parallel translation passes` | `loc_r_marked_translations.py`, `loc_apply_lang.py`, `make apply` |
-| Audit existing translations | `loc_audit_prompt.md` (+ `loc_audit_lang_calibration/<lang>.md` for ar/hi/vi/id/ms) | `loc_audit_extract.py`, `loc_audit_apply.py` |
+| Audit existing translations | `loc_audit_prompt.md` (+ `loc_audit_lang_calibration/<lang>.md` for ar/hi/vi/id/ms; per-language glossary checklist) | `loc_audit_extract.py`, `loc_audit_glossary.py`, `loc_audit_apply.py` |
 | Audit / fix translator **context** (the `context` field) | `loc_context_audit_prompt.md` (Tier 0 lint → A/B/C; iOS-canonical grounding) | `loc_context_lint.py` (token-free pre-lint), `loc_apply_meta.py` |
 | Add a new key | § Adding a new key (every platform) — reuse-search first | `loc_corpus_import.py` (operator `--apply`) |
 | Convert a flat key to plural | § Changing a flat key into a plural — replacement flow, never in-place | `make push` + `make delete-keys` + `make export` (operator-run) |
@@ -69,6 +69,7 @@ a non-empty diff is someone else's in-flight work and must be preserved ([CR-COR
 | `loc_glossary.py` (the glossary serializer) | Round-trip byte-identical test against a copy ([CR-CORPUS-OWNER] analog, [`GLOSSARY.md`](GLOSSARY.md) § Verification) |
 | A rule in `TRANSLATION_STYLE.md § Brand voice` / discipline | Mirror its **operational** form into `loc_audit_prompt.md` — the sub-agent reads it verbatim with no doc access, so this duplication is intentional — and add a dated `§ Calibration changelog` entry |
 | A brand / lexicon / unit term in `TRANSLATION_STYLE.md § Lexicon` (preferred word, brand name, premium tier, banned jargon) | Add / adjust the matching term in `glossary.ndjson` ([`GLOSSARY.md`](GLOSSARY.md)) |
+| A `glossary.ndjson` brand-freeze (`translatable:false`) / forbidden (`forbidden:true`) flag | Sync the inline freeze / forbidden lists in `loc_audit_prompt.md § For <target> rule #10` (the ~100 per-language renderings regenerate via `loc_audit_glossary.py`, no manual mirror) — and add a dated `loc_audit_changelog.md` entry |
 | An export setting (Lokalise download) | `EXPORT.md` table + the matching profile in `loc_export.py` (keep in sync) |
 | A `[CR-*]` rule's mechanics in `PIPELINE.md` | Keep the terse statement in § Critical rules in sync (same `[CR-*]` anchor) |
 
