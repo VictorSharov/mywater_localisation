@@ -130,19 +130,37 @@ def iter_source_files(root: Path, suffixes: tuple[str, ...]) -> "list[Path]":
 
 class IOSIndex:
     """One-pass index of the iOS sources: identifier universe, swift filenames,
-    and the precise localized-string call-sites per key."""
+    directory (module) names, and the precise localized-string call-sites per key."""
 
     def __init__(self, root: Path):
         self.root = root
         self.identifiers: set[str] = set()
         self.filenames: set[str] = set()
+        self.dir_names: set[str] = set()
         self.call_sites: dict[str, list[tuple[str, int, str]]] = defaultdict(list)
         self._file_texts: dict[str, str] = {}
+        self._alive_memo: dict[str, bool] = {}
         self._build()
+
+    def alive(self, sym: str) -> bool:
+        """True if `sym` is a real symbol here: an exact identifier / dir / filename
+        stem, OR a CamelCase prefix of some identifier (SubscriptionWoman ->
+        SubscriptionWomanViewController). Prefix — not substring — so a typo like
+        `SpecialPrie` (no identifier STARTS with it, though it sits inside
+        `SpecialPrice`) is still correctly dead. Memoized."""
+        hit = self._alive_memo.get(sym)
+        if hit is not None:
+            return hit
+        ok = (sym in self.identifiers or sym in self.dir_names
+              or sym in self.filenames or f"{sym}.swift" in self.filenames
+              or any(i.startswith(sym) for i in self.identifiers))
+        self._alive_memo[sym] = ok
+        return ok
 
     def _build(self) -> None:
         for path in iter_source_files(self.root, (".swift",)):
             self.filenames.add(path.name)
+            self.dir_names.update(p.name for p in path.relative_to(self.root).parents if p.name)
             try:
                 text = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
@@ -179,13 +197,27 @@ class AndroidIndex:
         self.root = root
         self.identifiers: set[str] = set()
         self.filenames: set[str] = set()
+        self.dir_names: set[str] = set()
         self.string_names: set[str] = set()
         self.call_sites: dict[str, list[tuple[str, int, str]]] = defaultdict(list)
+        self._alive_memo: dict[str, bool] = {}
         self._build()
+
+    def alive(self, sym: str) -> bool:
+        """Android analog of IOSIndex.alive (identifier / dir / string-name / prefix)."""
+        hit = self._alive_memo.get(sym)
+        if hit is not None:
+            return hit
+        ok = (sym in self.identifiers or sym in self.dir_names
+              or sym in self.string_names
+              or any(i.startswith(sym) for i in self.identifiers))
+        self._alive_memo[sym] = ok
+        return ok
 
     def _build(self) -> None:
         for path in iter_source_files(self.root, (".kt", ".kts", ".xml", ".java")):
             self.filenames.add(path.name)
+            self.dir_names.update(p.name for p in path.relative_to(self.root).parents if p.name)
             try:
                 text = path.read_text(encoding="utf-8", errors="ignore")
             except OSError:
@@ -277,15 +309,30 @@ def lint_record(rec: dict, ios: IOSIndex, andr: "AndroidIndex | None") -> dict:
     else:
         referenced = "none"
 
-    # Dead citations — alive if the symbol exists on EITHER platform.
+    # Citation analysis. A cited code token is "alive" if it exists ANYWHERE on
+    # either platform — as an identifier, a filename, or a directory/module name.
+    #   dead             — alive nowhere. Truly nonexistent (typo / stale). High precision.
+    #   surface_mismatch — alive (a real module/screen) BUT absent from THIS key's
+    #                      real call-site paths. The string is rendered elsewhere
+    #                      than the context claims (e.g. month/year citing the
+    #                      stat-period module while rendered in the weight picker).
+    #                      Only computed when the key has >=1 precise R.string site
+    #                      (literal/generated-only sites carry no module path).
+    site_paths = [p for p, _, kind in sites if kind in ("R.string", "NSLocalizedString")]
+    site_blob = " ".join(site_paths)
+    have_precise = bool(site_paths)
     dead = []
+    surface_mismatch = []
     for sym, kind in extract_cited_symbols(context):
         if kind == "file":  # *.swift filenames are iOS-only by nature
             alive = sym in ios.filenames
         else:
-            alive = sym in ios.identifiers or (andr is not None and sym in andr.identifiers)
+            alive = ios.alive(sym) or (andr is not None and andr.alive(sym))
         if not alive:
             dead.append({"symbol": sym, "kind": kind})
+        elif kind != "file" and have_precise and sym not in site_blob:
+            # Real module/type, but not on any of this key's actual call-site paths.
+            surface_mismatch.append({"symbol": sym, "kind": kind})
 
     # Length caps vs longest shipped translation (material overflow only).
     caps = [int(n) for n in CAP_RE.findall(context)]
@@ -312,6 +359,7 @@ def lint_record(rec: dict, ios: IOSIndex, andr: "AndroidIndex | None") -> dict:
         "android_sites": android_strs,
         "referenced": referenced,
         "dead_citations": dead,
+        "surface_mismatch": surface_mismatch,
         "cap_violations": cap_violations,
         "placeholder_unexplained": ph_unexplained,
         "has_register": bool(REGISTER_RE.search(context)),
@@ -395,6 +443,7 @@ def main() -> int:
         r["register_inconsistent"] = reg_flags.get(r["key"])
 
     dead = [r for r in results if r["dead_citations"]]
+    mismatch = [r for r in results if r["surface_mismatch"]]
     caps = [r for r in results if r["cap_violations"]]
     orphan = [r for r in results if r["referenced"] == "none"]
     android_only = [r for r in results if r["referenced"] == "android"]
@@ -413,7 +462,8 @@ def main() -> int:
     w(f"records scanned: {len(results)}   android fallback: {'on' if andr else 'off'}")
     w("")
     w("## Summary (deterministic signals)")
-    w(f"  dead citations (cited symbol absent both platforms): {len(dead)} key(s)")
+    w(f"  dead citations (cited symbol exists nowhere)        : {len(dead)} key(s)")
+    w(f"  surface mismatch (cited module not in real sites)   : {len(mismatch)} key(s)")
     w(f"  length-cap violations (longest tr > cap + {CAP_SOFT_TOLERANCE}) : {len(caps)} key(s)")
     w(f"  orphan: not referenced on iOS OR Android           : {len(orphan)} key(s)")
     w(f"  android-only (iOS-orphan, grounded via Android)     : {len(android_only)} key(s)")
@@ -421,10 +471,16 @@ def main() -> int:
     w(f"  Register inconsistent within family                 : {len(reg)} key(s)")
     w(f"  shared family boilerplate lines (>=3 keys)          : {len(boilerplate)} group(s)")
     w("")
-    w("## DEAD CITATIONS (high-precision faithfulness defects)")
+    w("## DEAD CITATIONS (cited symbol exists on neither platform — typo/stale)")
     for r in dead:
         syms = ", ".join(f"{d['symbol']}({d['kind']})" for d in r["dead_citations"])
         w(f"  {r['key']:28s} cites missing: {syms}")
+    w("")
+    w("## SURFACE MISMATCH (cited module is real but NOT a real call-site of this key)")
+    for r in mismatch:
+        syms = ", ".join(d["symbol"] for d in r["surface_mismatch"])
+        site0 = (r["usage_sites"][0] if r["usage_sites"] else "?")
+        w(f"  {r['key']:28s} cites {syms}; real site: {site0}")
     w("")
     w("## LENGTH-CAP VIOLATIONS (material; soft tolerance applied)")
     for r in sorted(caps, key=lambda x: -x["cap_violations"][0]["margin"]):

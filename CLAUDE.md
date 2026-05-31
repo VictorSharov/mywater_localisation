@@ -49,6 +49,7 @@ a non-empty diff is someone else's in-flight work and must be preserved ([CR-COR
 |---|---|---|
 | Translate a language / fill the backlog | `TRANSLATION_STYLE.md` + § Self-translation discipline + `PIPELINE.md § Parallel translation passes` | `loc_r_marked_translations.py`, `loc_apply_lang.py`, `make apply` |
 | Audit existing translations | `loc_audit_prompt.md` (+ `loc_audit_lang_calibration/<lang>.md` for ar/hi/vi/id/ms) | `loc_audit_extract.py`, `loc_audit_apply.py` |
+| Audit / fix translator **context** (the `context` field) | `loc_context_audit_prompt.md` (Tier 0 lint → A/B/C; iOS-canonical grounding) | `loc_context_lint.py` (token-free pre-lint), `loc_apply_meta.py` |
 | Add a new key | § Adding a new key (every platform) — reuse-search first | `loc_corpus_import.py` (operator `--apply`) |
 | Convert a flat key to plural | § Changing a flat key into a plural — replacement flow, never in-place | `make push` + `make delete-keys` + `make export` (operator-run) |
 | Edit key metadata (platforms / description / filenames) | [CR-CORPUS-META] → [`PIPELINE.md`](PIPELINE.md) | `loc_apply_meta.py` |
