@@ -54,9 +54,13 @@ that changes the word (`być` ≠ `byc`, `łeb` ≠ `leb`) — never a stylistic
 The primary pl risk is **ru→pl Slavic calque** — the team is ru-native and the audit anchors
 on `ru`, so pl can inherit a Russian structure / case-government / clinical term that is
 wrong or unidiomatic in Polish.
-- EN `Stay hydrated!` → clinical calque ❌ `Utrzymuj swój bilans wodny!` (`bilans wodny` =
-  physiological "water balance", clinical on a casual card) → ✓ `Pij wodę regularnie!`.
-  (Pilot finding `text1_9F`; the ru anchor avoided the calque too.)
+- EN `Keep up your water balance!` → clinical calque ❌ `Utrzymuj swój bilans wodny!` → ✓ `Pij
+  wodę regularnie!`. `bilans wodny` is correct ONLY on the feature label (`waterBalance`) / store;
+  on this casual motivational surface it is a clinical calque **even though it is literally faithful
+  to the en "water balance"**. (Key `text1_9`; ru went plain «Старайся пить воду регулярно!». The
+  test is the **surface register**, not literal en-fidelity — `TRANSLATION_STYLE.md § Translation
+  discipline` Принцип #3 bans `водный баланс` + equivalents on casual surfaces even when faithful.
+  A `context` comment that merely *glosses* the en term is **not** a skip-#6 preserve-directive.)
 - Clinical-term watchlist for casual surfaces: `bilans wodny`, `nawodnienie`,
   `gospodarka wodna`, `spożycie / przyjmowanie płynów` → prefer `pij wodę`, `picie wody`,
   `ile wypiłeś`.

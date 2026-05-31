@@ -117,7 +117,8 @@ Beyond base prompt rules, for Malay specifically:
 
 1. **English loanwords are natural in tech UI** — do NOT flag these as calques or anglicisms:
    - `aplikasi`, `notifikasi`, `kalori`, `data`, `log`, `widget`, `Siri`, `premium`, `langganan`, `pakej`, `subscribe` (sometimes localized as `langgan`).
-   - Brand names stay in English: `My Water`, `Apple Health`, `HealthKit`, `Apple Watch`, `iCloud`.
+   - Platform / 3rd-party brands stay verbatim (do NOT translate): `Apple Health`, `HealthKit`, `Apple Watch`, `iCloud`, `Siri`.
+   - **Product brand `My Water` is LOCALIZED in ms → canonical sentence-case `Air saya`** (literal "my water", parallel to ru «Моя вода» / de "Mein Wasser"). Per `glossary.ndjson` (`My Water`) the wordmark is localized per locale and mirrors `CFBundleDisplayName` exactly — 17 of 21 locales localize it; Latin "My Water" is the deliberate exception only for ar/id/vi. Do **NOT** flag `Air saya` as a brand-translation error and do **NOT** suggest reverting it to Latin. DO flag: non-canonical casing (`Air Saya` / `AIR SAYA`), the intimate `Airku` (off-brand `-ku` register, see T-V), or meaning-shifted `Air Kami` / `Air Kita` ("our water"). `My Water Premium` & standalone `Premium` stay Latin (verbatim) — only the base wordmark localizes.
 
 2. **Indonesian-Malay false-friend trap (high priority — flag if found):**
    - **`pejabat`** — ms: "office (place)" ✓ / id: "official (person)" ❌
