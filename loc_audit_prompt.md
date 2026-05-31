@@ -16,6 +16,16 @@ doc-scope: AI-assisted translation audit поверх cross-platform ndjson-ко
 
 ## Workflow
 
+### 0. Cost & pilot discipline (binding — read BEFORE launching the workflow)
+
+This workflow fans out sub-agents; a mis-scoped or unbounded run is a real, **repeated** failure mode (2026-05-31: a mis-scoped "pilot" ran the full 6-language set = **87 agents / ~182M tokens** before operator kill — `loc_audit_changelog.md`). Hard rules:
+
+- **One language per workflow run.** Cadence baseline ≈ **13 agents / ~3M tokens per language** (pl pilot 13/2.73M; ru+en 34/3.63M). Do **not** bundle multiple languages into one fan-out — go language-by-language with serial apply (the changelog's standing recommendation). N languages = N runs, reviewed between each.
+- **Estimate before launch, and STATE it.** agents ≈ batches × stages (+ any inner fan-out); rough tokens. If the estimate exceeds **~40 agents** or **~5M tokens**, STOP and get explicit operator confirmation — never "pilot-then-autorun."
+- **No unbounded fan-out.** Never spawn agents proportional to a *discovered, uncapped* quantity (e.g. one agent per finding). Batch per-batch: **one verifier and at most one deep-validator per batch**, each handling all that batch's findings in a single call.
+- **A pilot must be hard-capped IN THE SCRIPT** — literally `items.slice(0,1)` or `if (items.length > 1) throw` — **never** via a Workflow `args` override (it silently falls back to full scope if the script does not read it). After launch, **verify the actual scope** (the scope `log()` line / live agent count) before reporting what is running.
+- Sub-agents are **READ-ONLY**; the orchestrator applies confirmed changes serially ([CR-CORPUS-CONCURRENCY]).
+
 ### 1. Extract batch
 
 ```bash
