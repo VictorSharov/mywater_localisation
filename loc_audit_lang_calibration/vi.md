@@ -52,7 +52,7 @@ Latin script with diacritics (chữ Quốc ngữ), LTR. Vietnamese uses 6 tone m
 - **Ellipsis:** Both `…` (single character) and `...` (three dots) are seen. Match the source.
 - **Em-dash** (base rule #15): vi prefers comma / parentheses / sentence split — never `—`.
 - **Decimal separator:** Comma `,` is the typical Vietnamese decimal separator (`1,5 lít`). However, modern app UIs frequently use period `.` matching the device locale formatter. Flag inconsistency within one app surface, not the choice itself. Thousand separator is period `.` (`1.500 ml`) in formal contexts; spaces also seen.
-- **Units:** `ml`, `oz`, `kg`, `lít` (the last is Vietnamese for "liter" — note the diacritic). `ly` = glass, `cốc` = cup/glass (northern dialect), `tách` = small cup (for tea/coffee).
+- **Units & drink-container names (distinct per container — do NOT collapse them):** `ml`, `oz`, `kg`, `lít` (Vietnamese for "liter" — note the diacritic). **`cốc` = a (water) drinking glass** — app-canonical, used by the `glass` preset, `shotGlass` (`cốc nhỏ`) and `glassOfWaterCharacter`; standard register. `ly` = the Southern-dialect synonym for glass — understood nationwide but **not** canonical here; prefer `cốc`, flag a lone `ly nước` as drift. **`tách` = a coffee/tea cup** (ru «чашка») — the `cup` preset and `beverageCharacter`; never render `cup` as `cốc` (collides with `glass`=`cốc`). **`ca` / `cái ca` = a mug** (ru «кружка») — `mugCharacter`. Decision + evidence: `loc_audit_changelog.md` 2026-05-31 cốc/ly + cup/tách reconciliation.
 - **Brand name "My Water":** Keep as `My Water` in Latin script — DO NOT translate to `Nước Của Tôi` or similar. Vietnamese readers comfortably parse English brand names; translating brand = anti-pattern, flag if seen. The product is `My Water`, the generic concept is `nước` (water).
 
 ## Common EN→target calque patterns
@@ -75,9 +75,9 @@ Vietnamese is isolating, drops articles entirely, prefers SVO with topic-promine
   (reason: Vietnamese omits possessives when ownership is obvious from context. `của bạn` after a noun the user just reached is redundant. `hôm nay` is warmer than `hàng ngày`.)
 
 - EN: `Tap to add a glass of water`
-  Literal calque ❌: `Chạm để thêm một ly của nước` (uses `của` "of" as direct calque of EN "of", which is wrong — Vietnamese uses bare juxtaposition for measure phrases)
-  Natural restructure ✓: `Chạm để thêm một ly nước` ("Tap to add one glass water" — measure phrase `ly nước` needs no preposition)
-  (reason: Vietnamese measure constructions are `[number] [classifier] [noun]` with no `của` / `of`. `một ly của nước` is a hallmark of MT calque.)
+  Literal calque ❌: `Chạm để thêm một cốc của nước` (uses `của` "of" as direct calque of EN "of", which is wrong — Vietnamese uses bare juxtaposition for measure phrases)
+  Natural restructure ✓: `Chạm để thêm một cốc nước` ("Tap to add one glass water" — measure phrase `cốc nước` needs no preposition)
+  (reason: Vietnamese measure constructions are `[number] [classifier] [noun]` with no `của` / `of`. `một cốc của nước` is a hallmark of MT calque.)
 
 - EN: `Track your hydration habit`
   Literal calque ❌: `Theo dõi thói quen hydrat hóa của bạn` (`hydrat hóa` is a borrowed Sino-Vietnamese pseudo-scientific term — sounds like a chemistry textbook)
@@ -86,15 +86,15 @@ Vietnamese is isolating, drops articles entirely, prefers SVO with topic-promine
 
 ## Plural rules summary
 
-Vietnamese has **1 CLDR plural category: `other`**. Vietnamese is morphologically uninflected — nouns do NOT pluralize. `một ly` (one glass) and `năm ly` (five glasses) use the identical noun `ly`.
+Vietnamese has **1 CLDR plural category: `other`**. Vietnamese is morphologically uninflected — nouns do NOT pluralize. `một cốc` (one glass) and `năm cốc` (five glasses) use the identical noun `cốc`.
 
 **Consequence for `.stringsdict`:** A correct `vi.lproj/Localizable.stringsdict` entry typically has exactly ONE `NSStringFormatValueTypeKey` variant under `other`. Multiple plural-form variants (`one`, `few`, `many`, etc.) for Vietnamese are wrong and should be flagged.
 
-**Optional plural marking:** Vietnamese can mark plurality lexically with `các` (definite plural) or `những` (some/various plural) — but these are NOT required and adding them in stringsdict forms is over-translation. `Bạn đã uống 3 ly nước` is correct, NOT `Bạn đã uống 3 các ly nước`.
+**Optional plural marking:** Vietnamese can mark plurality lexically with `các` (definite plural) or `những` (some/various plural) — but these are NOT required and adding them in stringsdict forms is over-translation. `Bạn đã uống 3 cốc nước` is correct, NOT `Bạn đã uống 3 các cốc nước`.
 
 **Suspicious patterns to flag:**
-- Vietnamese stringsdict entry with `one` AND `other` keys differing only in noun form (e.g., `1 ly` vs `2 lys`) — flag as MT artifact; Vietnamese doesn't pluralize.
-- Variant attempting to inflect the noun (`lys`, `glasses` in Vietnamese position) — flag.
+- Vietnamese stringsdict entry with `one` AND `other` keys differing only in noun form (e.g., `1 cốc` vs `2 cốcs`) — flag as MT artifact; Vietnamese doesn't pluralize.
+- Variant attempting to inflect the noun (`cốcs`, `glasses` in Vietnamese position) — flag.
 - A `.stringsdict` for vi that mirrors the EN structure exactly with `one` + `other` — frequently still valid if both values use the same noun form, but verify it's not an over-engineering hint.
 
 ## Language-specific skip rules for audit
@@ -142,6 +142,6 @@ Rules that supplement (not replace) the base prompt:
 
 8. **AppIntent / Siri voice strings:** Siri uses TTS that reads diacritics correctly. Strings with missing diacritics will be mispronounced or read as unknown words. Treat diacritic correctness as a hard requirement for any string flagged as Siri-surface. Avoid abbreviations like `ml`, `oz` in voice strings — prefer spelled forms `mi-li-lít` or restructure to avoid the unit token entirely.
 
-9. **Numbers + units:** Standard order is `[number] [unit/classifier] [noun]`: `500 ml nước`, `2 ly nước`. Reversed order `nước 500 ml` is also seen for product labels but unusual in active-voice UI. Flag word order that places number after the noun in CTA/notification context.
+9. **Numbers + units:** Standard order is `[number] [unit/classifier] [noun]`: `500 ml nước`, `2 cốc nước`. Reversed order `nước 500 ml` is also seen for product labels but unusual in active-voice UI. Flag word order that places number after the noun in CTA/notification context.
 
-10. **Placeholder boundaries — Vietnamese has no articles, so placeholder context matters more.** Where English needs `a glass / the glass`, Vietnamese needs nothing before the noun. A placeholder like `Add %@ to your log` where `%@` is `glass of water` will produce `Thêm ly nước vào nhật ký` — the placeholder must not include the article, and the surrounding string must not assume any article slot. Flag translations that wrap a placeholder in extra words intended to absorb articles (`Thêm một %@ của bạn`).
+10. **Placeholder boundaries — Vietnamese has no articles, so placeholder context matters more.** Where English needs `a glass / the glass`, Vietnamese needs nothing before the noun. A placeholder like `Add %@ to your log` where `%@` is `glass of water` will produce `Thêm cốc nước vào nhật ký` — the placeholder must not include the article, and the surrounding string must not assume any article slot. Flag translations that wrap a placeholder in extra words intended to absorb articles (`Thêm một %@ của bạn`).
