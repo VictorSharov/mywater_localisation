@@ -40,11 +40,10 @@ recognise because iOS has nothing.
 
 ## Three-tier workflow
 
-The pilot (35 keys, adversarial verification) showed a **~31 % real defect rate**,
-with defects concentrated in **faithfulness / surface / completeness** and the
-**highest fabrication rate** in register / consistency / constraint *tightening*.
-Uniform deep auditing wasted ~⅔ of its tokens proving good contexts good. So depth
-is **non-uniform**, driven by a free deterministic pass:
+A pilot showed defects **cluster in faithfulness / surface / completeness**, while the
+**highest fabrication rate** is in register / consistency / constraint *tightening* — and
+uniform deep auditing burns most of its tokens proving good contexts good. So depth is
+**non-uniform**, driven by a free deterministic pass:
 
 ### Tier 0 — deterministic pre-lint (token-free, always first)
 
@@ -93,11 +92,11 @@ Apply via `loc_apply_meta.py --description-file` (single writer, [CR-CORPUS-CONC
 
 ### Tier B — deep LLM audit, **only** on linter-flagged keys
 
-The ~150–200 keys carrying a surface mismatch (~45), a dead citation (~4), a real
-orphan, a register asymmetry (~5), or a material cap overflow (~44; many are App
-Store / server strings where the cap is simply wrong). Full grounded audit per key
-(iOS sites pre-injected) + adversarial verification on `high`-severity proposals.
-This is where faithfulness / surface defects (100 % pilot-confirm rate) live.
+The ~150–200 keys carrying a surface mismatch, a dead citation, a real orphan, a
+register asymmetry, or a material cap overflow (many are App Store / server strings
+where the cap is simply wrong). Full grounded audit per key (iOS sites pre-injected)
++ adversarial verification on `high`-severity proposals. This is where faithfulness /
+surface defects live (the pilot's highest-confirm class).
 
 ### Tier C — broad shallow pass on the remainder
 
@@ -110,9 +109,9 @@ catches them at low cost. Verification is a small random sample, not per-key.
 
 > **Why all three.** Tier 0/A is near-free and kills systematic drift in bulk. Tier B
 > spends depth only where a cheap signal already fired. Tier C is the only thing that
-> catches live-but-wrong claims, at shallow cost. Pilot-uniform depth on 1261 keys ≈
-> 64 M tokens; this ≈ 10–15 M for **more** coverage, because the linter does the
-> grounding the model used to do (and sometimes hallucinated).
+> catches live-but-wrong claims, at shallow cost — far cheaper than uniform deep auditing
+> of all 1261 keys, because the linter does the grounding the model used to do (and
+> sometimes hallucinated).
 
 ## Running Tier B / C (sub-agent invocation)
 
@@ -134,10 +133,9 @@ Structured output per key (the orchestrator writes each `proposed_context` to
 
 ## Verifier discipline (the verifier is audited too)
 
-The pilot's adversarial verifier was useful (it killed 2 of 13 over-reaching edits)
-but **itself hallucinated**: it declared four real iOS files "fabricated" and cited
-wrong string lengths. So the verifier is bound by the same evidence rules as the
-auditor:
+The pilot's adversarial verifier was useful (it killed real over-reaching edits) but
+**itself hallucinated** — it declared real iOS files "fabricated" and cited wrong
+string lengths. So the verifier is bound by the same evidence rules as the auditor:
 
 - A "this file / symbol does not exist" or "fabricated" verdict **requires a re-read
   with the exact path** before it is recorded. No negative claim from memory.
