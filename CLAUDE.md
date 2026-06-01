@@ -67,7 +67,7 @@ a non-empty diff is someone else's in-flight work and must be preserved ([CR-COR
 |---|---|
 | `loc_corpus.py` (the serializer) | Round-trip byte-identical test against a copy ([CR-CORPUS-OWNER], § Verification) |
 | `loc_glossary.py` (the glossary serializer) | Round-trip byte-identical test against a copy ([CR-CORPUS-OWNER] analog, [`GLOSSARY.md`](GLOSSARY.md) § Verification) |
-| A rule in `TRANSLATION_STYLE.md § Brand voice` / discipline | Mirror its **operational** form into `loc_audit_prompt.md` — the sub-agent reads it verbatim with no doc access, so this duplication is intentional — and add a dated `§ Calibration changelog` entry |
+| A rule in `TRANSLATION_STYLE.md § Brand voice` / discipline | Mirror its **operational** form into `loc_audit_prompt.md` — the sub-agent reads it verbatim with no doc access, so this duplication is intentional — and add a dated entry in `loc_audit_changelog.md` (calibration canon) |
 | A brand / lexicon / unit term in `TRANSLATION_STYLE.md § Lexicon` (preferred word, brand name, premium tier, banned jargon) | Add / adjust the matching term in `glossary.ndjson` ([`GLOSSARY.md`](GLOSSARY.md)) |
 | A `glossary.ndjson` brand-freeze (`translatable:false`) / forbidden (`forbidden:true`) flag | Sync the inline freeze / forbidden lists in `loc_audit_prompt.md § For <target> rule #10` (the ~100 per-language renderings regenerate via `loc_audit_glossary.py`, no manual mirror) — and add a dated `loc_audit_changelog.md` entry |
 | An export setting (Lokalise download) | `EXPORT.md` table + the matching profile in `loc_export.py` (keep in sync) |

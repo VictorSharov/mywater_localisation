@@ -105,7 +105,7 @@ SDK_ALLOW = {
     "Text", "View", "Image", "Color", "Font", "Button", "VStack", "HStack",
     "Info", "InfoPlist", "Localizable", "AppDelegate", "SceneDelegate",
     "HealthKit", "HKQuantity", "WidgetKit", "AppIntent", "Siri", "SiriKit",
-    # Added 2026-05-31 (Tier A adjudication, loc_audit_changelog.md § Context-audit):
+    # Added 2026-05-31 (Tier A adjudication, loc_audit_status.md § Context-audit):
     # mechanism / namespace tokens that are ALWAYS cited as a code reference, never
     # as the localized-string surface — so a context naming them is not a mismatch.
     "UIApplication", "UIAccessibility", "HKQuantityTypeIdentifier", "StoreKit",

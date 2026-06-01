@@ -1,7 +1,7 @@
 <!--
 doc-role: workflow
 doc-owner: loc_context_audit_prompt.md (repository mywater_localisation)
-doc-scope: AI-assisted audit of the translator `context` field over the cross-platform ndjson corpus — deterministic pre-lint + sub-agent prompt + verifier discipline + three-tier workflow + skip rules. Sibling of loc_audit_prompt.md (which audits translation VALUES, not context). Durable dated history → loc_audit_changelog.md § Context-audit.
+doc-scope: AI-assisted audit of the translator `context` field over the cross-platform ndjson corpus — deterministic pre-lint + sub-agent prompt + verifier discipline + three-tier workflow + skip rules. Sibling of loc_audit_prompt.md (which audits translation VALUES, not context). Durable dated history → loc_audit_status.md § Context-audit.
 -->
 
 # Translator-context audit — workflow & sub-agent prompt
@@ -158,7 +158,7 @@ auditor:
 > **Verbatim self-sufficiency.** Copy into `prompt:` exactly; the sub-agent has **no
 > doc access at runtime**. Change only the per-run header (the key list + injected
 > linter facts). Keep operational rules inline. When the audit axes change, mirror
-> them here and add a dated entry to `loc_audit_changelog.md § Context-audit`.
+> them here and add a dated entry to `loc_audit_status.md § Context-audit`.
 
 ```
 You are auditing the TRANSLATOR-CONTEXT field (`context`) of localization keys for
@@ -282,5 +282,5 @@ accuracy beats length, and bloat is itself a defect.
 - `loc_apply_meta.py` — the writer for the `context` field ([CR-CORPUS-META]).
 - `loc_audit_prompt.md` — sibling audit of translation VALUES (calque/register/drift).
 - `TRANSLATION_STYLE.md` — register / brand-voice canon referenced by the Register axis.
-- `loc_audit_changelog.md § Context-audit` — durable dated calibration history (the
+- `loc_audit_status.md § Context-audit` — durable dated execution history (the
   sub-agent does NOT read it).

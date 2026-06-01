@@ -1,14 +1,14 @@
 <!--
 doc-role: workflow
 doc-owner: loc_audit_prompt.md (репозиторий mywater_localisation)
-doc-scope: AI-assisted translation audit поверх cross-platform ndjson-корпуса — sub-agent prompt + workflow + skip rules. Durable history (dated changelog, binding decisions) → loc_audit_changelog.md
+doc-scope: AI-assisted translation audit поверх cross-platform ndjson-корпуса — sub-agent prompt + workflow + skip rules. Calibration canon (rules + binding decisions) → loc_audit_changelog.md; per-language STATE + dated execution log → loc_audit_status.md
 -->
 
 # Localization audit — sub-agent prompt & workflow
 
 Пошаговый workflow для AI-assisted audit переводов через sub-agent. Источник данных — **cross-platform ndjson-корпус** `strings.ndjson` в этом репозитории (все языки + все платформы): `loc_audit_extract.py` достаёт батчи `en`+`ru`+`<target>` из корпуса, validated findings применяются `loc_audit_apply.py` обратно **в** корпус (язык помечается `unverified`), затем `loc_corpus_import.py --apply` пушит правки в Lokalise, откуда они экспортируются в iOS / Android / server.
 
-> **Историческая привязка.** Калибровка prompt'а восходит к оригинальному iOS `.strings`-свипу; durable history (dated changelog, pilot/phase trail, binding decisions) — `loc_audit_changelog.md`. Linguistic-правила платформонезависимы и применяются к корпусу один-в-один.
+> **Историческая привязка.** Калибровка prompt'а восходит к оригинальному iOS `.strings`-свипу; calibration canon (binding decisions, rule rationale) — `loc_audit_changelog.md`; the dated execution trail (pilot / phase / apply / push) + current per-language STATE — `loc_audit_status.md`. Linguistic-правила платформонезависимы и применяются к корпусу один-в-один.
 
 ## Зачем нужен этот документ
 
@@ -18,9 +18,9 @@ doc-scope: AI-assisted translation audit поверх cross-platform ndjson-ко
 
 ### 0. Cost & pilot discipline (binding — read BEFORE launching the workflow)
 
-This workflow fans out sub-agents; a mis-scoped or unbounded run is a real, **repeated** failure mode (2026-05-31: a mis-scoped "pilot" ran the full 6-language set = **87 agents / ~182M tokens** before operator kill — `loc_audit_changelog.md`). Hard rules:
+This workflow fans out sub-agents; a mis-scoped or unbounded run is a real, **repeated** failure mode (2026-05-31: a mis-scoped "pilot" ran the full 6-language set = **87 agents / ~182M tokens** before operator kill — `loc_audit_status.md § Execution archive`). Hard rules:
 
-- **One language per workflow run.** Cadence baseline ≈ **13 agents / ~3M tokens per language** (pl pilot 13/2.73M; ru+en 34/3.63M). Do **not** bundle multiple languages into one fan-out — go language-by-language with serial apply (the changelog's standing recommendation). N languages = N runs, reviewed between each.
+- **One language per workflow run.** Cadence baseline ≈ **13 agents / ~3M tokens per language** (pl pilot 13/2.73M; ru+en 34/3.63M). Do **not** bundle multiple languages into one fan-out — go language-by-language with serial apply (the standing recommendation; per-pass cost baselines in `loc_audit_status.md`). N languages = N runs, reviewed between each.
 - **Estimate before launch, and STATE it.** agents ≈ batches × stages (+ any inner fan-out); rough tokens. If the estimate exceeds **~40 agents** or **~5M tokens**, STOP and get explicit operator confirmation — never "pilot-then-autorun."
 - **No unbounded fan-out.** Never spawn agents proportional to a *discovered, uncapped* quantity (e.g. one agent per finding). Batch per-batch: **one verifier and at most one deep-validator per batch**, each handling all that batch's findings in a single call.
 - **A pilot must be hard-capped IN THE SCRIPT** — literally `items.slice(0,1)` or `if (items.length > 1) throw` — **never** via a Workflow `args` override (it silently falls back to full scope if the script does not read it). After launch, **verify the actual scope** (the scope `log()` line / live agent count) before reporting what is running.
@@ -357,12 +357,17 @@ ru should use guillemets `«My Water»` / `«Моя вода»`, not straight AS
 
 If a connected ru text uses both «ты» and «вы» without semantic reason, flag.
 
-## Calibration changelog
+## Calibration & status records
 
-Durable calibration rationale, binding operator decisions, the dated changelog and the
-Phase 0..5 execution-log pointer live in **[`loc_audit_changelog.md`](loc_audit_changelog.md)**
-— frozen history, kept out of this file so the sub-agent reads only the live workflow +
-calibrated prompt (it does **not** read the changelog).
+Two sibling records, **neither read by the sub-agent** (it reads only this file + the
+inlined calibration/glossary):
+- **[`loc_audit_changelog.md`](loc_audit_changelog.md)** — calibration canon: *why* each
+  skip / audit / format rule + binding linguistic/policy decision exists.
+- **[`loc_audit_status.md`](loc_audit_status.md)** — current per-language **STATE** (audited /
+  applied / pushed / verified — the source of truth), open follow-ups, and the dated
+  **execution log** (re-sweep / apply / push passes, the cost-blowup incident, the
+  context-audit + beverage changesets). To answer *"is language X done?"* read its STATE
+  table — never infer state from a historical entry.
 
 ## Related
 
