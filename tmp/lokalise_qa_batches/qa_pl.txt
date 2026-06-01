@@ -1,0 +1,1572 @@
+# QA validation batch — language=pl
+# Source: qa_issues.ndjson (Lokalise LanguageTool flags) joined to strings.ndjson by key_id.
+# Task per entry: decide REAL error vs LanguageTool FALSE POSITIVE; if real, give the corrected value.
+#   Frequent false positives on UI strings: brand (MyWater), placeholders [%s]/[%i],
+#   informal register (du / ты), fragments without final punctuation, loanwords/transliteration.
+# en = source of truth · ru = full-parity reference · <lang> = the flagged value to judge.
+# qa: which QA check(s) fired. unverified: langs Lokalise flags for review. context: translator context.
+# flagged_value appears only on corpus/Lokalise drift (corpus stale for this lang — regenerate first).
+# Confirmed fixes -> {key: value} JSON -> loc_apply_lang.py <lang> fixes.json (stays unverified).
+# flagged entries: 111  (skipped: 0 key_id not in corpus, 0 off-platform)
+--- entry 0001 ---
+key: "socialShareTextFbF"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: fr,ja
+context:
+Surface: Social share post body (Facebook / generic share sheet) — main screen "share today's result" flow for female users.
+Type: social share post body
+Context: First-person message the user posts after completing the daily water goal. The user speaks as "I"; this is the female-form variant paired with `socialShareTextFbM` (male). In languages with grammatical gender, past-tense verbs / participles / adjectives agreeing with the speaker must use feminine forms. In English both variants may read the same; in target language adjust for the speaker's gender.
+Constraints: Preserve the `#mywater` hashtag and the quoted brand name "My Water" (use locale-standard quotation marks).
+en : 'I reached my daily water goal today! Help your body, download "My Water"! #mywater'
+ru : 'Я достигла дневной цели по воде! Помоги своему организму, скачай "Моя вода"! #mywater'
+pl : 'Dziś osiągnęłam swój dzienny cel wody! Pomóż swojemu ciału, pobierz "Moja woda"! #mywater'
+
+--- entry 0002 ---
+key: "appstore_app_description"
+platforms: other
+qa: spelling_and_grammar
+unverified: ar,de,es,fr,hi,pl,ru,vi,zh_CN
+context:
+Surface: App Store Connect listing — long-form app description.
+Type: paragraph (marketing)
+Context: Full App Store description shown on the product page below the screenshots. Opens with brand name "My Water" in quotes and lists app features with literal "* " bullet markers. Not used in app code — uploaded as ASC metadata.
+Constraints: ≤4000 characters in ASC; preserve "*" bullet markers; quote the brand name in target language using locale quotation marks.
+Tone: warm, informative, health-conscious; not aggressive marketing.
+en : '"My Water" helps you drink water regularly. Calculate your daily water intake and get notifications! Water is essential for life on our planet. Roughly 70 percent of the body is made of water. We require water for almost every function within our bodies, from flushing out toxins to digestion. Water is essential to good health, yet needs vary between individuals. This app can help ensure you drink enough fluids. App features: * Water requirement calculator * Reminders * Units (Metric and fl oz) * Statistics in graphs * Motivational awards * Useful tips about water You may need to modify your total fluid intake depending on how active you are, the climate you live in, your health status, etc. The calculation is only a recommendation. The app supports Apple Watch and is integrated with Apple Health.'
+ru : '"Моя вода" поможет тебе пить воду регулярно. Рассчитай дневную цель и получай напоминания вовремя! Вода важна для жизни: тело человека примерно на 70 процентов состоит из воды, а жидкости нужны почти для всех процессов: от пищеварения до выведения токсинов. Потребности у всех разные, и приложение поможет следить, чтобы тебе хватало жидкости. Функции приложения: * Калькулятор дневной цели * Напоминания * Единицы измерения (метрические и fl oz) * Статистика в графиках * Мотивирующие достижения * Полезные советы о воде Возможно, тебе понадобится изменить общий объём жидкости с учётом активности, климата, самочувствия и других факторов. Расчёт - только рекомендация. Приложение поддерживает Apple Watch и интегрируется с Apple Health.'
+pl : '"Moja woda" pomaga ci zadbać o regularne picie wody. Oblicz dzienne spożycie wody i otrzymuj od nas powiadomienia! Woda jest składnikiem niezbędnym do życia na naszej planecie. Nasze ciało w około 70% składa się z wody. Niemal wszystkie funkcje naszego ciała wykorzystują wodę, od wypłukiwania toksyn po procesy trawienne. Woda jest niezbędna, by móc cieszyć się dobrym zdrowiem, jednak zapotrzebowanie na nią jest kwestią indywidualną. Ta aplikacja pomoże ci zadbać o spożywanie odpowiedniej ilości płynów. Elementy aplikacji: * kalkulator zapotrzebowania na wodę * przypomnienia * jednostki (metryczne i uncje) * graficznie prezentowane statystyki * nagrody motywujące * przydatne wskazówki dotyczące wody Nasze wyliczenie dotyczące spożycia płynów to jedynie zalecana wartość i konieczna może być jego modyfikacja zależnie od tego, jak aktywny tryb życia prowadzisz, w jakim klimacie żyjesz, jaki jest stan twojego zdrowia itd. Aplikacja obsługuje Apple Watch i zintegrowana jest z Apple Health.'
+
+--- entry 0003 ---
+key: "Smoothie"
+platforms: ios,android
+qa: spelling_and_grammar
+context:
+Surface: Beverage catalog row / drink picker title.
+Type: beverage name
+Context: Display name for smoothie (blended fruit / vegetable drink) in the standard beverage catalog. Capitalized as a standalone catalog entry.
+en : 'Smoothie'
+ru : 'Смузи'
+pl : 'Smoothie'
+
+--- entry 0004 ---
+key: "widgetTitle"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ar,zh_CN
+context:
+Surface: In-app settings → Widget section header.
+Type: section header
+Context: Short label naming the Widget feature/section, also reused as the title of the paywall benefit row that advertises the home/lock screen widgets.
+Constraints: Keep very short (≤20 chars).
+en : 'Widget'
+ru : 'Виджет'
+pl : 'Widżet'
+
+--- entry 0005 ---
+key: "appUnlockText"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ko,pl
+context:
+Surface: Share / invite flows — prefilled body text for app-invite share cards.
+Type: paragraph (share message body)
+Context: Explains the 8-glasses premise and positions "My water" as the app that helps users drink that much; used from main, statistics, settings, and find-friends share entry points.
+en : 'Drinking 8 glasses of water a day is a healthy habit. "My Water" will help you drink that much!'
+ru : '8 стаканов воды в день - полезная привычка. "Моя вода" поможет тебе пить столько каждый день!'
+pl : 'Picie 8 szklanek wody dziennie to zdrowy nawyk. "Moja woda" pomoże ci tyle wypić!'
+
+--- entry 0006 ---
+key: "lb"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ru
+context:
+Surface: app-wide — weight unit suffix on profile / goal-calculation / statistics screens (US / imperial units).
+Type: unit abbreviation
+Context: Pound abbreviation, shown after a numeric weight value (e.g. "150 lb"). US / imperial weight unit, paired with `kg` for metric.
+Constraints: Keep short — typically ≤4 chars; use the standard abbreviation in the target language, never expand to the full word ("pounds").
+en : 'lb'
+ru : 'фн.'
+pl : 'lb'
+
+--- entry 0007 ---
+key: "text4_11M"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: pl
+context:
+Surface: Main screen — motivational text card / congratulatory label, shown after the user has reached or exceeded the daily water goal (progress 100%+).
+Type: motivational text
+Context: Celebratory praise for completing today's water goal. M variant — male grammatical form, paired with text4_11F for agreement in languages with grammatical gender (ru, ar, he, etc.).
+Register: casual T-form — main-screen motivational text is casual companion voice (default for non-formal surfaces).
+en : 'Well done, you did it!'
+ru : 'Молодец, ты справился!'
+pl : 'Dobra robota, udało ci się!'
+
+--- entry 0008 ---
+key: "noVK"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: fr,hi,ko,tr,vi
+context:
+Surface: Login / Registration screen — informational alert shown by `AuthorisationService.vkSdkAccessAuthorizationFinished(with:)` when VK sign-in cannot return a usable access token.
+Type: error message
+Context: Single fallback for several VK SDK failure paths — `result.error`, dismissed auth UI, missing token, or missing internal completion. The English wording is legacy and reads as "no VK account setup", but the same string is reused for general auth failure. Tone is apologetic ("Unfortunately"). "VK" refers to VKontakte — keep brand name as-is.
+en : 'Unfortunately, you do not have a VK account set up'
+ru : 'К сожалению, у тебя не настроен аккаунт VK'
+pl : 'Niestety, nie masz skonfigurowanego konta na VK'
+
+--- entry 0009 ---
+key: "appstore_app_keywords"
+platforms: other
+qa: spelling_and_grammar
+unverified: ms,vi,zh_CN
+context:
+Surface: App Store Connect listing — search keywords field.
+Type: App Store keywords
+Context: Comma-separated keyword list used by App Store search. Single string of lowercase terms separated by single commas with no spaces. Not used in app code — uploaded as ASC metadata. Translator: replace with locale-relevant search terms users actually type, not literal translation of English keywords.
+Constraints: Total ≤100 characters per locale after fanout (hard ASC limit, includes commas); preserve comma-only separator (no spaces around commas); keep lowercase.
+en : 'log,drinking,intake,reminders,alarm,alert,organizer,your,body,goal,goals,logged,schedule,health'
+ru : 'напоминания,веса,чай,калькулятор,калорий,жидкость,здоровье,диета,дю,дюкана,худеем,худеть,похудение'
+pl : 'rejestr,picie,spożycie,przypomnienia,alarm,alert,planer,twoje,ciało,cel,cele,zalogowano,plan,zdrowie'
+
+--- entry 0010 ---
+key: "login_incorrect_characters"
+platforms: ios,android,web
+qa: spelling_and_grammar
+unverified: da,ja,ko,ms
+context:
+Surface: Login / Registration screen — validation error from the server when the login (username) contains a disallowed character.
+Type: error message
+Context: Returned as APIError.loginIncorrectCharacters from `mywater_server` when the user's login contains anything other than English letters, digits, and the symbols hyphen (-), underscore (_), and period (.). Resolved via APIError → localized message lookup. Tone is informative and corrective.
+en : 'Login can contain only English letters, numbers, and the symbols . _ -'
+ru : 'Логин может содержать только английские буквы, цифры и символы . _ -'
+pl : 'Login może zawierać tylko angielskie litery, cyfry i znaki . _ -'
+
+--- entry 0011 ---
+key: "appleHealthPermission"
+platforms: ios
+qa: spelling_and_grammar
+unverified: fr,id,it,ko,ms,pt_BR,sv,tr,vi
+context:
+Surface: Apple Health integration — alert message shown when Apple Health authorization is denied or revoked, prompting the user to enable access in iOS Settings.
+Type: error message
+Context: Informs the user that Apple Health access is currently denied and points them to phone Settings to grant it. Shown by AlertService inside AppleHealthService when integration fails due to missing authorization.
+Tone: neutral / informative — describes the denied state and the recovery action; no "Please" prefix here (this is a status message, not a system permission prompt).
+en : 'Apple Health access is turned off. You can turn it on in your iPhone’s Settings.'
+ru : 'Доступ к Apple Health запрещён. Разрешить его можно в Настройках телефона.'
+pl : 'Brak dostępu do Apple Health. Dostęp odblokować można w ustawieniach telefonu.'
+
+--- entry 0012 ---
+key: "text2_8M"
+platforms: ios,android
+qa: spelling_and_grammar
+context:
+Surface: Main screen — motivational text card, shown above today's logged drink amount after the user has logged drinks.
+Type: motivational text
+Context: Self-improvement framing ("be a better version of yourself by drinking water"). Standalone single-line statement, not paired with a numeric value. M / F variants for grammatical-gender agreement in target languages (ru, ar, he, etc.).
+Register: casual T-form — main-screen motivational text is casual companion voice (default for non-formal surfaces).
+en : 'Feel better, drink water!'
+ru : 'Чувствуй себя лучше, пей воду!'
+pl : 'Poczuj się lepiej - pij wodę!'
+
+--- entry 0013 ---
+key: "appstore_app_screenShot1_2"
+platforms: other
+qa: spelling_and_grammar
+unverified: ms
+context:
+Surface: App Store screenshot 1 — author / attribution byline.
+Type: screenshot caption
+Context: Author byline overlay on the first App Store screenshot. "Victor Sharov" is the developer name and should remain transliterated, not localized, on screenshots that show authorship.
+Constraints: Keep short — fits screenshot byline; preserve "By" preposition (treat as fixed attribution prefix in target language).
+en : 'By Victor Sharov'
+ru : 'От Виктора Шарова'
+pl : 'Autor: Victor Sharov'
+
+--- entry 0014 ---
+key: "vk"
+platforms: ios,android
+qa: spelling_and_grammar
+context:
+Surface: Friends → Find friends screen — title of the social-network sign-in button that searches friends through VKontakte.
+Type: button label
+Context: Brand name "VK" (short form of VKontakte, Russian social network). Used as a button label on the social-button next to the VK logo icon. Keep brand abbreviation "VK" untranslated.
+Constraints: Keep as the brand short form "VK" (2 characters).
+en : 'VK'
+ru : 'VK'
+pl : 'VK'
+
+--- entry 0015 ---
+key: "socialShareTextFbM"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: fr,ja
+context:
+Surface: Social share post body (Facebook / generic share sheet) — main screen "share today's result" flow for male users.
+Type: social share post body
+Context: First-person message the user posts after completing the daily water goal. The user speaks as "I"; this is the male-form variant paired with `socialShareTextFbF` (female). In languages with grammatical gender, past-tense verbs / participles / adjectives agreeing with the speaker must use masculine forms. In English both variants may read the same; in target language adjust for the speaker's gender. Wording uses legacy "rate" (= daily goal); keep aligned with how the daily goal is named in target language.
+Constraints: Preserve the `#mywater` hashtag and the quoted brand name "My Water" (use locale-standard quotation marks).
+en : 'I reached my daily water goal today! Help your body, download "My Water"! #mywater'
+ru : 'Я достиг дневной цели по воде! Помоги своему организму, скачай "Моя вода"! #mywater'
+pl : 'Dziś osiągnąłem swój dzienny cel wody! Pomóż swojemu ciału, pobierz "Moja woda"! #mywater'
+
+--- entry 0016 ---
+key: "text4_11F"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ja,pl
+context:
+Surface: Main screen — motivational text card / congratulatory label, shown after the user has reached or exceeded the daily water goal (progress 100%+).
+Type: motivational text
+Context: Celebratory praise for completing today's water goal. F variant — female grammatical form, paired with text4_11M for agreement in languages with grammatical gender (ru, ar, he, etc.).
+Register: casual T-form — main-screen motivational text is casual companion voice (default for non-formal surfaces).
+en : 'Well done, you did it!'
+ru : 'Молодец, ты справилась!'
+pl : 'Dobra robota, udało ci się!'
+
+--- entry 0017 ---
+key: "text2_8F"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ja
+context:
+Surface: Main screen — motivational text card, shown above today's logged drink amount after the user has logged drinks.
+Type: motivational text
+Context: Self-improvement framing ("be a better version of yourself by drinking water"). Standalone single-line statement, not paired with a numeric value. M / F variants for grammatical-gender agreement in target languages (ru, ar, he, etc.).
+Register: casual T-form — main-screen motivational text is casual companion voice (default for non-formal surfaces).
+en : 'Feel better, drink water!'
+ru : 'Чувствуй себя лучше, пей воду!'
+pl : 'Poczuj się lepiej - pij wodę!'
+
+--- entry 0018 ---
+key: "appstore_app_title"
+platforms: android
+qa: spelling_and_grammar
+unverified: id,it,ru,tr,zh_CN
+context:
+Surface: App Store Connect listing — App name + subtitle on the product page.
+Type: App Store title
+Context: Combined App Store app name "My Water Balance" plus a marketing subtitle describing the app as a hydration tracker and drink reminder. Separator between name and subtitle is a regular hyphen. Not used in app code — uploaded as ASC metadata.
+Constraints: Store-listing metadata (defined as a string resource but not laid out in app UI); keep brand name "My Water Balance" untranslated as a proper noun and the regular-hyphen "name - subtitle" structure. Per-field store limits apply at upload, not as an in-app character cap.
+en : 'My Water Balance - Daily hydration tracker & water reminder'
+ru : 'Моя вода - трекер воды. Учёт и контроль водного баланса. Удобное напоминание пить воду. Узнай всё про водный баланс в теле.'
+pl : 'Mój bilans wodny - wskaźnik dziennego nawodnienia i system przypomnień o piciu wody'
+
+--- entry 0019 ---
+key: "achivmentTextShareFacebookM"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: es,fr,ko
+context:
+Surface: Award detail share sheet — Facebook share text template prefilled when the user shares an unlocked achievement.
+Type: paragraph (social share)
+Context: Brag-style share copy mentioning the unlocked award by name and tagging the app. M variant — male grammatical form, paired with achivmentTextShareFacebookF for agreement in languages with grammatical gender (ru, ar, he, etc.; the past-tense verb "achieved" agrees with subject gender in those languages). Note: key name contains a typo ("achivment" instead of "achievement") — legacy identifier, do not rename.
+Placeholders:
+  [%s] — achievement title (e.g. "Plop", "Good habit")
+en : 'Cool, I achieved "[%s]" in the "My Water" app! #mywater'
+ru : 'Ура, я получил достижение "[%s]" в приложении "Моя вода"! #mywater'
+pl : 'Rewelacja, udało mi się osiągnąć "[%s]" w aplikacji "Moja woda"! #mywater'
+
+--- entry 0020 ---
+key: "text4_10M"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ja,pl
+context:
+Surface: Main screen — motivational text card / congratulatory label, shown after the user has reached or exceeded the daily water goal (progress 100%+).
+Type: motivational text
+Context: Combined achievement acknowledgment and praise for reaching today's water goal. M variant — male grammatical form, paired with text4_10F for agreement in languages with grammatical gender (ru, ar, he, etc.).
+Register: casual T-form — main-screen motivational text is casual companion voice (default for non-formal surfaces).
+en : 'You did it, well done!'
+ru : 'Ты справился, молодец!'
+pl : 'Udało ci się - dobra robota!'
+
+--- entry 0021 ---
+key: "achivmentTextShareFacebookF"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: es,fr,ko,pl
+context:
+Surface: Award detail share sheet — Facebook share text template prefilled when the user shares an unlocked achievement.
+Type: paragraph (social share)
+Context: Brag-style share copy mentioning the unlocked award by name and tagging the app. F variant — female grammatical form, paired with achivmentTextShareFacebookM for agreement in languages with grammatical gender (ru, ar, he, etc.; the past-tense verb "achieved" agrees with subject gender in those languages). Note: key name contains a typo ("achivment" instead of "achievement") — legacy identifier, do not rename.
+Placeholders:
+  [%s] — achievement title (e.g. "Plop", "Good habit")
+en : 'Cool, I achieved "[%s]" in the "My Water" app! #mywater'
+ru : 'Ура, я получила достижение "[%s]" в приложении "Моя вода"! #mywater'
+pl : 'Rewelacja, udało mi się osiągnąć "[%s]" w aplikacji "Moja woda"! #mywater'
+
+--- entry 0022 ---
+key: "notification1_4"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ru
+context:
+Surface: Local scheduled reminder notification — body text, one entry from the rotating reminder pool.
+Type: notification body
+Context: Short pairing of drinking water with being active.
+Register: casual T-form — push reminders use casual partner voice (default for non-formal surfaces).
+en : 'Drink water, be active!'
+ru : 'Пей воду, будь в тонусе!'
+pl : 'Pij wodę - pamiętaj o aktywności!'
+
+--- entry 0023 ---
+key: "combucha"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: id,nl,ru,vi
+context:
+Surface: Beverage catalog / drink coefficients screen — beverage row title.
+Type: beverage name
+Context: Display name for kombucha — fermented tea beverage — in the standard beverage catalog. Capitalized as a label. Note: the key name uses the spelling "combucha" — legacy identifier, do not rename; the user-facing value uses the standard English spelling "Kombucha".
+en : 'Kombucha'
+ru : 'Комбуча'
+pl : 'Kombucha'
+
+--- entry 0024 ---
+key: "NSHealthShareUsageDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: de,fr,hi,id,ms,pl,ru,tr,zh_CN
+context:
+Surface: System HealthKit permission prompt — purpose string shown when the app requests read access to Apple Health data.
+Type: permission prompt
+Context: Justifies why the app reads Apple Health data (water intake, weight, body/profile parameters) — to import hydration history and compute the user's recommended daily water goal. Shown by iOS in the standard HealthKit authorization sheet; user can grant or deny.
+Constraints: Apple guideline — describe purpose specifically and concisely; first-person plural ("we") matches app voice.
+Register: casual T-form — a routine permission prompt is brand-voice «ты» (reserved/reasoned tone) across all T-V / honorific languages; it is NOT a legally-binding consent contract (§ Brand voice § Юридический carve-out). Legacy «вы» here is grandfathered, not a must-fix.
+Tone: reasoned and direct.
+en : 'We need read access to Apple Health water, weight, and profile data so we can import your hydration history and calculate your daily goal.'
+ru : 'Нам нужен доступ на чтение данных Apple Health о воде, весе и профиле, чтобы импортировать твою историю и рассчитать дневную цель.'
+pl : 'Potrzebujemy dostępu do odczytu danych o wodzie, wadze i profilu w Apple Health, aby zaimportować historię i obliczyć twój dzienny cel.'
+
+--- entry 0025 ---
+key: "NSHealthUpdateUsageDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,de,fr,hi,id,ms,nb,ru,tr,zh_CN
+context:
+Surface: System HealthKit permission prompt — purpose string shown when the app requests write access to Apple Health (Info.plist `NSHealthUpdateUsageDescription`).
+Type: permission prompt
+Context: Justifies why the app writes to Apple Health — to save water, caffeine, weight, and alcohol-related entries logged in My Water into the system Health database. Shown by iOS in the standard HealthKit authorization sheet; user can grant or deny.
+Constraints: Apple guideline — describe purpose specifically and concisely; first-person plural ("we") matches app voice.
+Register: casual T-form — a routine permission prompt is brand-voice «ты» (reserved/reasoned tone) across all T-V / honorific languages; it is NOT a legally-binding consent contract (§ Brand voice § Юридический carve-out). Legacy «вы» here is grandfathered, not a must-fix.
+Tone: reasoned and direct.
+en : 'We need permission to save water, caffeine, weight, and alcohol-related entries you log in My Water to Apple Health.'
+ru : 'Нам нужно разрешение, чтобы сохранять записи о воде, кофеине, весе и алкоголе из «Моя вода» в Apple Health.'
+pl : 'Potrzebujemy zezwolenia na zapisywanie w Apple Health wpisów dotyczących wody, kofeiny, wagi i alkoholu, które rejestrujesz w My Water.'
+
+--- entry 0026 ---
+key: "h2opalwebsite"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ar
+context:
+Surface: Settings → Integrations → H2OPal setup screen (IntegrationSetupViewController) — button label below the H2OPal logo that opens the external H2OPal product website.
+Type: button label
+Context: Link / button title for the H2OPal manufacturer's website. "H2OPal" is a product name — keep untranslated. The translatable part is the word "website".
+Constraints: Keep short — fits a single-line button below the logo.
+en : 'H2OPal website'
+ru : 'Веб-сайт H2OPal'
+pl : 'Strona internetowa H2OPal'
+
+--- entry 0027 ---
+key: "integrationCompletedHealth"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: de,fr,hi,ko,ru,zh_CN
+context:
+Surface: Settings → Integrations → Apple Health — success alert body shown after the user enables the Apple Health integration (AppleHealthService).
+Type: confirmation message
+Context: Confirms the Apple Health integration is now active and explains that every drink the user adds will from now on be exported to Apple Health. "Apple Health" is the Apple product name — keep untranslated.
+Constraints: Two sentences; preserve the meaning that future drinks (not historical ones) are exported.
+en : 'Apple Health integration is now active. From now on, every drink you add will also be saved to Apple Health.'
+ru : 'Интеграция с Apple Health успешно включена. Все новые добавляемые напитки будут экспортироваться в Apple Health.'
+pl : 'Włączenie integracji Apple Health powiodło się. Od teraz wszystkie nowo dodane napoje będą eksportowane do Apple Health.'
+
+--- entry 0028 ---
+key: "appstore_app_subscriptionTemsAppStore"
+platforms: android
+qa: spelling_and_grammar
+unverified: ar,de,hi,it,ms,nb,pl,ru,sv,vi,zh_CN
+context:
+Surface: App Store Connect listing — subscription terms / promotional text section.
+Type: paragraph (subscription terms)
+Context: Promotional + legal subscription disclosure shown on the App Store product page. Lists premium features, the two subscription plans (1-month and 12-month), iTunes billing terms, auto-renewal disclosure, and the Privacy Policy URL. Note: the legacy key has a typo ("Tems" instead of "Terms") — do not rename the key. Prices "1$" and "12$" are placeholders for App Store display, not literal — replace with locale-relevant subscription price strings. Not used in app code — uploaded as ASC metadata.
+Constraints: ≤4000 chars in ASC; preserve URL https://mywaterapp.me/privacypolicy/ exactly. Keep brand "My Water Premium" untranslated as a proper noun.
+Register: formal — legally-binding subscription / disclosure text; impersonal-first, V-form («вы» / Sie / vous / usted / …) only as a direct-address fallback (TRANSLATION_STYLE.md § Brand voice § Юридический carve-out).
+Tone: warm but legally-clear; not aggressive.
+en : 'For extended features such as different beverages, detailed statistics, custom volumes and other useful features, get My Water Premium. Two different plans: 1 month/1$ and 12 months/12$ with discount price. My Water Premium subscription: the purchase will be charged to your iTunes account. The subscription will be auto-renewed 24 hours prior to it running out. Manage your subscription from User Settings in iTunes after purchasing. Cancel the auto-renewing subscription from there at any time. Terms and Privacy Policy: https://mywaterapp.me/privacypolicy/'
+ru : 'Чтобы получить расширенные функции, такие как разные напитки, подробная статистика, свои объёмы и другие полезные возможности, оформи My Water Premium. Два тарифа: 1 месяц/1$ и 12 месяцев/12$. My Water Premium: покупка будет списана с твоего аккаунта iTunes. Подписка автоматически продлевается за 24 часа до окончания срока. После покупки управляй подпиской в настройках пользователя iTunes. Автопродление можно отменить там в любое время. Условия и политика конфиденциальности: https://mywaterapp.me/privacypolicy/'
+pl : 'W przypadku rozszerzonych funkcji, takich jak różne napoje, szczegółowe statystyki, niestandardowe wielkości i inne przydatne funkcje, wybierz My Water Premium. Dwa różne plany: 1 miesiąc/1$ i 12 miesięcy/12$ z ceną dyskontową. Subskrypcja My Water Premium: W wyniku zakupu zostanie obciążone twoje konto iTunes Subskrypcja zostanie automatycznie odnowiona na 24 godziny przed jej wygaśnięciem Zarządzaj subskrypcją w Ustawieniach użytkownika w iTunes po zakupie. Tam też, w dowolnym momencie, możesz anulować automatyczne odnawianie subskrypcji. Zasady i polityka prywatności: https://mywaterapp.me/privacypolicy/'
+
+--- entry 0029 ---
+key: "quickAddWidget"
+platforms: android
+qa: spelling_and_grammar
+unverified: hi,zh_CN
+context:
+Surface: Paywall / Premium features list — premium feature row title.
+Type: row title (premium feature)
+Context: Premium-feature label promoting the home-screen widget that lets users log drinks quickly without opening the app. Refers to the iOS home-screen widget.
+Constraints: Keep short — fits a single-line feature row.
+en : 'Quick-add via the widget'
+ru : 'Быстрое добавление через виджет'
+pl : 'Szybkie dodawanie przez widżet'
+
+--- entry 0030 ---
+key: "tryThreeDaysDescription"
+platforms: android
+qa: numbers
+unverified: es,hi,it
+context:
+Surface: Paywall — subscription terms description under the CTA (currently unreferenced in Swift code, preserved for legacy / re-introduced paywall layouts).
+Type: paragraph (subscription terms)
+Context: Describes the free-trial subscription terms — three free days, then the localized price per period.
+Placeholders:
+  [%1$s] — localized formatted price (e.g. "$9.99", "2 000 RUB")
+  [%2$s] — billing period name (e.g. "year", "month")
+Tone: neutral / informative.
+en : 'Try 3 days free, then [%1$s]/[%2$s]'
+ru : '3 дня бесплатно, затем [%1$s]/[%2$s]'
+pl : 'Wypróbuj trzy dni za darmo, a potem [%1$s]/[%2$s]'
+
+--- entry 0031 ---
+key: "tryThreeDaysLabel"
+platforms: ios,android
+qa: numbers
+unverified: es,hi,it,ru,tr
+context:
+Surface: Subscription paywall — primary CTA / hero label shown when the user is offered a 3-day introductory trial (paired sibling: "trySevenDaysLabel" for the 7-day variant; selector lives in SubscriptionService.getIntorductionaryOfferDurationTitle).
+Type: button label / paywall hero label
+Context: Imperative invitation to start the 3-day free trial of My Water Premium. Used on the main CTA or as the highlighted intro-offer label on the paywall.
+Constraints: Keep short (paywall CTA / hero label; wraps if long); no trailing period. Tone: promotional but warm.
+Tone: promotional but warm.
+en : 'Try 3 days for free'
+ru : 'Попробуй 3 дня бесплатно'
+pl : 'Wypróbuj trzy dni za darmo'
+
+--- entry 0032 ---
+key: "weightPromo1"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ms
+context:
+Surface: Weight tracking premium-promo placeholder screen — hero paragraph shown above the feature tiles to non-premium users.
+Type: paragraph (marketing claim)
+Context: Promotional one-sentence pitch for the weight tracking feature, mentioning the My Water brand name. Sets the tone for the "Full version" upsell that follows.
+Constraints: Brand name "My Water" — preserve as-is across locales.
+en : 'Track your weight changes and improve your well-being with My Water'
+ru : 'Отслеживай динамику своего веса и улучшай своё самочувствие с My Water'
+pl : 'Śledź swoją dynamikę wagi i popraw swoje samopoczucie dzięki My Water'
+
+--- entry 0033 ---
+key: "tryThreeDaysInfo"
+platforms: ios,android
+qa: numbers
+unverified: es,fr,hi,it,pt_BR,tr
+context:
+Surface: Paywall — 3-day trial CTA, label preceding the price (used in `SubscriptionService.getIntorductionaryOfferDurationTitle()` when trial < 7 days).
+Type: paragraph (subscription terms) — sentence prefix
+Context: First half of a two-part subscription terms line; the localized price (e.g. "$9.99/year") is appended after this string.
+Constraints: No trailing period — the price is appended directly after. Phrasing must read naturally before a price token.
+Tone: neutral / informative.
+en : 'Try 3 days free, then'
+ru : '3 дня бесплатно, затем'
+pl : 'Wypróbuj trzy dni za darmo, a potem'
+
+--- entry 0034 ---
+key: "pushBillingIssueScreenText"
+platforms: android,other
+qa: spelling_and_grammar
+unverified: de,es,fr,hi,it,ko,ms,pl,ru,tr,zh_CN
+context:
+Surface: Billing-issue in-app screen, body paragraph.
+Type: paragraph
+Context: Body shown on the in-app billing-issue screen instructing the user to update payment information on their App Store account. Paired with pushBillingIssueScreenTitle.
+en : 'Please update your App Store payment information'
+ru : 'Обнови платёжные данные в аккаунте App Store'
+pl : 'Prosimy o uaktualnienie danych do płatności na koncie App Store.'
+
+--- entry 0035 ---
+key: "apphud_offer_trial_extend"
+platforms: android,other
+qa: spelling_and_grammar
+unverified: de,fr,it,ko,nb,pl,zh_CN
+context:
+Surface: Apphud server-driven trial-extension offer popup — headline.
+Type: screen title
+Context: Headline of the one-time trial-extension offer popup, presented when the user is about to lose their free trial; pairs with the description and the two action buttons (agree / disagree).
+Constraints: keep the question and offer in one text value.
+Tone: promotional but warm.
+en : 'Need more time to try the app? We’re gifting you 7 days of My Water Premium for free'
+ru : 'Нужно больше времени, чтобы попробовать приложение? Мы дарим 7 дней My Water Premium бесплатно'
+pl : 'Potrzebujesz więcej czasu na wypróbowanie aplikacji? Dajemy ci w prezencie 7 dni My Water Premium za darmo'
+
+--- entry 0036 ---
+key: "apphud_offer_trial_extend_push_text"
+platforms: android,other
+qa: spelling_and_grammar
+unverified: ar,hi,ja,ko,nb,pl,sv,zh_CN
+context:
+Surface: Push notification — Apphud trial-extension offer (push body, paired with push_title above).
+Type: notification body
+Context: Push body that pitches the one-time 7-day My Water Premium gift and asks for the user's interest.
+Constraints: The string begins with two zero-width non-joiner characters (U+200C, U+200C) before "Get" — preserve them exactly; they are intentional padding for push display and must not be stripped.
+Register: casual T-form — push reminders use casual partner voice (default for non-formal surfaces).
+Tone: promotional but warm.
+en : '\u200c\u200cGet 7 days of My Water Premium for free, just for you. One-time offer. Interested?'
+ru : '\u200c\u200cМы дарим 7 дней My Water Premium бесплатно, специально для тебя, разовое предложение. Интересно?'
+pl : 'Dajemy ci w prezencie 7 dni My Water Premium za darmo, specjalnie dla ciebie w ramach jednorazowej oferty. Umowa stoi?'
+
+--- entry 0037 ---
+key: "pushRetention_1"
+platforms: android,other
+qa: spelling_and_grammar
+unverified: es
+context:
+Surface: Push retention notification — body text, sent to inactive users to re-engage them.
+Type: notification body
+Context: Mindfulness-framed nudge inviting the user to be present and have a glass of water. Emoji intentional per brand voice for retention pushes; translators should preserve the same emoji (or culturally equivalent if one truly does not transfer).
+Register: casual T-form — push reminders use casual partner voice (default for non-formal surfaces).
+en : 'Stay in the present. Drink a glass of water and enjoy the moment💧'
+ru : 'Останься в настоящем. Выпей стакан воды и наслаждайся моментом💧'
+pl : 'Pozostań w teraźniejszości. Wypij szklankę wody i ciesz się chwilą💧'
+
+--- entry 0038 ---
+key: "pushRetention_9"
+platforms: android,other
+qa: spelling_and_grammar
+unverified: vi
+context:
+Surface: Push retention notification — body text, sent to inactive users to re-engage them.
+Type: notification body
+Context: Small-steps framing — a single glass of water as the first step toward a healthy lifestyle. Emoji intentional per brand voice for retention pushes; translators should preserve the same emoji (or culturally equivalent if one truly does not transfer).
+Register: casual T-form — push reminders use casual partner voice (default for non-formal surfaces).
+en : 'Start with small steps towards a healthy lifestyle. Drink a glass of water💧'
+ru : 'Начни с маленьких шагов к здоровому образу жизни. Выпей стакан воды💧'
+pl : 'Zacznij od małych kroków w kierunku zdrowego stylu życia. Wypij szklankę wody💧'
+
+--- entry 0039 ---
+key: "ownBeveragesDescription"
+platforms: android
+qa: spelling_and_grammar
+unverified: fr,ja,ms,nb,zh_CN
+context:
+Surface: Currently no live Swift call-sites (orphan key — legacy onboarding / upsell explainer for the own-drinks premium feature).
+Type: paragraph (feature explainer)
+Context: Tells the user that after activating My Water Premium they can create custom drinks, and directs them to the settings section whose localized name is interpolated as the placeholder.
+Placeholders:
+  [%s] — localized name of the settings section that opens the own-drinks editor (e.g. "Own drinks")
+Tone: encouraging.
+en : 'You can now create your own drinks with My Water Premium! Just go to Settings and open the "[%s]" section.'
+ru : 'Теперь с My Water Premium можно создавать свои собственные напитки! Для этого зайди в настройки приложения и выбери раздел "[%s]".'
+pl : 'Dzięki aplikacji My Water Premium możesz teraz tworzyć własne napoje! Aby to zrobić, przejdź do ustawień aplikacji i wybierz sekcję "[%s]".'
+
+--- entry 0040 ---
+key: "editAvailableOnlyWithPremium"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: fr,ko,ms,nb
+context:
+Surface: Settings → My drinks → drink editor (Create / Edit drink screen) — premium-gate footnote shown under the form when the user does not have an active premium subscription and the drink is a custom (user-created) beverage.
+Type: paragraph (paywall gate notice)
+Context: Explains that editing or creating custom (user-defined) beverages requires an active My Water Premium subscription. Shown instead of the regular "default beverage cannot be edited" line. Paired sibling key: "defaultDrinkNoEdit" (the non-premium standard-drink variant).
+Constraints: 1 short sentence; the slash-pair "edit/create" can be re-ordered in target language to read naturally.
+Tone: informative, not aggressive.
+en : 'You need an active My Water Premium subscription to create or edit your own drinks'
+ru : 'Редактирование и создание своих напитков доступно с подпиской My Water Premium.'
+pl : 'Musisz mieć aktywną subskrypcję My Water Premium, aby móc edytować/tworzyć własne napoje.'
+
+--- entry 0041 ---
+key: "charactersPopUpTemp"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: it,pl,pt_BR,ru
+context:
+Surface: Characters feature-introduction popup shown once when the character picker becomes available.
+Type: paragraph (feature announcement)
+Context: Greets the user and announces that they can now choose a Home screen character (mascot) in My Water that will help them drink more water, and pick the character style they prefer.
+Tone: encouraging, friendly.
+en : 'Hi! Now you can choose a character in My Water to help you drink more water. Pick the style you like best!'
+ru : 'Привет! Теперь в приложении "Моя вода" появился персонаж, который будет помогать тебе пить больше воды. Ты можешь выбрать персонажа на свой вкус!'
+pl : 'Cześć! Teraz w aplikacji Moja woda można wybrać postać, która pomoże ci pić więcej wody. Wybierz styl postaci dla siebie!'
+
+--- entry 0042 ---
+key: "newYearResultsTitle"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: da,it,ru
+context:
+Surface: Main screen — New Year digest cell title (NewYearDigestCell / DigestCell) inviting the user to open the yearly results recap.
+Type: section header / promo card title
+Context: Headline of the main-screen card that opens the New Year yearly digest (NewYearDigestViewController). Frames the digest as the user's personal yearly recap (drinks, daily goals, etc.) for the closing year. The [%i] is currently hardcoded to 2023.
+Placeholders: [%i] — calendar year as integer (e.g. 2023). Keep numeric formatting; locales should not write the year as words.
+Register: casual T-form — main-screen promo card asking the user to look at their personal year; casual companion voice (default for non-formal surfaces).
+Tone: encouraging, seasonal.
+en : 'See your [%i] results in My Water!'
+ru : 'Подведи итоги [%i] года с приложением «Моя вода»!'
+pl : 'Poznaj osiągnięcia roku [%i] z aplikacją My Water!'
+
+--- entry 0043 ---
+key: "tempWelcomeScreenSubtitle"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: fr,it,ko,nl,pl,zh_CN
+context:
+Surface: Onboarding welcome screen — subtitle below the "Welcome!" title.
+Type: paragraph (marketing hook)
+Context: Friendly call-to-action that invites the user to start drinking more water with the app. "My Water" is the product name and should be translated/transliterated naturally for the target locale (keep the quotation marks).
+Tone: encouraging, playful.
+en : 'Let\'s drink more water! "My Water" makes it simple and fun.'
+ru : 'Давай пить больше воды! С "Моей водой" это просто и весело.'
+pl : 'Pijmy więcej wody! "Moja woda" sprawia, że jest to proste i przyjemne.'
+
+--- entry 0044 ---
+key: "tempAddOneTap"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ja,ko
+context:
+Surface: Favorite drinks banner / premium promo body line under a CTA.
+Type: paragraph (marketing claim)
+Context: Highlights the one-tap quick-add benefit of My Water Premium — adding a logged drink with a single tap instead of going through the full add-drink flow.
+Tone: promotional but warm.
+en : 'Add drinks in one tap with My Water Premium!'
+ru : 'Добавляй напитки в одно нажатие с My Water Premium!'
+pl : 'Dodawaj napoje jednym kliknięciem z My Water Premium!'
+
+--- entry 0045 ---
+key: "appleHealthPartialDescription"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Settings → Integrations → Apple Health setup screen — header sentence above the bulleted list of share types the user has not yet granted write permission for (IntegrationSetupViewController.partialDescriptionLabel).
+Type: section header / paragraph
+Context: Introduces a short bulleted list (water, caffeine, weight, alcohol) that the app currently cannot write to Apple Health because the user denied write permission for those types. Trailing colon precedes the list. "Apple Health" is the Apple product name — keep untranslated.
+en : 'The following is not syncing with Apple Health:'
+ru : 'Следующие данные не синхронизируются с Apple Health:'
+pl : 'Nie synchronizuje się z Apple Health:'
+
+--- entry 0046 ---
+key: "appleHealthPartialFooter"
+platforms: ios
+qa: spelling_and_grammar
+unverified: hi,id,ru
+context:
+Surface: Settings → Integrations → Apple Health setup screen — footer hint below the "not syncing" list (IntegrationSetupViewController.partialFooterLabel).
+Type: paragraph
+Context: Tells the user exactly how to grant the missing write permissions in the iOS Settings app: open Apple Health → Profile → Privacy → Apps → My Water → enable write permission. "Apple Health" and "My Water" are product names — keep untranslated. Preserve the literal "Profile → Privacy → Apps → My Water" navigation path (these labels match strings inside the Apple Health iOS app and the breadcrumb is the actionable part of the hint).
+en : 'You can enable them in Apple Health Settings (tap Profile → Privacy → Apps → My Water, then enable write permission)'
+ru : 'Включить их можно в настройках Apple Health (нажми Профиль → Конфиденциальность → Приложения → My Water, затем включи разрешение на запись)'
+pl : 'Możesz je włączyć w ustawieniach Apple Health (kliknij Profil → Prywatność → Aplikacje → My Water i włącz uprawnienie do zapisu)'
+
+--- entry 0047 ---
+key: "appleHealthOpenSettings"
+platforms: ios
+qa: spelling_and_grammar
+unverified: fr,hi
+context:
+Surface: Settings → Integrations → Apple Health setup screen — CTA button below the partial-permissions footer (IntegrationSetupViewController.openHealthSettingsButton).
+Type: button label
+Context: Tapping opens the Apple Health app where the user can grant the missing write permissions. "Apple Health" is the Apple product name — keep untranslated.
+Constraints: Keep short — single-line button.
+en : 'Open Apple Health'
+ru : 'Открыть Apple Health'
+pl : 'Otwórz Apple Health'
+
+--- entry 0048 ---
+key: "reviewTemp1"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: fr
+context:
+Surface: Paywall / subscription screen — social-proof user-review card (rotating reviewTemp1..N pool shown above the price options).
+Type: paragraph (social proof / fake testimonial)
+Context: Short customer-style testimonial quoted on the paywall to build trust. Translate as natural first-person consumer praise; keep informal register and casual punctuation.
+Tone: testimonial / casual (mimics a user review).
+en : 'Helps me keep track of my water intake.'
+ru : 'Всё нравится, и дизайн, и всё. Всем советую'
+pl : 'Aplikacja jest super dzięki niej zaczęłam pilnować się z piciem odpowiedniej ilości płynów. Polecam bo warto!'
+
+--- entry 0049 ---
+key: "reviewTemp2"
+platforms: ios,android
+qa: numbers,spelling_and_grammar
+unverified: ar,de,fr,nl,ru,sv
+context:
+Surface: Paywall / subscription screen — social-proof user-review card (rotating reviewTemp1..N pool shown above the price options).
+Type: paragraph (social proof / fake testimonial)
+Context: Short customer-style testimonial quoted on the paywall to build trust. Translate as natural first-person consumer praise; keep informal register and casual punctuation (the missing period at the end is intentional in the testimonial style).
+Tone: casual / conversational (mimics a user review).
+en : 'Easy and I like the reminders to drink, was just what I was looking for'
+ru : 'Самое комфортное из подобных. Я много перепробовала, это лучшее.'
+pl : 'Bardzo mi pomaga w wykonywaniu mojego celu czyli piciu 1,8l wody codziennie. Polecam serdecznie wszystkim !'
+
+--- entry 0050 ---
+key: "reviewTemp5"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: de,ja,tr
+context:
+Surface: Paywall / subscription screen — social-proof user-review card (rotating reviewTemp1..N pool shown above the price options).
+Type: paragraph (social proof / fake testimonial)
+Context: Short customer-style testimonial quoted on the paywall to build trust. Translate as natural first-person consumer praise; preserve the informal "bc" abbreviation (for "because") as part of the casual testimonial register — substitute the locale-natural equivalent abbreviation when one exists, otherwise keep the casual short form.
+Tone: testimonial / casual (mimics a user review).
+en : 'I like this app, bc it encourages me to drink. I love the motivational prompts.'
+ru : 'Крутое приложение! Помогает контролировать количество выпитой воды. Очень удобное'
+pl : 'Polecam, nawet nie przypuszczałem, jak mało piję w ciągu dnia. Dzięki apce mogłem to zmienić'
+
+--- entry 0051 ---
+key: "appleHealthDrinkReadOnlyDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,fr,ru,tr
+context:
+Surface: One-day statistics screen → drink detail / edit popup (EditAddedDrinkReadonlyInfoView) — informational card subtitle, shown when the selected drink was imported from Apple Health and therefore cannot be edited inside the app.
+Type: paragraph
+Context: Explains the read-only state — the drink record originated from Apple Health, so it can only be removed (deleted from statistics), not edited. "Apple Health" and "My Water" are product names — keep untranslated.
+en : "Drinks imported from Apple Health can't be edited in My Water. You can remove this drink from your statistics"
+ru : 'Напитки, импортированные из Apple Health, нельзя редактировать в приложении «Моя вода». Можно удалить этот напиток из своей статистики.'
+pl : 'Napojów zaimportowanych z Apple Health nie można edytować w My Water. Możesz usunąć ten napój ze swoich statystyk'
+
+--- entry 0052 ---
+key: "appleHealthDrinkReadOnlyTitle"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: One-day statistics screen → drink detail / edit popup (EditAddedDrinkReadonlyInfoView) — informational card title, shown when the selected drink was imported from Apple Health.
+Type: card title / heading
+Context: Short header above the read-only explanation, labelling the drink as originating from Apple Health. "Apple Health" is the Apple product name — keep untranslated.
+Constraints: Keep short — single-line heading.
+en : 'Apple Health drink'
+ru : 'Напиток из Apple Health'
+pl : 'Napój z Apple Health'
+
+--- entry 0053 ---
+key: "controlWidgetFamilyTitle"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,zh_CN
+context:
+Surface: Home / Lock screen widget AppIntent (AddDrinkHomeWidgetIntent) — internal `@Parameter` label for the widget family identifier passed by WidgetKit, shown in Shortcuts / system editors.
+Type: parameter label
+Context: Noun phrase. Label for the WidgetFamily parameter that records which widget size triggered the quick-add (small / medium / large). Internal metadata, not visible during normal widget use.
+Constraints: Keep short (1-2 words). No trailing period.
+en : 'Widget family'
+ru : 'Размер виджета'
+pl : 'Rozmiar widżetu'
+
+--- entry 0054 ---
+key: "flOz"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,ru
+context:
+Surface: app-wide — volume unit suffix on main / widget / watch / Siri / notification surfaces (US / imperial units).
+Type: unit abbreviation
+Context: Fluid-ounce abbreviation, shown after a numeric volume value (e.g. "8 fl oz"). US / imperial volume unit, the imperial counterpart of `ml` / `l`. Note this is fluid-ounce (volume), not weight-ounce (`oz`).
+Constraints: Keep short — typically ≤6 chars; use the standard abbreviation in the target language, never expand to the full phrase ("fluid ounces").
+en : 'fl oz'
+ru : 'жидк. унц.'
+pl : 'fl oz'
+
+--- entry 0055 ---
+key: "friendEndorsementDropA11y"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Friend endorsements (kudos) emoji picker — VoiceOver label for the water-drop emoji button. One of the three named preset emojis (wave / smile / drop); siblings: friendEndorsementWaveA11y, friendEndorsementSmileA11y.
+Type: accessibility label
+Context: Spoken description of the water-drop emoji used as an endorsement reaction. Translate the noun phrase naturally for spoken form, keeping "emoji" or its locale equivalent.
+Constraints: Read aloud — keep short and natural as a spoken noun phrase.
+en : 'Water drop emoji'
+ru : 'Капля воды, эмодзи'
+pl : 'Kropla wody, emoji'
+
+--- entry 0056 ---
+key: "friendEndorsementMoreEmojiA11y"
+platforms: ios
+qa: spelling_and_grammar
+unverified: hi,ru
+context:
+Surface: Friend endorsements (kudos) emoji picker — VoiceOver label for the "more emoji" / "open full emoji picker" button shown after the preset emojis.
+Type: accessibility label
+Context: Spoken description for the button that lets the user pick a custom emoji (not in the preset set) to send as an endorsement reaction. Imperative-feeling phrase suitable for spoken form.
+Constraints: Read aloud — keep short and natural as a spoken action description.
+en : 'Choose another emoji'
+ru : 'Выбрать другой эмодзи'
+pl : 'Wybierz inne emoji'
+
+--- entry 0057 ---
+key: "friendEndorsementReceivedListA11y"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Friends item cells — VoiceOver label announced for the received-endorsements icon group on a friend row (shown when the friend has sent the current user emoji reactions today).
+Type: accessibility label
+Context: Spoken summary identifying that the icons represent emoji reactions received from a friend (general descriptor; the specific emojis are announced separately via friendEndorsementReceivedA11y).
+Constraints: Read aloud — keep short and natural as a spoken noun phrase.
+en : 'Emoji reactions from friends'
+ru : 'Эмодзи-реакции от друзей'
+pl : 'Reakcje emoji od znajomych'
+
+--- entry 0058 ---
+key: "friendEndorsementSendEmojiA11y"
+platforms: ios
+qa: spelling_and_grammar
+unverified: hi
+context:
+Surface: Friend profile statistics cell — VoiceOver label for the badge button that opens the emoji picker to send an endorsement, when no recipient name is available (generic variant; sibling friendEndorsementSendToA11y is used when the friend's name is known).
+Type: accessibility label
+Context: Spoken action description for the generic "send emoji endorsement" entry point. Imperative verb phrase.
+Constraints: Read aloud — keep short and natural as a spoken action.
+en : 'Send emoji'
+ru : 'Отправить эмодзи'
+pl : 'Wyślij emoji'
+
+--- entry 0059 ---
+key: "friendEndorsementSendToA11y"
+platforms: ios
+qa: spelling_and_grammar
+unverified: hi
+context:
+Surface: Friends item cells — VoiceOver label for the badge button that opens the emoji picker to send an endorsement to a specific friend (name-aware variant; sibling friendEndorsementSendEmojiA11y is the generic variant without a name).
+Type: accessibility label
+Context: Spoken action description like "Send emoji to Alex". Inserts the recipient's display name.
+Placeholders:
+  [%s] — recipient friend's display name (login or full name), e.g. "Alex"
+Constraints: Read aloud — keep short and natural as a spoken action.
+en : 'Send emoji to [%s]'
+ru : 'Отправить эмодзи пользователю [%s]'
+pl : 'Wyślij emoji do [%s]'
+
+--- entry 0060 ---
+key: "friendEndorsementSelectedEmojiA11y"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Friend endorsements emoji picker — accessibility label for a non-preset (custom / freshly typed) emoji button.
+Type: accessibility label
+Context: Read aloud by VoiceOver when the selected endorsement emoji is not one of the named presets (wave / smile / drop); names the emoji character itself instead of a preset label.
+Placeholders:
+  [%s] — the actual emoji character (e.g. "🎉")
+Constraints: Read aloud — must be natural spoken phrase, not a UI fragment.
+en : '[%s] emoji'
+ru : '[%s], эмодзи'
+pl : '[%s], emoji'
+
+--- entry 0061 ---
+key: "friendEndorsementSmileA11y"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da
+context:
+Surface: Friend endorsements emoji picker — accessibility label for the "smile" preset emoji (😊).
+Type: accessibility label
+Context: Spoken by VoiceOver on the smile emoji button in the row of preset endorsement emojis sent to friends. Names the emoji so blind users can pick a specific reaction.
+Constraints: Read aloud — must be natural spoken phrase, not a UI fragment.
+en : 'Smile emoji'
+ru : 'Улыбка, эмодзи'
+pl : 'Uśmiech, emoji'
+
+--- entry 0062 ---
+key: "friendEndorsementWaveA11y"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Friend endorsements emoji picker — accessibility label for the "wave" preset emoji (👋).
+Type: accessibility label
+Context: Spoken by VoiceOver on the wave emoji button in the row of preset endorsement emojis sent to friends. Names the emoji so blind users can pick a specific reaction.
+Constraints: Read aloud — must be natural spoken phrase, not a UI fragment.
+en : 'Wave emoji'
+ru : 'Машущая рука, эмодзи'
+pl : 'Machająca ręka, emoji'
+
+--- entry 0063 ---
+key: "h2opalLinkFailedTitle"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Settings → Integrations → H2OPal setup screen — alert title shown when authenticating with the H2OPal third-party integration fails.
+Type: alert title
+Context: Headline above the underlying H2OPal error message (the body comes from `error.localizedDescription` of the H2OPal SDK, not localized by us). "H2OPal" is a third-party product name and "link" means connecting the user's account / smart-bottle to the app — keep "H2OPal" untranslated.
+Constraints: Keep short to fit an alert title.
+en : "Couldn't link to the H2OPal app"
+ru : 'Не удалось подключиться к H2OPal'
+pl : 'Nie udało się połączyć z aplikacją H2OPal'
+
+--- entry 0064 ---
+key: "shareCardVsAvg"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Share screen "Save image" mode — hydration share-card content; stat label under the percentage-vs-average value (e.g. "+12%").
+Type: section header (stat label)
+Context: Short caption under a numeric "+/-N%" stat that compares today's hydration progress against the user's average. Abbreviation "vs avg" stands for "versus average" — use a short locale-appropriate equivalent (e.g. "vs. сред.", "vs Ø", "ср.") rather than expanding into a full phrase. Rendered uppercased at runtime.
+Constraints: Keep very short (≤8 chars / 1-2 tokens); no trailing period.
+en : 'vs avg'
+ru : 'от средн.'
+pl : 'vs śred.'
+
+--- entry 0065 ---
+key: "shareInviteFriendsText"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,it,nl,pt_BR,ru
+context:
+Surface: Share screen "Copy invite link" mode — invite-friends share-card label rendered next to the avatar stack of friends already on the app.
+Type: paragraph (social-proof caption)
+Context: Social-proof caption shown when the user already has friends in the app — paired with a small horizontal stack of friend avatars to indicate "these friends are tracking with you on MyWater". Brand name "MyWater" appears without space (single token) — match casing in target language.
+Constraints: Keep short to fit beside avatar row; no trailing period.
+en : 'Friends tracking with you on My Water'
+ru : 'Твои друзья уже в «Моей воде»'
+pl : 'Twoi znajomi w My Water'
+
+--- entry 0066 ---
+key: "shareInviteMessage"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,ru
+context:
+Surface: System share sheet — body text of the message attached when the user shares their invite link via Messages / Mail / etc.
+Type: paragraph (share message body)
+Context: Default invite message body the app prefills into the system share sheet alongside the personal invite link. Written in first person from the sender to friends.
+Tone: friendly, encouraging.
+en : 'Join me on My Water. Drinking water is easier together'
+ru : 'Присоединяйся ко мне в «Моей воде». Вместе пить воду легче'
+pl : 'Dołącz do mnie w My Water. Razem łatwiej pić wodę'
+
+--- entry 0067 ---
+key: "siriLogDrinkDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,hi,ko,ru
+context:
+Surface: Siri / Shortcuts — "Log a drink" AppIntent description shown in the Shortcuts app.
+Type: AppIntent description
+Context: Short description shown under the intent title in the Shortcuts app when the user browses or configures the "Log a drink" action.
+Constraints: Read aloud — must be a natural spoken phrase; keep short, one sentence.
+en : 'Log a drink in My Water'
+ru : 'Записать напиток в «Моей воде»'
+pl : 'Zapisz napój w My Water'
+
+--- entry 0068 ---
+key: "siriLogDrinkPremiumLocked"
+platforms: ios
+qa: spelling_and_grammar
+unverified: de,fr,hi,ja,ru,tr
+context:
+Surface: Siri / Shortcuts — "Log a drink" AppIntent premium-locked error dialog.
+Type: AppIntent dialog
+Context: Spoken response when the user tries to log a beverage that is gated behind MyWater Premium (anything outside Water / Tea / Coffee). Invites the user to open the app to subscribe.
+Placeholders:
+  [%s] — drink name (e.g. "Juice", "Smoothie")
+Constraints: Read aloud — must be a natural spoken phrase.
+Register: casual T-form — a Siri premium-gate dialog is brand-voice «ты» with a reserved tone across all T-V / honorific languages (seriousness from tone, not from a formal pronoun; § Brand voice § Фамильярность). Not legally-binding text; legacy «вы» grandfathered.
+Tone: reserved
+en : '[%s] is available with My Water Premium. Open My Water to subscribe'
+ru : 'Напиток [%s] доступен только в My Water Premium. Открой приложение, чтобы оформить подписку.'
+pl : 'Napój [%s] jest dostępny tylko w My Water Premium. Otwórz My Water, aby wykupić subskrypcję'
+
+--- entry 0069 ---
+key: "siriPlaceHolder"
+platforms: ios
+qa: spelling_and_grammar
+unverified: fr,hi,ru
+context:
+Surface: Settings → Integrations → Siri Shortcuts setup screen — explanatory text on the empty / setup state.
+Type: paragraph
+Context: Short description shown to the user on the Siri Shortcuts setup screen explaining what Siri integration is for — logging a drink hands-free using Siri voice control or the iOS Shortcuts app. Refers to Apple's "Shortcuts" app by name — keep "Shortcuts" capitalized as a product name.
+Constraints: Read aloud — natural spoken phrasing; one sentence.
+en : 'Use Siri or the Shortcuts app to log a drink hands-free'
+ru : 'Используй Siri или приложение «Быстрые команды», чтобы записывать напитки голосом.'
+pl : 'Używaj Siri lub aplikacji Skróty, aby zapisywać napoje głosem'
+
+--- entry 0070 ---
+key: "spotlightOpenDrinkDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,hi,nb,ru,sv
+context:
+Surface: Spotlight "Open drink" AppIntent — IntentDescription shown by the system in Shortcuts / Spotlight editors.
+Type: paragraph (system description)
+Context: System description for the OpenDrinkIntent that deep-links into a specific drink in the app. "MyWater" is the brand name (the app).
+Constraints: Preserve the brand name "MyWater".
+en : 'Open a drink in My Water'
+ru : 'Открыть напиток в «Моей воде»'
+pl : 'Otwórz napój w My Water'
+
+--- entry 0071 ---
+key: "standardDrinksUSShort"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ko
+context:
+Surface: BeverageDetailStatistic and OneDayStatistic — compact unit suffix next to a standard-drinks number in chart cells / value rows.
+Type: unit label (abbreviation)
+Context: Short abbreviation of "standardDrinksUS" used in compact UI where the full label doesn't fit (e.g. "1.5 std"). Refers to the US standard-drink unit for alcohol.
+Constraints: Keep very short (≤4 chars) — use the locale-conventional abbreviation.
+en : 'std'
+ru : 'пор.'
+pl : 'porc.'
+
+--- entry 0072 ---
+key: "statisticsBeverageComparisonPeriod"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Statistics → Beverage detail → chart header, label for the comparison-period column (paired with `statisticsBeverageCurrentPeriod`).
+Type: section header / label
+Context: Short header above the previous-period total in the two-column chart header (e.g. "vs last" / "This" pair). Followed visually by the period name ("week", "month") rendered separately. Sentence-style casing.
+Constraints: Keep very short (1-2 words) — sits next to a number in a narrow header column.
+en : 'Last'
+ru : 'пред.'
+pl : 'Poprz.'
+
+--- entry 0073 ---
+key: "statisticsBeverageTipDown"
+platforms: ios
+qa: brackets
+unverified: nl
+context:
+Surface: Statistics → Beverage detail → first tip card, shown when the user drank less than in the previous comparable period.
+Type: tip
+Context: Negative-trend tip; [%1$s] is the already-assembled "behind" fragment (e.g. "200 ml behind") and [%2$s] is the localized period noun, lowercased (e.g. "week", "month").
+Placeholders:
+  [%1$s] — emphasized amount fragment from statisticsBeverageTipBehind (e.g. "200 ml behind")
+  [%2$s] — period noun, lowercased (e.g. "week", "month", "year", "day")
+Constraints: Indexed placeholders — reorder [%1$s] / [%2$s] freely for natural word order.
+Register: casual T-form — tips are friendly health-conscious companion voice, not medical lecture (default for non-formal surfaces, see § Brand voice § Pronouns).
+Tone: encouraging — observational, supportive (not blaming the user for falling behind).
+en : "You're [%1$s] last [%2$s]'s pace"
+ru : '[%1$s], чем за прошлый период ([%2$s]).'
+pl : '[%1$s] niż w poprzednim okresie ([%2$s])'
+
+--- entry 0074 ---
+key: "statisticsBeverageTipUp"
+platforms: ios
+qa: brackets
+context:
+Surface: Statistics → Beverage detail → first tip card, shown when the user drank more than in the previous comparable period.
+Type: tip
+Context: Positive-trend tip; [%1$s] is the already-assembled "more" fragment (e.g. "200 ml more") and [%2$s] is the localized period noun, lowercased (e.g. "week", "month"). Closing "Keep it up" is friendly encouragement.
+Placeholders:
+  [%1$s] — emphasized amount fragment from statisticsBeverageTipMore (e.g. "200 ml more")
+  [%2$s] — period noun, lowercased (e.g. "week", "month", "year", "day")
+Constraints: Indexed placeholders — reorder [%1$s] / [%2$s] freely for natural word order. Keep the period between the two sentences (none after "Keep it up").
+Register: casual T-form — tips are friendly health-conscious companion voice, not medical lecture (default for non-formal surfaces, see § Brand voice § Pronouns).
+Tone: encouraging — celebratory but not loud (no "!").
+en : 'You drank [%1$s] than last [%2$s]. Keep it up'
+ru : '[%1$s], чем за прошлый период ([%2$s]). Так держать.'
+pl : '[%1$s] niż w poprzednim okresie ([%2$s]). Tak trzymaj'
+
+--- entry 0075 ---
+key: "waterAmountRemaining"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Main / widget / watch hydration progress text — "remaining to goal" amount renderer (`WaterAmountDisplayFormat.string(currentMl:goalMl:units:)`, `.remaining` case). Compare `.outOf` (current of goal) and `waterAmountDrunk` (`.drunk`).
+Type: paragraph (progress summary)
+Context: Short status phrase shown next to / under the hydration progress bar, telling the user how much water is still needed to reach today's goal. The English source uses "<amount> left" — amount first, "left" after.
+Placeholders:
+  [%s] — formatted volume with units (e.g. "0.5 L", "500 ml", "5 fl oz"); composed at runtime from the user's preferred units. Reorder relative to "left" if your locale puts the qualifier before the amount.
+Constraints: Lowercase as in source (short progress label, not a sentence header); keep concise to fit progress text surfaces.
+en : '[%s] left'
+ru : 'осталось [%s]'
+pl : 'pozostało [%s]'
+
+--- entry 0076 ---
+key: "watchCustomVolumePremiumSubtitle"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,de,fr,hi,ms,nb,pt_BR,ru,tr
+context:
+Surface: Apple Watch — Premium Unlock screen subtitle, shown after the user taps the lock on the Custom Volume keypad.
+Type: paragraph (paywall body)
+Context: Explains that entering any drink amount on Apple Watch is gated behind the premium subscription. Sits below the title under a lock icon, above the "Get full version" CTA.
+Constraints: Watch-narrow — keep to 1-3 short lines; wrap is expected.
+en : 'Get the full version to enter any drink amount on Apple Watch'
+ru : 'Открой полную версию, чтобы вводить любой объём напитка на Apple Watch.'
+pl : 'Wykup pełną wersję, aby wpisywać dowolną objętość napoju na Apple Watch'
+
+--- entry 0077 ---
+key: "watchCustomVolumePremiumTitle"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,ms,nb
+context:
+Surface: Apple Watch — Premium Unlock screen title, shown after the user taps the lock on the Custom Volume keypad.
+Type: screen title (paywall hero)
+Context: Hero headline framing custom drink volume as a premium-tier feature. Sits above the explanatory subtitle and the "Get full version" CTA.
+Constraints: Watch-narrow — keep concise (≤2 lines), no period at the end; uses minimum scale factor as fallback.
+en : 'Custom volume is a full version feature'
+ru : 'Свой объём - в полной версии'
+pl : 'Własna objętość - w pełnej wersji'
+
+--- entry 0078 ---
+key: "watchPremiumSubtitle"
+platforms: ios
+qa: spelling_and_grammar
+unverified: de,fr,hi,ja,ru,tr
+context:
+Surface: Apple Watch — Premium Unlock screen subtitle, shown after the user taps a locked premium drink in the drink picker.
+Type: paragraph (paywall body)
+Context: Promises that buying premium on the Watch unlocks every drink and keeps the premium status in sync with the user's iPhone. Sits below the title with the unlocked drink name, above the "Get full version" CTA.
+Constraints: Watch-narrow — keep to 2-3 short lines; wrap is expected.
+Register: casual T-form — a paywall hero / CTA is brand-voice marketing «ты» across all T-V / honorific languages (a warm ask, not the legally-binding subscription-terms block — that would be Register: formal; § Brand voice § Юридический carve-out). Legacy «вы» grandfathered.
+en : 'Unlock every drink on Apple Watch and keep premium in sync with your iPhone'
+ru : 'Разблокируй все напитки на Apple Watch. Premium-статус синхронизируется с iPhone'
+pl : "Odblokuj wszystkie napoje na Apple Watch. Status premium zsynchronizuje się z iPhone'em"
+
+--- entry 0079 ---
+key: "a11yLockedPremiumValue"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,ja
+context:
+Surface: Statistics tag chips that route to premium upsell, accessibility value.
+Type: accessibility label
+Context: Spoken as the value of a premium-gated stat tag so VoiceOver users know activating it opens the subscription screen.
+Constraints: Read aloud — must be natural spoken phrase, not a UI fragment.
+en : 'Premium feature, opens subscription'
+ru : 'Функция Premium, открывает подписку'
+pl : 'Funkcja Premium, otwiera subskrypcję'
+
+--- entry 0080 ---
+key: "widgetAccessoryRectangularRingDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,da,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryRectangular ring variant widget description, shown beneath the title.
+Type: widget gallery description
+Context: Hydration Ring variant — explains the widget shows current hydration with a circular progress ring on lock screen and watch face.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Lock screen and watch widget showing current hydration with a circular progress ring'
+ru : 'Виджет экрана блокировки и часов с кольцом прогресса выпитого.'
+pl : 'Widżet ekranu blokady i zegarka z aktualnym nawodnieniem i okrągłym pierścieniem postępu'
+
+--- entry 0081 ---
+key: "widgetAccessoryRectangularPercentDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryRectangular percent variant widget description, shown beneath the title.
+Type: widget gallery description
+Context: Hydration Percent variant — explains the widget shows current and remaining hydration with a large percent figure.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Lock screen and watch widget showing current and remaining hydration with a large percentage'
+ru : 'Виджет экрана блокировки и часов с крупным процентом выпитого и остатком.'
+pl : 'Widżet ekranu blokady i zegarka z aktualnym i pozostałym nawodnieniem oraz dużym procentem'
+
+--- entry 0082 ---
+key: "widgetAccessoryRectangularQuickAddDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,id,ko,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryRectangular quick-add variant widget description, shown beneath the title.
+Type: widget gallery description
+Context: Hydration Quick Add variant — explains the widget shows hydration with one quick-add drink button on lock screen and watch face.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Lock screen and watch widget showing hydration with one quick-add drink button'
+ru : 'Виджет экрана блокировки и часов с кнопкой быстрого добавления напитка.'
+pl : 'Widżet ekranu blokady i zegarka z nawodnieniem i przyciskiem szybkiego dodawania napoju'
+
+--- entry 0083 ---
+key: "widgetAccessoryInlineDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,da,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryInline widget description for iOS Lock Screen and watchOS accessoryInline / watch-face placement.
+Type: widget gallery description
+Context: Default inline variant — single-line widget showing current hydration amount.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Inline lock screen widget showing current hydration'
+ru : 'Однострочный виджет на экране блокировки с текущим объёмом выпитого.'
+pl : 'Widżet ekranu blokady w linii z aktualnym nawodnieniem'
+
+--- entry 0084 ---
+key: "widgetAccessoryInlineRemainingDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryInline remaining variant widget description for iOS Lock Screen and watchOS accessoryInline / watch-face placement.
+Type: widget gallery description
+Context: Remaining inline variant — single-line widget showing how much hydration is left to drink today.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Inline lock screen widget showing remaining hydration to drink'
+ru : 'Однострочный виджет на экране блокировки с остатком до цели.'
+pl : 'Widżet ekranu blokady w linii z pozostałą ilością do wypicia'
+
+--- entry 0085 ---
+key: "widgetAccessoryInlinePercentDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryInline percent variant widget description for iOS Lock Screen and watchOS accessoryInline / watch-face placement.
+Type: widget gallery description
+Context: Percent inline variant — single-line widget showing hydration progress as a percent.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Inline lock screen widget showing hydration percentage'
+ru : 'Однострочный виджет на экране блокировки с процентом выпитого.'
+pl : 'Widżet ekranu blokady w linii z procentem nawodnienia'
+
+--- entry 0086 ---
+key: "widgetAccessoryCircularDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryCircular widget description, shown beneath the title.
+Type: widget gallery description
+Context: Default circular variant — small lock screen / watch face ring showing hydration progress toward the daily goal.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Circular lock screen widget showing hydration progress'
+ru : 'Круговой виджет на экране блокировки с прогрессом выпитого.'
+pl : 'Okrągły widżet ekranu blokady z postępem nawodnienia'
+
+--- entry 0087 ---
+key: "widgetAccessoryCircularValueDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryCircular value variant widget description, shown beneath the title.
+Type: widget gallery description
+Context: Circular Amount variant — small lock screen / watch face widget centred on the current hydration amount.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Circular lock screen widget showing the current hydration amount'
+ru : 'Круговой виджет на экране блокировки с текущим объёмом выпитого.'
+pl : 'Okrągły widżet ekranu blokady z aktualną objętością nawodnienia'
+
+--- entry 0088 ---
+key: "widgetAccessoryCornerDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryCorner widget description, shown beneath the title.
+Type: widget gallery description
+Context: Default corner variant — watchOS corner complication showing hydration progress toward the daily goal.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Corner watch widget showing hydration progress'
+ru : 'Угловой виджет на часах с прогрессом выпитого.'
+pl : 'Widżet w rogu zegarka z postępem nawodnienia'
+
+--- entry 0089 ---
+key: "widgetAccessoryCornerValueDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,id,ko,ms,nl,zh_CN
+context:
+Surface: Widget gallery — accessoryCorner value variant widget description, shown beneath the title.
+Type: widget gallery description
+Context: Corner Amount variant — watchOS corner complication showing the current hydration amount.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Corner watch widget showing the current hydration amount'
+ru : 'Угловой виджет на часах с текущим объёмом выпитого.'
+pl : 'Widżet w rogu zegarka z aktualną objętością nawodnienia'
+
+--- entry 0090 ---
+key: "widgetAccessoryCircularVolumeDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: ar,ko,zh_CN
+context:
+Surface: Widget gallery — accessoryCircular volume variant widget description, shown beneath the title.
+Type: widget gallery description
+Context: Circular Volume variant — small lock screen / watch face widget showing the consumed water volume value.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : "Circular lock screen widget showing today's water volume"
+ru : 'Круговой виджет на экране блокировки с объёмом воды за сегодня.'
+pl : 'Okrągły widżet ekranu blokady z dzisiejszą objętością wody'
+
+--- entry 0091 ---
+key: "onboardingSubscribeTitleHighlightedLine"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,es,ko,nl
+context:
+Surface: Onboarding paywall — hero title at the top of the subscribe screen, second (bottom) line rendered with a hand-drawn highlight stroke behind the text.
+Type: hero title — emphasised second line of a composed two-line headline
+Context: Closing half of the onboarding paywall headline; pairs with "onboardingSubscribeTitleFirstLine" above to form "Start drinking more water / with My Water app". This line is the emphasised tail of the sentence — keep the brand name "My Water" exactly as written (do not translate or transliterate the product name). Also concatenated into the VoiceOver label for the whole title.
+Constraints: 1 short line; auto-shrinks but truncates on long phrasing. Must read naturally as the continuation of the first line.
+en : 'with My Water'
+ru : 'с приложением "My Water"'
+pl : 'z aplikacją My Water'
+
+--- entry 0092 ---
+key: "NSMotionUsageDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,nb
+context:
+Surface: System iOS permission prompt — purpose string shown when the app requests access to device motion (Info.plist `NSMotionUsageDescription`).
+Type: permission prompt
+Context: Justifies why the app reads device motion — to drive the animated water-wave effect on the main screen. Shown by iOS in the standard authorization sheet on first request; user can grant or deny.
+Constraints: Apple guideline — describe purpose specifically and concisely.
+Register: casual T-form — a routine permission prompt is brand-voice «ты» (reserved/reasoned tone) across all T-V / honorific languages; it is NOT a legally-binding consent contract (§ Brand voice § Юридический carve-out). Legacy «вы» here is grandfathered, not a must-fix.
+Tone: reasoned and direct.
+en : 'My Water uses device motion to animate the water wave on the main screen.'
+ru : 'Приложение использует данные о движении устройства, чтобы анимировать волну воды на главном экране.'
+pl : 'My Water używa ruchu urządzenia do animowania fali wody na ekranie głównym.'
+
+--- entry 0093 ---
+key: "NSPhotoLibraryAddUsageDescription"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,de,fr,hi,id,ms,nb,pl,ru,tr,zh_CN
+context:
+Surface: System iOS permission prompt — purpose string shown when the app requests add-only access to the Photo Library (Info.plist `NSPhotoLibraryAddUsageDescription`).
+Type: permission prompt
+Context: Justifies why the app needs to save to the Photo Library — to store images the user generates / shares from the app. Add-only access (saving, not browsing); distinct from NSPhotoLibraryUsageDescription, which grants read access for picking an avatar. Shown by iOS on first save.
+Constraints: Apple guideline — describe purpose specifically and concisely; first-person plural ("we") matches app voice.
+Register: casual T-form — a routine permission prompt is brand-voice «ты» (reserved/reasoned tone) across all T-V / honorific languages; it is NOT a legally-binding consent contract (§ Brand voice § Юридический carve-out). Legacy «вы» here is grandfathered, not a must-fix.
+Tone: reasoned and direct.
+en : 'We need permission to save images from My Water to your photo library.'
+ru : 'Нам нужно разрешение, чтобы сохранять изображения из «Моя вода» в твою медиатеку.'
+pl : 'Potrzebujemy pozwolenia na zapisywanie obrazów z My Water w twojej bibliotece zdjęć.'
+
+--- entry 0094 ---
+key: "appleHealthResyncConfirmTitle"
+platforms: ios
+qa: spelling_and_grammar
+unverified: hi
+context:
+Surface: Settings → Integrations → Apple Health setup screen — confirmation alert title shown after the user taps the "Re-sync all data" button.
+Type: alert title
+Context: Asks the user to confirm starting a bulk re-export of all drinks to Apple Health. "Apple Health" is the Apple product name — do not translate.
+en : 'Re-sync to Apple Health?'
+ru : 'Синхронизировать с Apple Health заново?'
+pl : 'Zsynchronizować ponownie z Apple Health?'
+
+--- entry 0095 ---
+key: "appleHealthResyncConfirmMessage"
+platforms: ios
+qa: spelling_and_grammar
+unverified: da,ru
+context:
+Surface: Settings → Integrations → Apple Health setup screen — confirmation alert body shown after the user taps the "Re-sync all data" button.
+Type: alert message / paragraph
+Context: Reassures the user that this won't create duplicates — the app deduplicates against samples already present in Apple Health. "My Water" and "Apple Health" are product names — do not translate.
+Constraints: ≤ 2 sentences for a system alert.
+en : "This will upload every drink from My Water to Apple Health. Duplicates won't be created"
+ru : 'Все напитки из приложения «Моя вода» будут загружены в Apple Health. Дубликаты не появятся'
+pl : 'Wszystkie napoje z My Water zostaną przesłane do Apple Health. Duplikaty nie zostaną utworzone'
+
+--- entry 0096 ---
+key: "appleHealthResyncInProgressTitle"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Apple Health re-sync drawer modal — large title shown at the top of the modal while the bulk export is in progress.
+Type: drawer title
+Context: Indicates the running operation to the user. "Apple Health" is the Apple product name — do not translate.
+Constraints: Single line; auto-shrinks.
+en : 'Re-syncing to Apple Health'
+ru : 'Синхронизация с Apple Health'
+pl : 'Synchronizacja z Apple Health'
+
+--- entry 0097 ---
+key: "appleHealthResyncDoneSummary"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Apple Health re-sync drawer modal — success summary shown after the bulk export completes.
+Type: status message (multi-line)
+Context: Splits the result into records newly added to Apple Health, records that were already present, and total records processed so the user doesn't read "new" as the full sync size.
+Placeholders:
+  [%1$s] — formatted count of newly added drink records
+  [%2$s] — formatted count of drink records already present in Apple Health
+  [%3$s] — formatted count of all processed drink records
+Constraints: Keep three short lines. Translation must preserve all ordered placeholders and line breaks.
+en : 'New drinks added: [%1$s]\nAlready in Apple Health: [%2$s]\nRecords processed: [%3$s]'
+ru : 'Добавлено новых: [%1$s]\nУже было в Apple Health: [%2$s]\nОбработано записей: [%3$s]'
+pl : 'Dodano nowych napojów: [%1$s]\nJuż w Apple Health: [%2$s]\nPrzetworzono rekordów: [%3$s]'
+
+--- entry 0098 ---
+key: "appleHealthResyncDoneAllSynced"
+platforms: ios
+qa: spelling_and_grammar
+unverified: hi,id,tr
+context:
+Surface: Apple Health re-sync drawer modal — success message shown after the bulk export completes when nothing new needed uploading (every drink already in Apple Health).
+Type: status message
+Context: Reassures the user that the export ran but found no new records to push — all drinks are already in sync.
+Constraints: Single sentence.
+en : 'All your drinks are already in Apple Health'
+ru : 'Все напитки уже в Apple Health'
+pl : 'Wszystkie twoje napoje są już w Apple Health'
+
+--- entry 0099 ---
+key: "appleHealthResyncErrorUnavailable"
+platforms: ios
+qa: spelling_and_grammar
+context:
+Surface: Apple Health re-sync — alert body shown when Apple Health is not available on the device (e.g., iPad without HealthKit support).
+Type: alert message
+Context: Explains the device-level unavailability — distinct from "permissions denied" (use existing appleHealthPermission key for that case). "Apple Health" is the Apple product name — do not translate.
+Constraints: Single sentence.
+en : 'Apple Health is not available on this device'
+ru : 'Apple Health недоступен на этом устройстве'
+pl : 'Apple Health nie jest dostępne na tym urządzeniu'
+
+--- entry 0100 ---
+key: "appleHealthResyncCancelConfirmMessage"
+platforms: ios
+qa: spelling_and_grammar
+unverified: hi,tr
+context:
+Surface: Apple Health re-sync drawer modal — confirmation alert body shown when the user taps the close button mid-export.
+Type: alert message
+Context: Reassures the user that already-uploaded drinks won't be removed if they stop the operation. Pairs with the "appleHealthResyncCancelConfirmAction" action. "Apple Health" is the Apple product name — do not translate.
+Constraints: Single sentence.
+en : 'Stop re-sync? Drinks already uploaded will stay in Apple Health'
+ru : 'Остановить синхронизацию? Уже загруженные напитки останутся в Apple Health'
+pl : 'Zatrzymać synchronizację? Już przesłane napoje pozostaną w Apple Health'
+
+--- entry 0101 ---
+key: "whatsNew50Subtitle"
+platforms: ios
+qa: spelling_and_grammar
+unverified: es,ru
+context:
+Surface: "What's New" 5.0 announcement popup — subtitle under the title; leads into the highlight chips below.
+Type: subtitle
+Context: Tells the user this is a big update and the chips below summarize the main changes. Marketing copy — adapt naturally. The trailing colon leads into the chips.
+Constraints: No trailing period; keep the trailing colon.
+en : "Our biggest update yet. Here's what's new:"
+ru : 'Наше самое крупное обновление. Коротко о главном:'
+pl : 'Nasza największa aktualizacja - oto, co nowego:'
+
+--- entry 0102 ---
+key: "invalid_access_token"
+platforms: web
+qa: spelling_and_grammar
+unverified: da
+context:
+Surface: Social sign-in / social friend search — error.
+Type: error message
+Context: Returned when the social network access token is missing or an empty string. Applies to Apple, VK, and Facebook.
+en : 'Social network token is missing or invalid'
+ru : 'Токен соцсети отсутствует или недействителен'
+pl : 'Brakuje tokenu sieci społecznościowej lub jest on nieprawidłowy'
+
+--- entry 0103 ---
+key: "invalid_emoji"
+platforms: web
+qa: spelling_and_grammar
+unverified: da,de,es,fr,hi,ru,tr
+context:
+Surface: Friend endorsement action — validation error when choosing a reaction emoji.
+Type: error message
+Context: Returned as the `invalid_emoji` API error code from `mywater_server` (`setFriendEndorsement.php`) when the emoji value is not exactly one valid emoji grapheme cluster (invalid UTF-8, plain text, multiple emoji, or control characters).
+Constraints: Keep short.
+en : 'Please pick a single emoji.'
+ru : 'Выбери один эмодзи.'
+pl : 'Wybierz jedno emoji.'
+
+--- entry 0104 ---
+key: "socialauth_error"
+platforms: web
+qa: spelling_and_grammar
+unverified: de,es,fr,hi,ru
+context:
+Surface: Social sign-in / account linking — error.
+Type: error message
+Context: Returned when signing in with a social network (Apple, VK, Facebook) or linking one to an account fails: the external provider returned an error or invalid/missing user data. The token may be non-empty but the social API request still failed.
+en : 'Social network sign-in failed. Please try again'
+ru : 'Не удалось войти через соцсеть. Попробуй ещё раз'
+pl : 'Logowanie przez sieć społecznościową nie powiodło się. Spróbuj ponownie'
+
+--- entry 0105 ---
+key: "invalid_request"
+platforms: web
+qa: spelling_and_grammar
+unverified: da,de,es,fr,hi,ru
+context:
+Surface: VK sign-in flow — shown when signing in with VK fails.
+Type: error message
+Context: Returned as the `invalid_request` API error code from `mywater_server` (`exchangeVKAuthCode.php`) when a required VK ID OAuth parameter is empty, `code` exceeds 1024 characters, or `redirect_uri` does not match the server whitelist. A technical code; the user sees a generic VK sign-in error.
+en : "We couldn't sign you in with VK. Please try again."
+ru : 'Не удалось войти через VK. Попробуй снова.'
+pl : 'Nie udało się zalogować przez VK. Spróbuj ponownie.'
+
+--- entry 0106 ---
+key: "invalid_code_verifier"
+platforms: web
+qa: spelling_and_grammar
+unverified: da,de,es,fr,hi,ru
+context:
+Surface: VK sign-in flow — shown when signing in with VK fails.
+Type: error message
+Context: Returned as the `invalid_code_verifier` API error code from `mywater_server` (`exchangeVKAuthCode.php`) when the PKCE `code_verifier` is shorter than 43 or longer than 128 characters, or contains characters outside RFC 7636. Indicates a client PKCE bug; the user sees a generic VK sign-in error.
+en : "We couldn't sign you in with VK. Please try again."
+ru : 'Не удалось войти через VK. Попробуй снова.'
+pl : 'Nie udało się zalogować przez VK. Spróbuj ponownie.'
+
+--- entry 0107 ---
+key: "vk_token_exchange_failed"
+platforms: web
+qa: spelling_and_grammar
+unverified: da,de,es,fr,hi,ru
+context:
+Surface: VK sign-in flow — shown when signing in with VK fails.
+Type: error message
+Context: Returned as the `vk_token_exchange_failed` API error code from `mywater_server` (`exchangeVKAuthCode.php`) when exchanging the authorization code for tokens fails (invalid_grant, expired code, wrong client_secret, missing user_id/access_token, or a failed id_token check). The user sees a generic VK sign-in error; retrying usually resolves it.
+en : "We couldn't sign you in with VK. Please try again."
+ru : 'Не удалось войти через VK. Попробуй снова.'
+pl : 'Nie udało się zalogować przez VK. Spróbuj ponownie.'
+
+--- entry 0108 ---
+key: "vk_user_resolution_failed"
+platforms: web
+qa: spelling_and_grammar
+unverified: da,de,es,fr,hi,ru
+context:
+Surface: VK sign-in flow — shown when signing in with VK fails.
+Type: error message
+Context: Returned as the `vk_user_resolution_failed` API error code from `mywater_server` (`exchangeVKAuthCode.php`) when the `users.get` call after a successful code exchange fails (VK API unavailable or malformed response). A rare infrastructure error; retrying may succeed.
+en : "We couldn't sign you in with VK. Please try again."
+ru : 'Не удалось войти через VK. Попробуй снова.'
+pl : 'Nie udało się zalogować przez VK. Spróbuj ponownie.'
+
+--- entry 0109 ---
+key: "circle_widget_description"
+platforms: android
+qa: spelling_and_grammar
+unverified: ar,hi,ms,nb,nl,zh_CN
+context:
+Surface: Android home screen widget picker — description for the circular progress widget. Type: widget description. Context: Describes a circular home screen widget that shows today's hydration progress and includes a quick-add drink action. Constraints: One short sentence; launcher widget pickers may truncate at two lines.
+en : 'Circular widget showing your hydration progress, with a quick-add drink button'
+ru : 'Круговой виджет с прогрессом выпитого и кнопкой быстрого добавления напитка'
+pl : 'Okrągły widżet z postępem nawodnienia i przyciskiem szybkiego dodawania napoju'
+
+--- entry 0110 ---
+key: "grid_widget_description"
+platforms: android
+qa: spelling_and_grammar
+unverified: ar,zh_CN
+context:
+Surface: Android home screen widget picker — description for the grid quick-add widget. Type: widget description. Context: Describes a grid widget built from the user's recent drinks, letting them log one again with one tap. Constraints: One short sentence; launcher widget pickers may truncate at two lines.
+en : 'Grid widget for adding recent drinks in one tap'
+ru : 'Виджет с недавними напитками для добавления в одно касание'
+pl : 'Widżet siatkowy do dodawania ostatnich napojów jednym dotknięciem'
+
+--- entry 0111 ---
+key: "progress_bar_widget_description"
+platforms: android
+qa: spelling_and_grammar
+unverified: ar,es,hi,ms,nb,nl,zh_CN
+context:
+Surface: Android home screen widget picker — description for the horizontal progress bar widget. Type: widget description. Context: Describes a home screen widget that shows today's hydration progress as a bar and includes a quick-add drink action. Constraints: One short sentence; launcher widget pickers may truncate at two lines.
+en : 'Progress bar widget showing your hydration progress, with a quick-add drink button'
+ru : 'Виджет с полосой прогресса выпитого и кнопкой быстрого добавления напитка'
+pl : 'Widżet z paskiem postępu nawodnienia i przyciskiem szybkiego dodawania napoju'

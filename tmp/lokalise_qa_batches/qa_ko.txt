@@ -1,0 +1,163 @@
+# QA validation batch — language=ko
+# Source: qa_issues.ndjson (Lokalise LanguageTool flags) joined to strings.ndjson by key_id.
+# Task per entry: decide REAL error vs LanguageTool FALSE POSITIVE; if real, give the corrected value.
+#   Frequent false positives on UI strings: brand (MyWater), placeholders [%s]/[%i],
+#   informal register (du / ты), fragments without final punctuation, loanwords/transliteration.
+# en = source of truth · ru = full-parity reference · <lang> = the flagged value to judge.
+# qa: which QA check(s) fired. unverified: langs Lokalise flags for review. context: translator context.
+# flagged_value appears only on corpus/Lokalise drift (corpus stale for this lang — regenerate first).
+# Confirmed fixes -> {key: value} JSON -> loc_apply_lang.py <lang> fixes.json (stays unverified).
+# flagged entries: 11  (skipped: 0 key_id not in corpus, 0 off-platform)
+--- entry 0001 ---
+key: "ach_descr3"
+platforms: ios,android
+qa: numbers
+unverified: ja,tr
+context:
+Surface: Achievements list / award detail — description line.
+Type: achievement description
+Context: Award id=3 (DefaultAwards). Resolved via AwardDisplayFormat.description(forDescriptionKey:). Unlock condition: add six different drink types. Pairs with ach_name3.
+Register: casual T-form — achievement descriptions celebrate the user in casual companion voice (default for non-formal surfaces).
+en : 'Add six different drinks'
+ru : 'Добавь шесть разных напитков'
+ko : '다른 음료 6가지를 추가하세요'
+
+--- entry 0002 ---
+key: "Ayran"
+platforms: ios,android
+qa: brackets
+unverified: hi,ja,ko
+context:
+Surface: Beverage catalog row / drink picker title.
+Type: beverage name
+Context: Display name for ayran (Turkic / Central Asian yoghurt-based salty drink) in the standard beverage catalog. Capitalized as a standalone catalog entry. Translate using the equivalent target-language word for ayran / salted yoghurt drink (often kept as "Ayran" in many languages).
+en : 'Ayran'
+ru : 'Айран'
+ko : '아이란 (짠 요거트)'
+
+--- entry 0003 ---
+key: "bestTimeToDrink"
+platforms: ios,android
+qa: numbers
+unverified: it,ja,ko,ms,pl,pt_BR,zh_CN
+context:
+Surface: Onboarding → Notifications interval screen — subtitle paragraph under the screen title.
+Type: paragraph
+Context: Educational subtitle explaining the recommended cadence (every 2-3 hours) for drinking water and assuring the user that the app will send timely reminders. Sets the rationale for the notification interval the user is about to configure.
+en : "It's best to drink a glass of water every two to three hours. We'll remind you at the right time."
+ru : 'Лучше пить по стакану воды раз в два-три часа. Мы позаботимся и напомним в нужное время.'
+ko : '2-3시간마다 물 한 잔을 마시는 게 좋아요. My Water가 제때 알려줄게요.'
+
+--- entry 0004 ---
+key: "ach_descr2"
+platforms: ios,android
+qa: numbers
+unverified: ja
+context:
+Surface: Achievements list / award detail — description line.
+Type: achievement description
+Context: Award id=2 (DefaultAwards). Resolved via AwardDisplayFormat.description(forDescriptionKey:). Unlock condition: add three different drink types. Pairs with ach_name2.
+Register: casual T-form — achievement descriptions celebrate the user in casual companion voice (default for non-formal surfaces).
+en : 'Add three different drinks'
+ru : 'Добавь три разных напитка'
+ko : '다른 음료 3가지를 추가하세요'
+
+--- entry 0005 ---
+key: "termsSubscriptionDescription"
+platforms: ios,android
+qa: numbers
+unverified: ar,de,fr,hi,id,it,ja,ko,ms,nl,pl,ru,tr,vi,zh_CN
+context:
+Surface: Paywall — auto-renewal disclosure paragraph shown alongside the subscription options (required iTunes / App Store subscription terms text).
+Type: paragraph (subscription terms / legal disclosure)
+Context: Mandatory iTunes auto-renewable subscription disclosure: renewal cadence, the 24-hour pre-renewal window for cancellation, where to manage auto-renewal (iTunes account settings), and that the iTunes account is charged. Wording is dictated by App Store guidelines — translate using locale-standard formal legal phrasing for auto-renewable subscriptions; do not soften or shorten the legal points.
+Register: formal — legally-binding subscription / disclosure text; impersonal-first, V-form («вы» / Sie / vous / usted / …) only as a direct-address fallback (TRANSLATION_STYLE.md § Brand voice § Юридический carve-out).
+Tone: formal, legal/disclosure.
+en : 'Your subscription will renew automatically unless auto-renewal is disabled at least 24 hours prior to the end of the current subscription period. Your account will be charged for renewal within 24 hours prior to the end of the current period, and the cost of the renewal will be shown. To disable this feature, simply navigate to your iTunes account and turn off auto-renewal. The subscription fee is charged to the iTunes account used when confirming the purchase.'
+ru : 'Подписка продлевается автоматически, если автопродление не отключено минимум за 24 часа до окончания текущего периода. Оплата за продление списывается в течение 24 часов до окончания периода, сумма будет указана. Автопродление можно отключить в настройках учётной записи iTunes. Оплата подписки списывается с учётной записи iTunes, использованной при подтверждении покупки.'
+ko : '현재 구독 기간이 끝나기 최소 24시간 전에 자동 갱신을 끄지 않으면 구독이 자동으로 갱신돼요. 자동 갱신은 iTunes 계정에서 끌 수 있어요. 구독료는 구매를 확인할 때 사용한 iTunes 계정으로 청구돼요.'
+
+--- entry 0006 ---
+key: "more5MillionUsers"
+platforms: ios,android
+qa: numbers
+unverified: es,hi
+context:
+Surface: Paywall — social proof label on rating / reviews cell (RatingCell, LongSubscriptionRatingCell).
+Type: paragraph (marketing claim) / social proof
+Context: Social proof claim about the size of the user base. Note: the English source reads "7 millions" (legacy phrasing, ungrammatical plural) — render the natural plural form for "million" in the target language. The legacy key id mentions "5Million" but the current value is "7 million"; do not rename the key.
+Constraints: Keep short — fits on one line in the reviews cell header.
+en : 'More than 7 million happy users'
+ru : 'Более 7 миллионов счастливых пользователей'
+ko : '700만 명 이상의 행복한 사용자'
+
+--- entry 0007 ---
+key: "appstore_screnShotNew1"
+platforms: other
+qa: numbers
+unverified: da,hi,nb,pt_BR
+context:
+Surface: App Store screenshot / marketing hero header.
+Type: paragraph (marketing claim)
+Context: Marketing claim "7 million happy users". Intentional abbreviation — translate the equivalent short form in target language ("млн" in ru, "Mio." in de, etc.).
+Constraints: Keep abbreviation form (not "million" full word); fits hero header on one line.
+en : '7M happy users'
+ru : '7 млн счастливых пользователей'
+ko : '700만 명의 행복한 사용자'
+
+--- entry 0008 ---
+key: "appstore_screnShotNew3"
+platforms: other
+qa: numbers
+unverified: nb,pt_BR
+context:
+Surface: Onboarding promo screen / paywall hero — social proof line.
+Type: paragraph (marketing claim)
+Context: Marketing claim showing total number of App Store ratings ("31 thousand ratings worldwide"). "31K" is intentional abbreviation — use the equivalent locale-standard short form ("31 тыс." in ru, "31 Tsd." in de, etc.). Note: key name has a legacy typo "screnShotNew" instead of "screenShotNew" — do not rename.
+Constraints: Keep abbreviation form (not "thousand" full word); fits one line on hero header.
+en : '31K ratings around the world'
+ru : '31 тыс. оценок по всему миру'
+ko : '전 세계 평가 3.1만 건'
+
+--- entry 0009 ---
+key: "reviewTemp1"
+platforms: ios,android
+qa: numbers
+unverified: fr
+context:
+Surface: Paywall / subscription screen — social-proof user-review card (rotating reviewTemp1..N pool shown above the price options).
+Type: paragraph (social proof / fake testimonial)
+Context: Short customer-style testimonial quoted on the paywall to build trust. Translate as natural first-person consumer praise; keep informal register and casual punctuation.
+Tone: testimonial / casual (mimics a user review).
+en : 'Helps me keep track of my water intake.'
+ru : 'Всё нравится, и дизайн, и всё. Всем советую'
+ko : '앱에 마시는 것들을 기록하다보니 2리터 마시기가 쉬워지고 있어요'
+
+--- entry 0010 ---
+key: "subscriptionStatisticsSampleDate"
+platforms: ios
+qa: numbers
+context:
+Surface: Onboarding paywall — Statistics preview card, third sample row date label (paired with "Today" and "Yesterday" rows above it).
+Type: sample date label (mock data)
+Context: Hardcoded sample calendar date shown inside a fake statistics card on the paywall to illustrate what the in-app history will look like. Not a live date. Use the translator's locale-natural format for "21 April" (day + month, no year, short month name allowed); the card is narrow so keep it brief.
+Constraints: Keep short (≤10 chars) — the sample row is narrow.
+en : 'April 21'
+ru : '21 апр.'
+ko : '4월 21일'
+
+--- entry 0011 ---
+key: "a11yShareTo"
+platforms: ios
+qa: brackets
+unverified: hi
+context:
+Surface: Share screen, accessibility label on each share-target button (Instagram, Facebook, Messages, etc.).
+Type: accessibility label
+Context: Spoken on a share button so VoiceOver users know which destination the button shares to.
+Placeholders:
+  [%s] — destination name (e.g. "Instagram", "Facebook", "Messages")
+Constraints: Read aloud — must be natural spoken phrase, not a UI fragment.
+en : 'Share to [%s]'
+ru : 'Поделиться в [%s]'
+ko : '[%s](으)로 공유'

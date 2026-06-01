@@ -1,0 +1,702 @@
+# QA validation batch — language=ja
+# Source: qa_issues.ndjson (Lokalise LanguageTool flags) joined to strings.ndjson by key_id.
+# Task per entry: decide REAL error vs LanguageTool FALSE POSITIVE; if real, give the corrected value.
+#   Frequent false positives on UI strings: brand (MyWater), placeholders [%s]/[%i],
+#   informal register (du / ты), fragments without final punctuation, loanwords/transliteration.
+# en = source of truth · ru = full-parity reference · <lang> = the flagged value to judge.
+# qa: which QA check(s) fired. unverified: langs Lokalise flags for review. context: translator context.
+# flagged_value appears only on corpus/Lokalise drift (corpus stale for this lang — regenerate first).
+# Confirmed fixes -> {key: value} JSON -> loc_apply_lang.py <lang> fixes.json (stays unverified).
+# flagged entries: 50  (skipped: 0 key_id not in corpus, 0 off-platform)
+--- entry 0001 ---
+key: "youShouldDrink0Digits"
+platforms: ios,android
+qa: numbers
+unverified: de,es,fr,hi,id,it,ja,ko,ms,nl,pl,pt_BR,ru,vi,zh_CN
+context:
+Surface: Onboarding goal calculation result screen, below the recommended daily goal value.
+Type: paragraph (educational)
+Context: Explains that the calculated daily water goal is approximate and suggests consulting a doctor for an exact value. Shown after the user finishes the onboarding goal questionnaire.
+Placeholders:
+  [%1$.0f] — daily goal amount as a whole number (e.g. 1500, 2000)
+  [%2$s] — measurement unit abbreviation ("ml" / "l" / "fl oz")
+Register: casual T-form — onboarding medical-authority rationale: «ты» with a reserved/reasoned tone (no alarmism, no jokes about the body) across all T-V / honorific languages. Not legally-binding text — formal lives only in Terms / Privacy / subscription-legal (§ Brand voice § Юридический carve-out).
+en : 'Based on your parameters, your estimated goal is [%1$.0f] [%2$s] of water. Your doctor can determine the exact goal for you.'
+ru : 'Ориентировочная цель на основе твоих параметров: [%1$.0f] [%2$s] воды. Точную цель поможет определить врач.'
+ja : '入力した情報から算出した1日の目標水分量の目安は [%1$.0f] [%2$s] です。正確な量については医師にご相談ください。'
+
+--- entry 0002 ---
+key: "appstore_app_description"
+platforms: other
+qa: brackets
+unverified: ar,de,es,fr,hi,pl,ru,vi,zh_CN
+context:
+Surface: App Store Connect listing — long-form app description.
+Type: paragraph (marketing)
+Context: Full App Store description shown on the product page below the screenshots. Opens with brand name "My Water" in quotes and lists app features with literal "* " bullet markers. Not used in app code — uploaded as ASC metadata.
+Constraints: ≤4000 characters in ASC; preserve "*" bullet markers; quote the brand name in target language using locale quotation marks.
+Tone: warm, informative, health-conscious; not aggressive marketing.
+en : '"My Water" helps you drink water regularly. Calculate your daily water intake and get notifications! Water is essential for life on our planet. Roughly 70 percent of the body is made of water. We require water for almost every function within our bodies, from flushing out toxins to digestion. Water is essential to good health, yet needs vary between individuals. This app can help ensure you drink enough fluids. App features: * Water requirement calculator * Reminders * Units (Metric and fl oz) * Statistics in graphs * Motivational awards * Useful tips about water You may need to modify your total fluid intake depending on how active you are, the climate you live in, your health status, etc. The calculation is only a recommendation. The app supports Apple Watch and is integrated with Apple Health.'
+ru : '"Моя вода" поможет тебе пить воду регулярно. Рассчитай дневную цель и получай напоминания вовремя! Вода важна для жизни: тело человека примерно на 70 процентов состоит из воды, а жидкости нужны почти для всех процессов: от пищеварения до выведения токсинов. Потребности у всех разные, и приложение поможет следить, чтобы тебе хватало жидкости. Функции приложения: * Калькулятор дневной цели * Напоминания * Единицы измерения (метрические и fl oz) * Статистика в графиках * Мотивирующие достижения * Полезные советы о воде Возможно, тебе понадобится изменить общий объём жидкости с учётом активности, климата, самочувствия и других факторов. Расчёт - только рекомендация. Приложение поддерживает Apple Watch и интегрируется с Apple Health.'
+ja : '「My Water」は水を定期的に飲むことをサポートします。毎日の摂取量を計算して、通知を受け取りましょう！ 地球上での生活に水は欠かせません。身体の70%近くが水によって構成されています。毒素の排出や消化など、身体のほとんどの機能が水を必要とします。このように水は健康を保つのに不可欠ですが、必要な摂取量は人によって異なります。このアプリはあなたが忘れず必要なだけ水分を摂れるように、サポートします。 アプリの機能: *必要な水分摂取量の計算 *リマインダー *複数単位（メートル法とオンス） *統計グラフ *モチベーション維持のためのアワード *水についての豆知識 活動量や住環境、健康状態などによって総合水分摂取量を調節する必要がある場合があります。アプリによる計算は、一般的に推奨されている量に過ぎません。 このアプリはApple Watchに対応しており、Apple Healthと連携することができます。'
+
+--- entry 0003 ---
+key: "lastDrink"
+platforms: ios,android
+qa: numbers
+unverified: de,fr,hi,it,ja,ms,pt_BR,ru,tr,zh_CN
+context:
+Surface: Settings → Default volumes screen — info alert body when trying to delete the last remaining preset volume row.
+Type: error message
+Context: Blocks the user from removing every default volume; explains that at least one volume must remain.
+en : 'Please add at least one volume.'
+ru : 'Должен остаться хотя бы один объём.'
+ja : '最低1つは量を追加してください'
+
+--- entry 0004 ---
+key: "ach_descr3"
+platforms: ios,android
+qa: numbers
+unverified: ja,tr
+context:
+Surface: Achievements list / award detail — description line.
+Type: achievement description
+Context: Award id=3 (DefaultAwards). Resolved via AwardDisplayFormat.description(forDescriptionKey:). Unlock condition: add six different drink types. Pairs with ach_name3.
+Register: casual T-form — achievement descriptions celebrate the user in casual companion voice (default for non-formal surfaces).
+en : 'Add six different drinks'
+ru : 'Добавь шесть разных напитков'
+ja : '6種類の飲み物を追加する'
+
+--- entry 0005 ---
+key: "tutSubtitle2"
+platforms: ios,android
+qa: numbers
+unverified: ja,ko,ms,pl,pt_BR,ru,zh_CN
+context:
+Surface: Onboarding intro carousel — slide 4 (Daily goal) description, paired with tutTitle2.
+Type: tutorial step
+Context: Subtitle on the carousel slide that introduces the "Daily goal" feature. Tells the user the app will calculate a personalised recommended daily water intake.
+en : 'We will calculate your recommended water intake'
+ru : 'Мы рассчитаем твою дневную цель по воде специально для тебя'
+ja : '1日のおすすめ水分摂取量を計算します'
+
+--- entry 0006 ---
+key: "ach_descr4"
+platforms: ios,android
+qa: spelling_and_grammar
+unverified: ja,ms,tr
+context:
+Surface: Achievements list / award detail — description line.
+Type: achievement description
+Context: Award id=4 (DefaultAwards). Resolved via AwardDisplayFormat.description(forDescriptionKey:). Unlock condition: read all in-app water tips (goal 12). Pairs with ach_name4.
+Register: casual T-form — achievement descriptions celebrate the user in casual companion voice (default for non-formal surfaces).
+en : 'Read all the water tips'
+ru : 'Изучи все советы по воде'
+ja : '水の豆知識をすべて読む'
+
+--- entry 0007 ---
+key: "bestTimeToDrink"
+platforms: ios,android
+qa: numbers
+unverified: it,ja,ko,ms,pl,pt_BR,zh_CN
+context:
+Surface: Onboarding → Notifications interval screen — subtitle paragraph under the screen title.
+Type: paragraph
+Context: Educational subtitle explaining the recommended cadence (every 2-3 hours) for drinking water and assuring the user that the app will send timely reminders. Sets the rationale for the notification interval the user is about to configure.
+en : "It's best to drink a glass of water every two to three hours. We'll remind you at the right time."
+ru : 'Лучше пить по стакану воды раз в два-три часа. Мы позаботимся и напомним в нужное время.'
+ja : '2〜3時間ごとにコップ1杯の水を飲むのがおすすめです。ちょうど良いタイミングでリマインダーを送りますね。'
+
+--- entry 0008 ---
+key: "ach_descr8"
+platforms: ios,android
+qa: numbers
+context:
+Surface: Awards screen / award detail card — achievement description below achievement name.
+Type: achievement description
+Context: Description for the achievement awarded when the user has reached the daily water goal three times.
+Register: casual T-form — achievement descriptions celebrate the user in casual companion voice (default for non-formal surfaces).
+en : 'Reach your goal three times'
+ru : 'Достигни цели три раза'
+ja : '目標を3回達成する'
+
+--- entry 0009 ---
+key: "ach_descr9"
+platforms: ios,android
+qa: numbers
+unverified: ko
+context:
+Surface: Awards screen / award detail card — achievement description below achievement name.
+Type: achievement description
+Context: Description for the achievement awarded when the user has reached the daily water goal seven times.
+Register: casual T-form — achievement descriptions celebrate the user in casual companion voice (default for non-formal surfaces).
+en : 'Reach your goal seven times'
+ru : 'Достигни цели семь раз'
+ja : '目標を7回達成する'
+
+--- entry 0010 ---
+key: "notification1_7"
+platforms: ios,android
+qa: numbers
+unverified: ru
+context:
+Surface: Local scheduled reminder notification — body text, one entry from the rotating reminder pool.
+Type: notification body
+Context: Simple nudge to drink another glass of water.
+Register: casual T-form — push reminders use casual partner voice (default for non-formal surfaces).
+en : 'Drink one more glass of water!'
+ru : 'Выпей ещё один стакан воды!'
+ja : 'あと1杯水を飲みましょう！'
+
+--- entry 0011 ---
+key: "ach_descr2"
+platforms: ios,android
+qa: numbers
+unverified: ja
+context:
+Surface: Achievements list / award detail — description line.
+Type: achievement description
+Context: Award id=2 (DefaultAwards). Resolved via AwardDisplayFormat.description(forDescriptionKey:). Unlock condition: add three different drink types. Pairs with ach_name2.
+Register: casual T-form — achievement descriptions celebrate the user in casual companion voice (default for non-formal surfaces).
+en : 'Add three different drinks'
+ru : 'Добавь три разных напитка'
+ja : '3種類の飲み物を追加する'
+
+--- entry 0012 ---
+key: "ach_descr6"
+platforms: ios,android
+qa: numbers
+unverified: es,ja,pl,zh_CN
+context:
+Surface: Awards screen / award detail card — achievement description below achievement name.
+Type: achievement description
+Context: Achievement unlocked after the user shares, three times, that they completed their daily water goal. Here "your goal" means the accomplishment of reaching the daily goal ("I hit my goal today"), NOT the goal target / amount (e.g. 2000 ml). Do not render it as sharing the target number; keep the "reached / completed" predicate, since a bare "share your goal" wrongly reads as sharing the target. One-time version: ach_descr5.
+Register: casual T-form — achievement descriptions celebrate the user in casual companion voice (default for non-formal surfaces).
+en : 'Share that you reached your goal three times'
+ru : 'Похвастайся достижением цели три раза'
+ja : '目標を3回達成したことを友達に知らせる'
+
+--- entry 0013 ---
+key: "NSHealthShareUsageDescription"
+platforms: ios
+qa: numbers
+unverified: de,fr,hi,id,ms,pl,ru,tr,zh_CN
+context:
+Surface: System HealthKit permission prompt — purpose string shown when the app requests read access to Apple Health data.
+Type: permission prompt
+Context: Justifies why the app reads Apple Health data (water intake, weight, body/profile parameters) — to import hydration history and compute the user's recommended daily water goal. Shown by iOS in the standard HealthKit authorization sheet; user can grant or deny.
+Constraints: Apple guideline — describe purpose specifically and concisely; first-person plural ("we") matches app voice.
+Register: casual T-form — a routine permission prompt is brand-voice «ты» (reserved/reasoned tone) across all T-V / honorific languages; it is NOT a legally-binding consent contract (§ Brand voice § Юридический carve-out). Legacy «вы» here is grandfathered, not a must-fix.
+Tone: reasoned and direct.
+en : 'We need read access to Apple Health water, weight, and profile data so we can import your hydration history and calculate your daily goal.'
+ru : 'Нам нужен доступ на чтение данных Apple Health о воде, весе и профиле, чтобы импортировать твою историю и рассчитать дневную цель.'
+ja : '履歴のインポートと1日の目標の計算のため、Apple Health の水分・体重・プロフィールデータへの読み取りアクセスが必要です。'
+
+--- entry 0014 ---
+key: "termsSubscriptionDescription"
+platforms: ios,android
+qa: numbers
+unverified: ar,de,fr,hi,id,it,ja,ko,ms,nl,pl,ru,tr,vi,zh_CN
+context:
+Surface: Paywall — auto-renewal disclosure paragraph shown alongside the subscription options (required iTunes / App Store subscription terms text).
+Type: paragraph (subscription terms / legal disclosure)
+Context: Mandatory iTunes auto-renewable subscription disclosure: renewal cadence, the 24-hour pre-renewal window for cancellation, where to manage auto-renewal (iTunes account settings), and that the iTunes account is charged. Wording is dictated by App Store guidelines — translate using locale-standard formal legal phrasing for auto-renewable subscriptions; do not soften or shorten the legal points.
+Register: formal — legally-binding subscription / disclosure text; impersonal-first, V-form («вы» / Sie / vous / usted / …) only as a direct-address fallback (TRANSLATION_STYLE.md § Brand voice § Юридический carve-out).
+Tone: formal, legal/disclosure.
+en : 'Your subscription will renew automatically unless auto-renewal is disabled at least 24 hours prior to the end of the current subscription period. Your account will be charged for renewal within 24 hours prior to the end of the current period, and the cost of the renewal will be shown. To disable this feature, simply navigate to your iTunes account and turn off auto-renewal. The subscription fee is charged to the iTunes account used when confirming the purchase.'
+ru : 'Подписка продлевается автоматически, если автопродление не отключено минимум за 24 часа до окончания текущего периода. Оплата за продление списывается в течение 24 часов до окончания периода, сумма будет указана. Автопродление можно отключить в настройках учётной записи iTunes. Оплата подписки списывается с учётной записи iTunes, использованной при подтверждении покупки.'
+ja : '現在の定期購読期間終了の24時間以上前に自動更新を無効にしない限り、定期購読は自動的に更新されます。自動更新を無効にするには、iTunesアカウントで自動更新をオフにしてください。購読料は、購入確認時に使用したiTunesアカウントに請求されます。'
+
+--- entry 0015 ---
+key: "appstore_app_subscriptionTemsAppStore"
+platforms: android
+qa: numbers
+unverified: ar,de,hi,it,ms,nb,pl,ru,sv,vi,zh_CN
+context:
+Surface: App Store Connect listing — subscription terms / promotional text section.
+Type: paragraph (subscription terms)
+Context: Promotional + legal subscription disclosure shown on the App Store product page. Lists premium features, the two subscription plans (1-month and 12-month), iTunes billing terms, auto-renewal disclosure, and the Privacy Policy URL. Note: the legacy key has a typo ("Tems" instead of "Terms") — do not rename the key. Prices "1$" and "12$" are placeholders for App Store display, not literal — replace with locale-relevant subscription price strings. Not used in app code — uploaded as ASC metadata.
+Constraints: ≤4000 chars in ASC; preserve URL https://mywaterapp.me/privacypolicy/ exactly. Keep brand "My Water Premium" untranslated as a proper noun.
+Register: formal — legally-binding subscription / disclosure text; impersonal-first, V-form («вы» / Sie / vous / usted / …) only as a direct-address fallback (TRANSLATION_STYLE.md § Brand voice § Юридический carve-out).
+Tone: warm but legally-clear; not aggressive.
+en : 'For extended features such as different beverages, detailed statistics, custom volumes and other useful features, get My Water Premium. Two different plans: 1 month/1$ and 12 months/12$ with discount price. My Water Premium subscription: the purchase will be charged to your iTunes account. The subscription will be auto-renewed 24 hours prior to it running out. Manage your subscription from User Settings in iTunes after purchasing. Cancel the auto-renewing subscription from there at any time. Terms and Privacy Policy: https://mywaterapp.me/privacypolicy/'
+ru : 'Чтобы получить расширенные функции, такие как разные напитки, подробная статистика, свои объёмы и другие полезные возможности, оформи My Water Premium. Два тарифа: 1 месяц/1$ и 12 месяцев/12$. My Water Premium: покупка будет списана с твоего аккаунта iTunes. Подписка автоматически продлевается за 24 часа до окончания срока. После покупки управляй подпиской в настройках пользователя iTunes. Автопродление можно отменить там в любое время. Условия и политика конфиденциальности: https://mywaterapp.me/privacypolicy/'
+ja : 'My Water Premium で、さらに幅広い機能を利用しよう。色々な種類の飲料、詳細な記録データ、自由な量設定ほか便利な機能がいっぱい。 2つの異なるプラン:1か月（1ドル）、12か月（12ドルのところを割引価格に） My Water Premium サブスクリプション: 料金はiTunes のアカウントにご請求いたします。 サブスクリプションは期間終了の24時間前に自動更新されます。 サブスクリプションはご購入後、iTunes の「設定」で管理してください。サブスクリプションの自動更新はそちらから、いつでもキャンセルできます。 利用規約およびプライバシーポリシー: https://mywaterapp.me/privacypolicy/'
+
+--- entry 0016 ---
+key: "more5MillionUsers"
+platforms: ios,android
+qa: numbers
+unverified: es,hi
+context:
+Surface: Paywall — social proof label on rating / reviews cell (RatingCell, LongSubscriptionRatingCell).
+Type: paragraph (marketing claim) / social proof
+Context: Social proof claim about the size of the user base. Note: the English source reads "7 millions" (legacy phrasing, ungrammatical plural) — render the natural plural form for "million" in the target language. The legacy key id mentions "5Million" but the current value is "7 million"; do not rename the key.
+Constraints: Keep short — fits on one line in the reviews cell header.
+en : 'More than 7 million happy users'
+ru : 'Более 7 миллионов счастливых пользователей'
+ja : '700万人以上の幸せなユーザー'
+
+--- entry 0017 ---
+key: "appstore_screnShotNew1"
+platforms: other
+qa: numbers
+unverified: da,hi,nb,pt_BR
+context:
+Surface: App Store screenshot / marketing hero header.
+Type: paragraph (marketing claim)
+Context: Marketing claim "7 million happy users". Intentional abbreviation — translate the equivalent short form in target language ("млн" in ru, "Mio." in de, etc.).
+Constraints: Keep abbreviation form (not "million" full word); fits hero header on one line.
+en : '7M happy users'
+ru : '7 млн счастливых пользователей'
+ja : '700万人のハッピーユーザー'
+
+--- entry 0018 ---
+key: "appstore_screnShotNew3"
+platforms: other
+qa: numbers
+unverified: nb,pt_BR
+context:
+Surface: Onboarding promo screen / paywall hero — social proof line.
+Type: paragraph (marketing claim)
+Context: Marketing claim showing total number of App Store ratings ("31 thousand ratings worldwide"). "31K" is intentional abbreviation — use the equivalent locale-standard short form ("31 тыс." in ru, "31 Tsd." in de, etc.). Note: key name has a legacy typo "screnShotNew" instead of "screenShotNew" — do not rename.
+Constraints: Keep abbreviation form (not "thousand" full word); fits one line on hero header.
+en : '31K ratings around the world'
+ru : '31 тыс. оценок по всему миру'
+ja : '世界中で3.1万件の評価'
+
+--- entry 0019 ---
+key: "averageWeekPercent"
+platforms: ios,android
+qa: numbers
+context:
+Surface: Main statistics weekly card, monthly statistics cell ("achieving the goal" card), and watch weekly statistics footer page (`averagePercent`).
+Type: stat card label
+Context: Subtitle describing the metric "average percentage of the daily goal completed each day" over the period (week / month). The numeric percentage value is rendered separately on the same card.
+Constraints: Keep short to fit under a number on a stat card.
+en : 'Average daily percentage'
+ru : 'Среднесуточный процент'
+ja : '1日の平均パーセンテージ'
+
+--- entry 0020 ---
+key: "averageWeekCount"
+platforms: ios,android
+qa: numbers
+context:
+Surface: Main statistics weekly card total-volume label and watch weekly statistics footer page (`totalVolume`).
+Type: stat card label
+Context: Subtitle describing the metric "total water drunk over the past week". Numeric value + unit rendered separately on the same card.
+Constraints: Keep short to fit under a number on a watch stat card.
+en : 'Total this week'
+ru : 'Выпито за неделю'
+ja : '1週間の合計'
+
+--- entry 0021 ---
+key: "apphud_offer_trial_extend_button_disagree"
+platforms: android,other
+qa: spelling_and_grammar
+unverified: ms,ru
+context:
+Surface: Apphud server-driven trial-extension offer popup — decline button.
+Type: button label
+Context: Negative option that declines the one-time 7-day trial extension offer; phrased in the user's voice.
+en : 'I don’t want an extra free trial'
+ru : 'Мне не нужно продление пробного периода'
+ja : '無料お試しの延長は必要ありません'
+
+--- entry 0022 ---
+key: "appstore_app_screenShot2_1_new"
+platforms: other
+qa: numbers
+unverified: ko
+context:
+Surface: App Store screenshot 2 — primary headline.
+Type: screenshot caption
+Context: Marketing claim promising users will form a hydration habit within a week. "_new" suffix in the key name marks this as the replacement for an earlier version of the screenshot 2 caption.
+Constraints: Keep short — fits a screenshot headline on one line.
+en : 'New habit in a week'
+ru : 'Новая привычка за неделю'
+ja : '1週間で新習慣を作ろう'
+
+--- entry 0023 ---
+key: "yourOwnGoal"
+platforms: ios,android
+qa: numbers
+unverified: ko,pl,pt_BR,zh_CN
+context:
+Surface: Onboarding goal-questionnaire steps — subtitle line under the step title (`BaseOnboardingViewController.subtitleLabel`), shown on the gender / weight / activity questions to reassure the user why the data is collected.
+Type: paragraph (onboarding subtitle)
+Context: One-sentence reassurance that the app will calculate the daily water goal personally for the user (based on the answers being collected). First-person plural ("we") frames the app as a partner; "individually for you" emphasizes personalization.
+Constraints: Single line; no trailing period (matches en source).
+en : "We'll calculate your daily water goal just for you"
+ru : 'Мы рассчитаем дневную цель по воде индивидуально для тебя'
+ja : '1日の目標水分量を個別に計算します'
+
+--- entry 0024 ---
+key: "trainingMediumSubtitle"
+platforms: ios,android
+qa: numbers
+context:
+Surface: Onboarding activity / workout-frequency selector — subtitle line under the "trainingMedium" / "Regularly" option (`OnboardingActivityViewController.moderateView.subtitle`), clarifying what "Regularly" means in concrete terms.
+Type: section row subtitle / questionnaire option subtitle
+Context: Concrete frequency hint paired with the "Regularly" workout-frequency option — "2-3 times a week". Helps the user pick the right activity level for personalizing the daily water goal.
+Constraints: Keep short — fits a subtitle row under the option title. No trailing period.
+en : '2-3 times a week'
+ru : '2-3 раза в неделю'
+ja : '週2～3回しています'
+
+--- entry 0025 ---
+key: "calculatingTheDailyGoal"
+platforms: ios,android
+qa: numbers
+unverified: ja,ko,pl,tr,zh_CN
+context:
+Surface: Onboarding goal-calculation processing screen (OnboardingNormCircleViewController) — middle item in the animated "we are processing your data" checklist before showing the calculated daily goal (OnboardingNormViewModel).
+Type: tutorial step (progress indicator label)
+Context: Present-continuous tense ("we are calculating..."). Reassures the user the app is computing their personalized daily water goal. Paired with "analyzingTheData" and "addingHelpfulTips" as sequential progress steps.
+Constraints: Short single line; fits next to a small spinner / check icon.
+en : 'Calculating your daily goal'
+ru : 'Рассчитываем дневную цель'
+ja : '1日の目標を計算しています'
+
+--- entry 0026 ---
+key: "severalPerDay"
+platforms: ios,android
+qa: numbers
+unverified: fr,it,nb,ru,zh_CN
+context:
+Surface: Onboarding questionnaire option subtitle for "often" frequency — sugary drinks (`OnboardingDrinksViewModel`), coffee / energy drinks (`OnboardingCoffeeViewModel`), and fruits / vegetables (`OnboardingFruitsViewController`) screens.
+Type: option subtitle
+Context: Clarifies what frequency "Often" means in these questionnaires — multiple servings within a single day. Sibling of "almostNeverSubtitle" / "rarelySubtitle" / "everyDay".
+Constraints: Single short line; fits as subtitle under an option title.
+en : 'Several times a day'
+ru : 'Несколько раз в день'
+ja : '1日に数回'
+
+--- entry 0027 ---
+key: "youShouldDrink1Digits"
+platforms: ios,android
+qa: numbers
+unverified: de,es,fr,hi,id,it,ja,ko,ms,nl,pl,pt_BR,ru,vi,zh_CN
+context:
+Surface: Onboarding goal-calculation result screen (`OnboardingNormViewModel`, `OnboardingNormCircleViewController`) — shown for fractional units like litres.
+Type: paragraph (educational)
+Context: Explains the personalized daily water goal computed from the user's parameters; suggests consulting a doctor for the exact value. Fractional-digit variant (used for litres). Compare `youShouldDrink0Digits` for whole-number variant (ml / fl oz).
+Placeholders:
+  [%1$.1f] — daily goal amount with 1 decimal (e.g. 1.2)
+  [%2$s] — measurement unit ("l" / "ml" / "fl oz")
+en : 'Based on your parameters, your estimated goal is [%1$.1f] [%2$s] of water. Your doctor can determine the exact goal for you.'
+ru : 'Ориентировочная цель на основе твоих параметров: [%1$.1f] [%2$s] воды. Точную цель поможет определить врач.'
+ja : '入力した情報から算出した1日の目標水分量の目安は [%1$.1f] [%2$s] です。正確な量については医師にご相談ください。'
+
+--- entry 0028 ---
+key: "tempDailyGoalReached"
+platforms: ios,android
+qa: numbers
+unverified: pt_BR,sv
+context:
+Surface: New Year 2023 yearly digest — "Daily goals reached" stat card title.
+Type: section header
+Context: Heading on a digest card celebrating how many days during the year the user reached their daily water goal. Short celebratory label; the underlying count is rendered separately on the same card.
+en : 'Daily goal reached!'
+ru : 'Дневная цель достигнута!'
+ja : '1日の目標達成！'
+
+--- entry 0029 ---
+key: "averageWaterPerDay"
+platforms: ios,android
+qa: numbers
+context:
+Surface: New Year yearly digest stat card (iPhone) and watch weekly statistics footer page (`averageVolume`).
+Type: stat card label
+Context: Subtitle / caption describing the metric "average daily water amount" — used under a number+unit (e.g. "1500 ml") to label what the value represents. Lowercase to match digest tile and watch footer style.
+Constraints: Lowercase; short; no trailing period; fits under a number on a small stat card.
+en : 'average per day'
+ru : 'в среднем в день'
+ja : '1日あたりの平均'
+
+--- entry 0030 ---
+key: "differentBeveragesPerDay"
+platforms: ios,android
+qa: numbers
+context:
+Surface: New Year 2023 yearly digest screen — caption under the "average distinct drinks per day" stats tile.
+Type: caption
+Context: Subtitle describing the number above it — the average count of distinct beverages the user logged per day across the year.
+Constraints: Lowercase; no trailing period; keep concise to fit beneath a stats tile.
+en : 'different drinks per day'
+ru : 'различных напитков в день'
+ja : '1日に飲む飲み物の種類'
+
+--- entry 0031 ---
+key: "increaseDailyGoal"
+platforms: ios,android
+qa: brackets
+unverified: hi,ko,nl,vi
+context:
+Surface: Daily / beverage detail statistics — water balance row when an alcoholic beverage was logged.
+Type: statistics caption
+Context: Alcohol dehydrates the body, so logging an alcoholic drink raises the user's daily water goal. This caption shows the extra volume added to the goal because of that drink. Rendered example: "+200 ml to goal (alcohol increases goal)".
+Placeholders:
+  [%1$s] — added volume number (e.g. "200")
+  [%2$s] — measurement unit ("ml" / "l" / "fl oz")
+Constraints: Keep the line reasonably short; the parenthetical explanation can be shortened in translation if needed.
+en : '+[%1$s] [%2$s] to goal (alcohol increases goal)'
+ru : '+[%1$s] [%2$s] к цели (алкоголь увеличивает цель)'
+ja : '目標に +[%1$s] [%2$s]（アルコールは目標を増やします）'
+
+--- entry 0032 ---
+key: "youShouldDrink"
+platforms: ios,android
+qa: numbers
+unverified: de,es,fr,hi,id,it,ja,ko,ms,nl,pl,pt_BR,ru,tr,vi,zh_CN
+context:
+Surface: Settings → Daily goal screen — description below the calculated daily water goal value.
+Type: paragraph (educational disclaimer)
+Context: Tells the user that the computed daily water goal is an approximation derived from their profile parameters (sex, weight, activity, etc.), and that only their doctor can give an exact medical value. "Estimated" = approximate, not exact.
+en : 'This is an estimated goal based on your parameters. Your doctor can determine an exact daily goal for you.'
+ru : 'Это приблизительная цель на основе твоих параметров. Точную дневную цель поможет определить врач.'
+ja : '入力した情報をもとにした推定目標です。正確な1日の目標については医師にご相談ください。'
+
+--- entry 0033 ---
+key: "reviewsCount"
+platforms: ios,android
+qa: numbers
+unverified: pl
+context:
+Surface: Paywall / subscription screen — social-proof reviews count label shown near the rotating user-review cards (e.g. "8.4k reviews").
+Type: label (social proof)
+Context: Displays the aggregate count of App Store / store reviews as a trust signal next to the testimonial cards. "8.4k" is a marketing-rounded abbreviation for 8 400 reviews — keep the abbreviated "k" form when the locale supports it; otherwise use the locale's standard thousand abbreviation. Localize "reviews" with the appropriate noun form.
+Constraints: Keep short — fits a single-line caption near the testimonials.
+en : '8.4k reviews'
+ru : '8,4 тыс. отзывов'
+ja : '8400件のレビュー'
+
+--- entry 0034 ---
+key: "controlAddDrinkDescription"
+platforms: ios
+qa: numbers
+unverified: ar,hi,id,ms,nb,vi
+context:
+Surface: iOS 18 Control Center "Add a drink" Control Widget — gallery / configuration description shown by the system.
+Type: paragraph (system gallery description)
+Context: System-rendered description for the AppIntent-backed Control Widget that quickly logs a drink (AddDrinkControlIntent, AddDrinkControlWidget).
+en : 'Quickly log a drink to your daily intake'
+ru : 'Быстро добавить напиток'
+ja : '1日の摂取量に飲み物を素早く追加'
+
+--- entry 0035 ---
+key: "controlGlassWaterDescription"
+platforms: ios
+qa: numbers
+unverified: hi,ru
+context:
+Surface: iOS 18+ Control Center "Glass of water" Control Widget — gallery description shown under the title (AddGlassWaterControlWidget).
+Type: control description
+Context: Imperative one-sentence description for the Control Widget that logs a single glass of water with one tap. Pairs with the "controlGlassWaterTitle" title.
+Constraints: Keep concise (≤ ~40 chars). Trailing period.
+en : 'Log one glass of water'
+ru : 'Запиши один стакан воды.'
+ja : 'コップ1杯の水を追加'
+
+--- entry 0036 ---
+key: "controlGlassWaterTitle"
+platforms: ios
+qa: numbers
+unverified: nb
+context:
+Surface: iOS 18+ / watchOS Control Center "Glass of water" Control Widget — gallery / button title, Control Widget display name, and AddGlassWaterControlIntent title.
+Type: control title
+Context: Short noun phrase naming the quick-add control: a single glass of water. LiveActivityIntent conformance is routing only; this is not the Hydration Live Activity quick-add title.
+Constraints: Keep short (≤ ~15 chars) for the Control Center tile. No trailing period.
+en : 'Glass of water'
+ru : 'Стакан воды'
+ja : 'コップ1杯の水'
+
+--- entry 0037 ---
+key: "dailyGoalApplyScopeMessage"
+platforms: ios
+qa: numbers
+unverified: hi
+context:
+Surface: Settings → Daily goal — body text of the choice alert shown when the user changes their daily goal value (UIViewController+DailyGoalApplyScopeAlert). Paired with "dailyGoalApplyScopeCurrentDay" / "dailyGoalApplyScopeAllTime" action buttons and a Cancel.
+Type: alert body
+Context: Asks the user whether the new daily goal should apply only from today (leaving past days untouched) or also recalculate completion for all previous days. Single question sentence ending with "?".
+Constraints: One sentence; ends with "?".
+en : 'Apply the new daily goal from today only, or recalculate all previous days too?'
+ru : 'Применить новую дневную цель только с сегодняшнего дня или пересчитать также все предыдущие дни?'
+ja : '新しい1日の目標を今日から適用しますか？それとも過去のすべての日も再計算しますか？'
+
+--- entry 0038 ---
+key: "dailyGoalsHistory"
+platforms: ios
+qa: numbers
+context:
+Surface: Settings → Daily goal — title of the "Daily goal history" button under the goal value, and screen title / accessibility label of the table picker that lists past daily goal entries. Also used as the accessibility label for the goal-history button on the beverage detail statistics screen.
+Type: screen title / button label / accessibility label
+Context: Opens / titles the screen that lists past daily goal values the user had over time (each entry is a date + goal amount).
+Constraints: Keep short to fit a button label.
+en : 'Daily goal history'
+ru : 'История дневной цели'
+ja : '1日の目標の履歴'
+
+--- entry 0039 ---
+key: "dayBoundary"
+platforms: ios
+qa: numbers
+context:
+Surface: Settings → main list — row title for the "End of day" entry that opens the time-of-day picker controlling when one logged day rolls over into the next. Also used as the title of that picker screen.
+Type: settings row title / screen title
+Context: Noun phrase. Labels the user-configurable day boundary — the hour after midnight at which the app starts counting drinks toward the next day (e.g. someone going to bed at 2 AM still wants those drinks counted as "today"). Distinct from the legacy "dayEnd" key with the same value but no longer used in code.
+Constraints: Keep short to fit a single-line settings row title.
+en : 'End of day'
+ru : 'Конец дня'
+ja : '1日の終了時刻'
+
+--- entry 0040 ---
+key: "deleteDailyGoalHistoryConfirm"
+platforms: ios
+qa: numbers
+unverified: hi
+context:
+Surface: Settings → Daily goal → Daily goal history picker — confirmation alert body shown after the user taps the destructive (delete) action on a single past goal entry.
+Type: error message (confirmation alert body)
+Context: Asks the user to confirm permanent deletion of one historical daily goal entry. Paired with the "Delete" / "Cancel" alert buttons.
+en : 'Delete this daily goal from history?'
+ru : 'Удалить эту дневную цель из истории?'
+ja : 'この1日の目標を履歴から削除しますか？'
+
+--- entry 0041 ---
+key: "shareImageEyebrow"
+platforms: ios
+qa: numbers
+context:
+Surface: Generated share image (PNG / screenshot saved to camera roll) — uppercased eyebrow caption rendered above the multi-line title on the image itself.
+Type: section header (eyebrow caption on share image)
+Context: Small uppercased line on the share image above the "Hydrated. / Energized. / Done." headline; appends a formatted date (e.g. "MY DAY · MAY 15"). The "·" is a middot separator — keep as-is. Rendered uppercased at runtime.
+Placeholders:
+  [%s] — locale-formatted date string (e.g. "MAY 15" / "15 МАЯ"), already prepared by code
+Constraints: Keep short (1-3 words plus the date); no trailing period. and the "·" separator.
+en : 'My day · [%s]'
+ru : 'Мой день · [%s]'
+ja : '私の1日 · [%s]'
+
+--- entry 0042 ---
+key: "statisticsBeverageTimeOfDaySubtitle"
+platforms: ios
+qa: brackets,numbers
+unverified: ar,id
+context:
+Surface: Statistics → Beverage detail → "When you drink" section subtitle, just below `statisticsBeverageTimeOfDayTitle`.
+Type: subtitle / paragraph
+Context: Explains that the time-of-day chart shows each bucket's share of the day's intake as a percentage. The value intentionally starts with a literal "%" sign — keep that "%" character as-is, do not convert it to a format specifier.
+Constraints: Keep short (single line under the section title). Preserve the leading "%" literal.
+en : '[%] of daily intake'
+ru : '[%] от дневного объёма'
+ja : '[%] (1日の摂取量)'
+
+--- entry 0043 ---
+key: "subscriptionStatisticsSampleDate"
+platforms: ios
+qa: numbers
+context:
+Surface: Onboarding paywall — Statistics preview card, third sample row date label (paired with "Today" and "Yesterday" rows above it).
+Type: sample date label (mock data)
+Context: Hardcoded sample calendar date shown inside a fake statistics card on the paywall to illustrate what the in-app history will look like. Not a live date. Use the translator's locale-natural format for "21 April" (day + month, no year, short month name allowed); the card is narrow so keep it brief.
+Constraints: Keep short (≤10 chars) — the sample row is narrow.
+en : 'April 21'
+ru : '21 апр.'
+ja : '4月21日'
+
+--- entry 0044 ---
+key: "a11yMainProgressLabel"
+platforms: ios
+qa: numbers
+unverified: id,ms,nl
+context:
+Surface: Main screen progress pill and widget / watch hydration progress views, accessibility label.
+Type: accessibility label
+Context: Spoken before the percent / amount value so VoiceOver users know the figure describes today's water intake progress.
+Constraints: Read aloud — must be natural spoken phrase, not a UI fragment.
+en : 'Daily hydration'
+ru : 'Вода за день'
+ja : '1日の水分摂取'
+
+--- entry 0045 ---
+key: "widgetWeeklyChartDescription"
+platforms: ios
+qa: numbers
+unverified: da,ko,ms,nl
+context:
+Surface: Widget gallery — weekly chart widget description, shown beneath the title.
+Type: widget gallery description
+Context: Weekly Progress variant — explains the widget displays hydration progress over the past week.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Shows your hydration progress for the past week'
+ru : 'Показывает прогресс выпитого за прошлую неделю.'
+ja : '過去1週間の水分摂取の進捗を表示'
+
+--- entry 0046 ---
+key: "widgetSmallProgressDescription"
+platforms: ios
+qa: numbers
+unverified: ko,ms,nl
+context:
+Surface: Widget gallery — small home screen widget description, base compact variant.
+Type: widget gallery description
+Context: Compact Progress variant — explains the small widget shows a compact view of today's hydration progress.
+Constraints: 1 short sentence; widget gallery typically truncates at 2 lines.
+en : 'Compact view of your daily hydration progress'
+ru : 'Компактный вид дневного прогресса выпитого.'
+ja : '1日の水分摂取の進捗をコンパクトに表示'
+
+--- entry 0047 ---
+key: "multiple_social_providers"
+platforms: web
+qa: numbers
+unverified: ko,nl
+context:
+Surface: Social friend search — error.
+Type: error message
+Context: Returned when tokens for more than one social network (e.g. VK and Facebook) are sent in a single request; only one network may be searched per call.
+en : 'Only one social network can be used per request'
+ru : 'За один запрос можно указать только одну соцсеть'
+ja : '1回のリクエストで使用できるソーシャルネットワークは1つだけです'
+
+--- entry 0048 ---
+key: "batch_too_large"
+platforms: web
+qa: brackets,numbers
+context:
+Surface: Batch sync — error.
+Type: error message
+Context: Returned when a single request carries more than 500 items. Applies to batches of drink, weight, and custom-drink records.
+Constraints: Keep the limit number (500).
+en : 'Too many items in a single request (limit: 500)'
+ru : 'Слишком много элементов в одном запросе (лимит: 500)'
+ja : '1回のリクエストに含まれる項目が多すぎます（上限：500）'
+
+--- entry 0049 ---
+key: "invalid_emoji"
+platforms: web
+qa: numbers
+unverified: da,de,es,fr,hi,ru,tr
+context:
+Surface: Friend endorsement action — validation error when choosing a reaction emoji.
+Type: error message
+Context: Returned as the `invalid_emoji` API error code from `mywater_server` (`setFriendEndorsement.php`) when the emoji value is not exactly one valid emoji grapheme cluster (invalid UTF-8, plain text, multiple emoji, or control characters).
+Constraints: Keep short.
+en : 'Please pick a single emoji.'
+ru : 'Выбери один эмодзи.'
+ja : '絵文字を1つ選んでください。'
+
+--- entry 0050 ---
+key: "grid_widget_description"
+platforms: android
+qa: numbers
+unverified: ar,zh_CN
+context:
+Surface: Android home screen widget picker — description for the grid quick-add widget. Type: widget description. Context: Describes a grid widget built from the user's recent drinks, letting them log one again with one tap. Constraints: One short sentence; launcher widget pickers may truncate at two lines.
+en : 'Grid widget for adding recent drinks in one tap'
+ru : 'Виджет с недавними напитками для добавления в одно касание'
+ja : '最近の飲み物を1タップで追加できるグリッドウィジェット'

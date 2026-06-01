@@ -1,0 +1,39 @@
+# QA validation batch — language=hi
+# Source: qa_issues.ndjson (Lokalise LanguageTool flags) joined to strings.ndjson by key_id.
+# Task per entry: decide REAL error vs LanguageTool FALSE POSITIVE; if real, give the corrected value.
+#   Frequent false positives on UI strings: brand (MyWater), placeholders [%s]/[%i],
+#   informal register (du / ты), fragments without final punctuation, loanwords/transliteration.
+# en = source of truth · ru = full-parity reference · <lang> = the flagged value to judge.
+# qa: which QA check(s) fired. unverified: langs Lokalise flags for review. context: translator context.
+# flagged_value appears only on corpus/Lokalise drift (corpus stale for this lang — regenerate first).
+# Confirmed fixes -> {key: value} JSON -> loc_apply_lang.py <lang> fixes.json (stays unverified).
+# flagged entries: 2  (skipped: 0 key_id not in corpus, 0 off-platform)
+--- entry 0001 ---
+key: "appstore_app_subscriptionTemsAppStore"
+platforms: android
+qa: numbers
+unverified: ar,de,hi,it,ms,nb,pl,ru,sv,vi,zh_CN
+context:
+Surface: App Store Connect listing — subscription terms / promotional text section.
+Type: paragraph (subscription terms)
+Context: Promotional + legal subscription disclosure shown on the App Store product page. Lists premium features, the two subscription plans (1-month and 12-month), iTunes billing terms, auto-renewal disclosure, and the Privacy Policy URL. Note: the legacy key has a typo ("Tems" instead of "Terms") — do not rename the key. Prices "1$" and "12$" are placeholders for App Store display, not literal — replace with locale-relevant subscription price strings. Not used in app code — uploaded as ASC metadata.
+Constraints: ≤4000 chars in ASC; preserve URL https://mywaterapp.me/privacypolicy/ exactly. Keep brand "My Water Premium" untranslated as a proper noun.
+Register: formal — legally-binding subscription / disclosure text; impersonal-first, V-form («вы» / Sie / vous / usted / …) only as a direct-address fallback (TRANSLATION_STYLE.md § Brand voice § Юридический carve-out).
+Tone: warm but legally-clear; not aggressive.
+en : 'For extended features such as different beverages, detailed statistics, custom volumes and other useful features, get My Water Premium. Two different plans: 1 month/1$ and 12 months/12$ with discount price. My Water Premium subscription: the purchase will be charged to your iTunes account. The subscription will be auto-renewed 24 hours prior to it running out. Manage your subscription from User Settings in iTunes after purchasing. Cancel the auto-renewing subscription from there at any time. Terms and Privacy Policy: https://mywaterapp.me/privacypolicy/'
+ru : 'Чтобы получить расширенные функции, такие как разные напитки, подробная статистика, свои объёмы и другие полезные возможности, оформи My Water Premium. Два тарифа: 1 месяц/1$ и 12 месяцев/12$. My Water Premium: покупка будет списана с твоего аккаунта iTunes. Подписка автоматически продлевается за 24 часа до окончания срока. После покупки управляй подпиской в настройках пользователя iTunes. Автопродление можно отменить там в любое время. Условия и политика конфиденциальности: https://mywaterapp.me/privacypolicy/'
+hi : 'अलग-अलग पेय पदार्थ, विस्तृत आँकड़े, कस्टम मात्रा जैसे फीचर्स पाने के लिए आज ही My Water Premium लो। 2 प्लान: 1$/1 महीना और 12$ 12 महीनों के लिए डिस्काउंट के साथ। My Water Premium सब्स्क्रिप्शन: खरीदने पर तुम्हारा iTunes अकाउंट चार्ज किया जाएगा। खत्म होने से 24 घंटे पहले सब्स्क्रिप्शन ऑटो-रिन्यू हो जाएगा। खरीदने के बाद User Settings में जाकर अपना सब्स्क्रिप्शन मैनेज करो और वहीं से ऑटो-रिन्यूअल बंद करो। शर्तें और गोपनीयता पॉलिसी: https://mywaterapp.me/privacypolicy/'
+
+--- entry 0002 ---
+key: "daysLongesStreak"
+platforms: ios,android
+qa: brackets
+unverified: de,fr,pl,ru,tr
+context:
+Surface: New Year 2023 yearly digest screen — caption under the "longest streak" stats tile (the number above shows the user's longest run of consecutive days hitting the daily goal during the year).
+Type: caption
+Context: Subtitle describing the number above — the count of consecutive days in the user's longest streak that year. The English source word order is awkward ("days longest streak"); render natural-sounding equivalent in the target language ("longest streak in days", "longest streak: N days", etc.). Key id has typo "Longes" — preserve.
+Constraints: Lowercase; no trailing period; keep concise to fit beneath a stats tile.
+en : 'days in your longest streak'
+ru : 'дней в самой длинной серии'
+hi : 'सबसे लंबी स्ट्रीक (दिनों में)'
