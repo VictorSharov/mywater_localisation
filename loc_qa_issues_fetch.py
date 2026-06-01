@@ -25,7 +25,8 @@ Of the QA categories, the non-linguistic ones (placeholders / whitespace / brack
 / numbers) are already enforced deterministically and token-free by
 loc_placeholder_lint.py + loc_qa.py, so the default issue type is
 `spelling_and_grammar` — the one that needs linguistic judgement. Pass --issue to
-fetch others (e.g. to reconcile what Lokalise flags against the local linters).
+fetch others (e.g. to reconcile what Lokalise flags against the local linters), or
+--all-issues to fetch every category in one run (what `make qa-issues` runs).
 
 Needs the Lokalise token (operator-run, like loc_corpus_ndjson.py):
 
@@ -35,6 +36,7 @@ Needs the Lokalise token (operator-run, like loc_corpus_ndjson.py):
     export LOKALISE_PROJECT_ID=...
     .venv-lokalise/bin/python loc_qa_issues_fetch.py
     .venv-lokalise/bin/python loc_qa_issues_fetch.py --issue spelling_and_grammar --issue placeholders
+    .venv-lokalise/bin/python loc_qa_issues_fetch.py --all-issues
 """
 from __future__ import annotations
 
@@ -64,7 +66,7 @@ DEFAULT_OUT = str(Path(__file__).resolve().parent / "qa_issues.ndjson")
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        issues = chosen_issues(args.issue)
+        issues = chosen_issues(args.issue, args.all_issues)
         config = config_from_env(args)
         client = LokaliseClient(config)
         rows = collect_rows(client, issues, args.limit)
@@ -85,11 +87,17 @@ def build_parser() -> argparse.ArgumentParser:
         description="Fetch Lokalise QA-flagged translations to an NDJSON snapshot for AI validation."
     )
     parser.add_argument("--out", default=DEFAULT_OUT, help=f"Output NDJSON path. Default: {DEFAULT_OUT}.")
-    parser.add_argument(
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument(
         "--issue",
         action="append",
         choices=QA_ISSUE_TYPES,
         help=f"QA issue type to fetch. Repeatable. Default: {DEFAULT_ISSUE}.",
+    )
+    selection.add_argument(
+        "--all-issues",
+        action="store_true",
+        help="Fetch every QA issue type in one run (all of QA_ISSUE_TYPES); mutually exclusive with --issue.",
     )
     parser.add_argument("--project-id", default=os.environ.get("LOKALISE_PROJECT_ID"), help="Lokalise project id. Defaults to LOKALISE_PROJECT_ID.")
     parser.add_argument("--branch", default=os.environ.get("LOKALISE_BRANCH"), help="Optional Lokalise branch. Defaults to LOKALISE_BRANCH.")
@@ -99,9 +107,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def chosen_issues(issues: list[str] | None) -> list[str]:
-    """Apply the default and de-dup while preserving order. argparse `choices`
-    already rejects unknown values."""
+def chosen_issues(issues: list[str] | None, all_issues: bool = False) -> list[str]:
+    """Resolve the issue types to fetch: --all-issues selects every QA_ISSUE_TYPES;
+    otherwise the given --issue values (de-duped, order-preserving) or the default.
+    argparse `choices` already rejects unknown values, and the mutually exclusive
+    group rejects --all-issues combined with --issue."""
+    if all_issues:
+        return list(QA_ISSUE_TYPES)
     selected = issues or [DEFAULT_ISSUE]
     seen: set[str] = set()
     out: list[str] = []

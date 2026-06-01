@@ -61,7 +61,7 @@ tagging touch Lokalise.
 | `loc_export.py` | download Lokalise exports into each platform repo (iOS/Android/server) with the validated per-platform settings baked in; dry-run default, `--apply`, post-download sanity checks | yes (`--apply`) |
 | `loc_glossary_ndjson.py` | regenerate `glossary.ndjson` from the Lokalise glossary API | yes |
 | `loc_glossary_import.py` | upsert `glossary.ndjson` into the Lokalise glossary API (dry-run default, `--apply`) | yes (`--apply`) |
-| `loc_qa_issues_fetch.py` | fetch Lokalise QA-flagged translations (`spelling_and_grammar` default; `--issue` for others) to `qa_issues.ndjson` for AI validation | yes |
+| `loc_qa_issues_fetch.py` | fetch Lokalise QA-flagged translations (`spelling_and_grammar` default; `--issue` for some, `--all-issues` / `make qa-issues` for all) to `qa_issues.ndjson` for AI validation | yes |
 | `loc_audit_extract.py` | extract en+ru+`<lang>` audit batches from the corpus (opt. `--platform`) | — |
 | `loc_audit_glossary.py` | emit the canonical per-language glossary terminology checklist for the audit sub-agent (inline w/ the prompt) | — |
 | `loc_audit_apply.py` | apply validated audit findings into the corpus | — |
@@ -87,6 +87,7 @@ Exact flags live in each script's `--help` / docstring (the canonical owner).
 # Fetch Lokalise QA warnings (spelling/grammar by default) for AI validation (token holder):
 .venv-lokalise/bin/python loc_qa_issues_fetch.py
 .venv-lokalise/bin/python loc_qa_issues_fetch.py --issue spelling_and_grammar --issue placeholders
+make qa-issues   # fetch ALL QA issue types at once -> qa_issues.ndjson
 
 # Audit a language (reads the corpus; no token):
 python3 loc_audit_extract.py de 1 200 /tmp/loc_audit_de_001.txt

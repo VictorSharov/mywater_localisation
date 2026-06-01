@@ -30,7 +30,7 @@ DELETE_KEYS_FILE ?=
 DELETE_KEYS_FILE_KIND ?= name
 
 .DEFAULT_GOAL := help
-.PHONY: help pull push push-dry delete-keys delete-keys-dry export export-dry glossary-pull glossary-push glossary-push-dry lint diff apply
+.PHONY: help pull push push-dry delete-keys delete-keys-dry export export-dry glossary-pull glossary-push glossary-push-dry qa-issues lint diff apply
 
 help:
 	@printf '%s\n' \
@@ -53,6 +53,9 @@ help:
 	"                          OVERWRITES the local glossary (asks for confirmation). FORCE=1 skips the prompt." \
 	"  make glossary-push-dry  Dry-run local glossary -> Lokalise glossary API upsert." \
 	"  make glossary-push      Push local glossary -> Lokalise glossary API (--apply)." \
+	"" \
+	"  QA-flag validation: Lokalise QA checks  --qa-issues-->  qa_issues.ndjson  (-> token-free extract -> sub-agent validate)" \
+	"  make qa-issues    Загрузка QA-флагов — fetch ALL Lokalise QA issue types -> qa_issues.ndjson (AI-validation seed). ARGS=\"--limit 200\"." \
 	"" \
 	"  make apply        Fan-in — применить /tmp/loc_<lang>.json в корпус, по одному (token-free)." \
 	"                    Единый сериализованный писатель (без гонки applies). LANGS=\"vi nb de\"." \
@@ -170,6 +173,16 @@ glossary-push-dry:
 
 glossary-push:
 	$(PY) loc_glossary_import.py --glossary $(GLOSSARY) $(ARGS) --apply
+
+# Lokalise QA checks -> local snapshot for the AI QA-validation pipeline. Read-only
+# against Lokalise (writes the regenerable qa_issues.ndjson, like `pull` writes the
+# corpus) so there is no --apply / dry-run split. --all-issues fetches EVERY QA
+# category in one run (driven by QA_ISSUE_TYPES, not a list duplicated here) so the
+# snapshot carries the full flag set; ARGS passes extras (e.g. --limit 200). The
+# token-free join/extract step (loc_qa_issues_extract.py) has no wrapper — run it
+# directly per CLAUDE.md [CR-MAKE].
+qa-issues:
+	$(PY) loc_qa_issues_fetch.py --all-issues $(ARGS)
 
 # Token-free review gates (same lints loc_corpus_import pre-flights).
 lint:
