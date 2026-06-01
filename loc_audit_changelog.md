@@ -25,6 +25,13 @@ doc-scope: durable calibration rationale for the localization value-audit — wh
 > are operator/orchestrator references. New prompt/skip/output rule changes still get a
 > dated one-line rationale entry **here**; new sweep/apply passes get an execution entry in
 > `loc_audit_status.md`.
+>
+> **Upkeep (keep it lean, keep it shared).** Optimize for the agent-reader doing the next
+> task — the human operator rarely reads these. Cut redundancy / self-narration, resolve
+> contradictions in place. Durable project knowledge (state, decisions, conventions, gotchas)
+> belongs in these tracked repo docs — **never only in an agent's private memory**, which is
+> per-developer and unshared, so the other contributor's agent never sees it and the idea is
+> lost. Private memory is for an individual's working preferences only.
 
 ## Skip rules (§ What NOT to flag — pilot/group-calibrated false-positive patterns)
 
